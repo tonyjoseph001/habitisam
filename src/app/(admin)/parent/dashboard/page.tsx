@@ -2,37 +2,93 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
-import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock } from 'lucide-react';
+import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock, User as UserIcon } from 'lucide-react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { Profile } from '@/lib/db';
-// Need a Profile Switcher Modal later. For now, placeholders.
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 export default function ParentDashboard() {
+    const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
 
+    // Directive A: Local State
+    const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+
+    // Directive B: Real Data
+    // 1. Fetch children profiles
+    const childProfiles = useLiveQuery(
+        () => db.profiles.where('type').equals('child').toArray()
+    );
+
+    // 2. Fetch today's routines
+    // Simple logic: get all activities. In real app, filter by "days of week" vs today.
+    // For prototype, we assume all recurring routines appear effectively "today".
+    const allRoutines = useLiveQuery(
+        () => db.activities.toArray()
+    );
+
+    // Filter Logic
+    const filteredRoutines = allRoutines?.filter(routine => {
+        // Filter Rule 2: Assignee
+        // If no children selected, show ALL (or none? Usually "All" is better UX, let's assume ALL).
+        // Wait, "Filter Rule 2: The list MUST filter based on the selected child IDs"
+        // If selectedChildIds is empty, we likely show all.
+        // If not empty, routine.profileIds must overlap with selectedChildIds.
+        if (selectedChildIds.length === 0) return true;
+
+        // Check overlap
+        const hasOverlap = routine.profileIds.some(id => selectedChildIds.includes(id));
+        return hasOverlap;
+    });
+
+    const toggleChildSelection = (id: string) => {
+        if (selectedChildIds.includes(id)) {
+            setSelectedChildIds(prev => prev.filter(cid => cid !== id));
+        } else {
+            setSelectedChildIds(prev => [...prev, id]);
+        }
+    };
+
+    const getChildName = (id: string) => {
+        const child = childProfiles?.find(p => p.id === id);
+        return child ? child.name : 'Unknown';
+    };
+
+    // Placeholder stats
+    const totalStars = 150; // In real app, sum from childProfiles or activityLogs
+    const streak = 5;
+
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-24">
+        <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
             {/* 1. Header Bar */}
             <header className="px-4 py-4 flex items-center justify-between bg-white shadow-sm sticky top-0 z-30">
                 <button
                     onClick={() => setIsSwitcherOpen(true)}
                     className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-50 transition-colors"
                 >
-                    {/* Avatar Placeholder */}
-                    <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold border border-violet-200">
-                        {activeProfile?.name?.[0] || 'P'}
+                    {/* Avatar Placeholder: Generic User Icon as requested */}
+                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 border border-violet-200">
+                        {activeProfile?.avatarId ? (
+                            // Ideally load avatar image, but directive says "replace 'P' icon with placeholder"
+                            <span className="text-lg font-bold">{activeProfile.name[0]}</span>
+                        ) : (
+                            <UserIcon className="w-6 h-6" />
+                        )}
                     </div>
                     <ChevronDown className="w-4 h-4 text-slate-500" />
                 </button>
 
-                <h1 className="text-lg font-bold text-slate-900">Dashboard</h1>
+                <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
 
-                <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-full">
+                <Link href="/parent/settings" className="p-2 text-slate-400 hover:bg-slate-50 rounded-full">
                     <Settings className="w-6 h-6" />
-                </button>
+                </Link>
             </header>
 
             <ProfileSwitcherModal
@@ -40,138 +96,175 @@ export default function ParentDashboard() {
                 onClose={() => setIsSwitcherOpen(false)}
             />
 
-            <main className="px-4 py-6 flex flex-col gap-6 max-w-screen-md mx-auto">
+            <main className="px-4 py-6 flex flex-col gap-8 max-w-screen-md mx-auto">
 
                 {/* 2. Quick Stats Card */}
-                <div className="w-full bg-gradient-to-r from-violet-600 to-teal-500 rounded-2xl p-6 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow relative overflow-hidden">
-                    {/* Subtle background glow/noise could go here */}
-                    <div className="relative z-10 flex justify-between items-center text-center">
-                        <div className="flex-1 border-r border-white/20">
-                            <p className="text-xs font-medium opacity-80 uppercase tracking-wide">Today's Progress</p>
-                            <p className="text-3xl font-heading font-bold mt-1">2/3</p>
-                            <p className="text-xs opacity-70">Routines Done</p>
-                        </div>
-                        <div className="flex-1 border-r border-white/20">
-                            <p className="text-xs font-medium opacity-80 uppercase tracking-wide">Total Stars</p>
-                            <div className="flex items-center justify-center gap-1 mt-1">
-                                <span className="text-3xl font-heading font-bold">150</span>
-                                <span className="text-2xl">⭐</span>
+                {/* Revert labels: Today, Total Stars, Streak. No dividers. */}
+                <div className="w-full bg-gradient-to-r from-violet-600 to-teal-400 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+                    <div className="relative z-10 flex justify-between items-start text-center">
+                        <div className="flex flex-col items-center flex-1">
+                            <p className="text-xs font-bold opacity-90 uppercase tracking-wider mb-1">TODAY</p>
+                            <div className="flex flex-col items-center">
+                                <span className="text-4xl font-extrabold leading-none">2/3</span>
+                                <span className="text-[10px] lowercase opacity-80 mt-1">routines done</span>
                             </div>
                         </div>
-                        <div className="flex-1">
-                            <p className="text-xs font-medium opacity-80 uppercase tracking-wide">Current Streak</p>
-                            <div className="flex items-center justify-center gap-1 mt-1">
-                                <span className="text-3xl font-heading font-bold">5</span>
+
+                        <div className="flex flex-col items-center flex-1">
+                            <p className="text-xs font-bold opacity-90 uppercase tracking-wider mb-1">TOTAL STARS</p>
+                            <div className="flex items-center gap-1">
+                                <span className="text-4xl font-extrabold leading-none">{totalStars}</span>
+                                <Star className="w-6 h-6 fill-yellow-400 text-yellow-400" />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center flex-1">
+                            <p className="text-xs font-bold opacity-90 uppercase tracking-wider mb-1">STREAK</p>
+                            <div className="flex items-center gap-1">
+                                <span className="text-4xl font-extrabold leading-none">{streak}</span>
                                 <span className="text-2xl">🔥</span>
                             </div>
-                            <p className="text-xs opacity-70">Days</p>
+                            <span className="text-[10px] opacity-80 mt-1">days</span>
                         </div>
                     </div>
                 </div>
 
-                {/* 3. Children Toggle Section */}
-                <div className="flex flex-col gap-3">
-                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Children</h3>
-                    <div className="flex items-center gap-4 overflow-x-auto py-1">
-                        {/* Example Child 1 (Active) */}
-                        <div className="flex flex-col items-center gap-1">
-                            <div className="w-14 h-14 rounded-full bg-blue-100 border-[3px] border-violet-600 relative flex items-center justify-center shadow-md">
-                                {/* Avatar Image would go here */}
-                                <span className="text-2xl">👦</span>
-                                <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-[2px]">
-                                    <Check className="w-3 h-3" />
-                                </div>
-                            </div>
-                            <span className="text-xs font-medium text-violet-700">Ethan</span>
-                        </div>
+                {/* 3. Children Section */}
+                <div className="flex flex-col gap-4">
+                    <div className="flex justify-between items-center px-1">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Children</h3>
+                        {/* Visual Toggle Placeholder */}
+                        <button className="text-xs font-bold text-violet-600 uppercase tracking-wide opacity-50 cursor-not-allowed">Toggle</button>
+                    </div>
 
-                        {/* Example Child 2 (Inactive) */}
-                        <div className="flex flex-col items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
-                            <div className="w-14 h-14 rounded-full bg-pink-100 border border-slate-200 flex items-center justify-center">
-                                <span className="text-2xl">👧</span>
-                            </div>
-                            <span className="text-xs font-medium text-slate-600">Ryan</span>
-                        </div>
+                    <div className="flex items-center gap-5 overflow-x-auto py-2 px-1">
+                        {childProfiles?.map(child => {
+                            const isSelected = selectedChildIds.includes(child.id!);
 
-                        {/* Add Child Button */}
-                        <Link href="/parent/profile/add" className="flex flex-col items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
-                            <div className="w-14 h-14 rounded-full bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center">
-                                <Plus className="w-6 h-6 text-slate-400" />
+                            // Map avatarId to Icon
+                            let AvatarIcon = '👶';
+                            switch (child.avatarId) {
+                                case 'boy': AvatarIcon = '🧑‍🚀'; break;
+                                case 'girl': AvatarIcon = '👩‍🚀'; break;
+                                case 'alien': AvatarIcon = '👽'; break;
+                                case 'robot': AvatarIcon = '🤖'; break;
+                                case 'rocket': AvatarIcon = '🚀'; break;
+                                default: AvatarIcon = '👶';
+                            }
+
+                            // Dynamic Color Mapping
+                            const colorMap: Record<string, string> = {
+                                cyan: 'bg-cyan-100 border-cyan-300',
+                                purple: 'bg-violet-100 border-violet-300',
+                                green: 'bg-emerald-100 border-emerald-300',
+                                orange: 'bg-orange-100 border-orange-300'
+                            };
+                            const colorClass = colorMap[child.colorTheme || 'cyan'] || 'bg-slate-100 border-slate-200';
+
+                            return (
+                                <button
+                                    key={child.id}
+                                    onClick={() => toggleChildSelection(child.id!)}
+                                    className="flex flex-col items-center gap-2 group min-w-[60px]"
+                                >
+                                    <div className={cn(
+                                        "w-16 h-16 rounded-full flex items-center justify-center transition-all border-[3px] shadow-sm relative",
+                                        isSelected
+                                            ? "border-violet-600 bg-violet-50 scale-105"
+                                            : `group-hover:border-violet-200 ${colorClass}`
+                                    )}>
+                                        <div className="text-3xl">
+                                            {AvatarIcon}
+                                        </div>
+
+                                        {isSelected && (
+                                            <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-1 border-2 border-white">
+                                                <Check className="w-3 h-3" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className={cn(
+                                        "text-xs font-medium transition-colors",
+                                        isSelected ? "text-violet-700 font-bold" : "text-slate-500"
+                                    )}>
+                                        {child.name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+
+                        {/* Add Child Button - Solid Circle */}
+                        <Link href="/parent/profile/add" className="flex flex-col items-center gap-2 min-w-[60px]">
+                            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+                                <Plus className="w-8 h-8 text-slate-400" />
                             </div>
-                            <span className="text-xs font-medium text-slate-500">Add</span>
+                            <span className="text-xs font-medium text-slate-400">Add</span>
                         </Link>
                     </div>
                 </div>
 
-                {/* 4. Quick Action FABs */}
-                <div className="flex justify-between gap-4 px-2">
-                    <button className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 rounded-full bg-violet-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                            <Plus className="w-8 h-8 text-white" />
-                        </div>
-                        <span className="text-xs font-medium text-slate-700">New Routine</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 rounded-full bg-blue-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                            <Star className="w-8 h-8 text-white fill-current" />
-                        </div>
-                        <span className="text-xs font-medium text-slate-700">Add Stars</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 rounded-full bg-teal-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                            <Zap className="w-8 h-8 text-white fill-current" />
-                        </div>
-                        <span className="text-xs font-medium text-slate-700">Quick Task</span>
-                    </button>
+                {/* 4. Quick Actions */}
+                <div className="flex flex-col gap-4">
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider px-1">Quick Actions</h3>
+                    <div className="flex justify-between gap-4 px-2">
+                        <button
+                            onClick={() => router.push('/parent/routines/new')}
+                            className="flex flex-col items-center gap-2 group w-1/3"
+                        >
+                            <div className="w-16 h-16 rounded-full bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-200 group-hover:scale-105 transition-transform">
+                                <Plus className="w-8 h-8 text-white" />
+                            </div>
+                            <span className="text-xs font-medium text-slate-700 mt-1">New Routine</span>
+                        </button>
+
+                        <button className="flex flex-col items-center gap-2 group w-1/3 opacity-50 cursor-not-allowed">
+                            <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-200">
+                                <Star className="w-8 h-8 text-white fill-current" />
+                            </div>
+                            <span className="text-xs font-medium text-slate-700 mt-1">Add Stars</span>
+                        </button>
+
+                        <button className="flex flex-col items-center gap-2 group w-1/3 opacity-50 cursor-not-allowed">
+                            <div className="w-16 h-16 rounded-full bg-teal-500 flex items-center justify-center shadow-lg shadow-teal-200">
+                                <Zap className="w-8 h-8 text-white fill-current" />
+                            </div>
+                            <span className="text-xs font-medium text-slate-700 mt-1">Quick Task</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* 5. Today's Routines List */}
-                <div className="flex flex-col gap-3">
-                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Today's Routines</h3>
+                {/* 5. Today's Routines */}
+                <div className="flex flex-col gap-4">
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider px-1">Today's Routines</h3>
 
-                    {/* Card 1: Completed */}
-                    <div className="bg-white rounded-xl p-4 shadow-sm flex items-center justify-between border border-slate-100">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-lg">☀️</div>
-                            <div className="flex flex-col">
-                                <h4 className="font-bold text-slate-900">Morning Rush</h4>
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1">
-                                        👦 Ethan
-                                    </span>
-                                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 7:30 AM</span>
+                    {filteredRoutines?.length === 0 && (
+                        <div className="text-center py-8 text-slate-400 text-sm">
+                            No routines found for today.
+                        </div>
+                    )}
+
+                    {filteredRoutines?.map(routine => {
+                        const childNames = routine.profileIds.map(pid => getChildName(pid)).join(', ');
+                        return (
+                            <div key={routine.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between border border-slate-100">
+                                <div className="flex flex-col">
+                                    <h4 className="font-bold text-slate-800 text-base">
+                                        {routine.title} <span className="font-normal text-slate-500">({childNames})</span>
+                                    </h4>
+                                    <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{routine.timeOfDay}</span>
+                                    </div>
+                                </div>
+
+                                {/* Status: Subtle Text-and-Icon */}
+                                <div className="flex items-center gap-1 text-amber-500">
+                                    <Clock className="w-4 h-4" />
+                                    <span className="text-xs font-bold uppercase tracking-wide">Pending</span>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center shadow-sm">
-                                <Check className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="text-[10px] uppercase font-bold text-green-600">Done</span>
-                        </div>
-                    </div>
-
-                    {/* Card 2: Pending */}
-                    <div className="bg-white rounded-xl p-4 shadow-sm flex items-center justify-between border border-slate-100 opacity-90">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-lg">🎒</div>
-                            <div className="flex flex-col">
-                                <h4 className="font-bold text-slate-900">After School</h4>
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                    <span className="bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1">
-                                        👧 Ryan
-                                    </span>
-                                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 3:00 PM</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                            <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center shadow-sm">
-                                <Clock className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="text-[10px] uppercase font-bold text-amber-500">Pending</span>
-                        </div>
-                    </div>
+                        );
+                    })}
                 </div>
 
             </main>

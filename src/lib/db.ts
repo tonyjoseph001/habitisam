@@ -37,6 +37,7 @@ export interface Profile {
     type: ProfileType;
     pin?: string; // 4-digit PIN (Parent only)
     theme: ThemeType;
+    colorTheme?: string; // e.g. 'cyan', 'purple', 'green', 'orange'
     avatarId: string; // ID string for their chosen avatar icon
 
     // Child-specific stats
