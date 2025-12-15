@@ -6,6 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { motion } from 'framer-motion';
 import { Play, CheckCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function MissionControlPage() {
     const { activeProfile } = useSessionStore();
@@ -67,9 +68,9 @@ export default function MissionControlPage() {
                                 </div>
                             </div>
 
-                            <button className="w-12 h-12 rounded-full bg-violet-600 text-white flex items-center justify-center shadow-lg hover:bg-violet-700 transition-colors">
+                            <Link href={`/child/routine?id=${routine.id}`} className="w-12 h-12 rounded-full bg-violet-600 text-white flex items-center justify-center shadow-lg hover:bg-violet-700 transition-colors">
                                 <Play className="w-5 h-5 fill-current" />
-                            </button>
+                            </Link>
                         </div>
 
                         {/* Progress Bar Placeholder (if started) */}

@@ -82,15 +82,15 @@ export interface Step {
  * Daily Log - Record of execution
  */
 export interface ActivityLog {
-    id: string; // UUID
-    accountId: string; // <-- FK: Household scope
-    activityId: string; // FK: Parent Activity
-    profileId: string; // FK: Which child did it
-    date: string; // YYYY-MM-DD representing the "day"
-    startedAt?: Date;
+    id: string;
+    accountId: string;
+    profileId: string;
+    activityId: string;
+    date: string; // YYYY-MM-DD
+    status: 'completed' | 'skipped' | 'partial';
     completedAt?: Date;
-    status: LogStatus;
-    stepLogs: { stepId: string; status: 'done' | 'skipped'; completedAt?: Date }[];
+    earnedStars?: number;
+    earnedXP?: number;
 }
 
 /**
