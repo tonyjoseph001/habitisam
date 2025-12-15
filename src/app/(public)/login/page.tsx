@@ -14,7 +14,7 @@ import { db } from "@/lib/db";
 // For now, I will point to a placeholder path that I will fulfill in a moment: "/hero-cosmic.png"
 
 export default function LoginPage() {
-    const { user, signInWithGoogle, loading } = useAuth();
+    const { user, signInWithGoogle, signInAsDev, loading } = useAuth();
     const router = useRouter();
 
     // Redirect logic
@@ -105,6 +105,22 @@ export default function LoginPage() {
                     <p className="text-center text-xs text-[#64748B]">
                         No password needed. Secure signup via Google.
                     </p>
+
+                    <div className="relative flex py-2 items-center">
+                        <div className="flex-grow border-t border-slate-200"></div>
+                        <span className="flex-shrink-0 mx-4 text-slate-300 text-xs">DEV TOOLS</span>
+                        <div className="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => signInAsDev()}
+                        className="w-full text-slate-400 hover:text-violet-600 hover:bg-violet-50"
+                        disabled={loading}
+                    >
+                        🕵️ Bypass Login (Dev Mode)
+                    </Button>
                 </div>
 
                 {/* 4. Footer Links */}

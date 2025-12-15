@@ -47,6 +47,35 @@ export function useAuth() {
         return () => unsubscribe();
     }, []);
 
+    // DEV BYPASS: Check for persisted dev session on mount
+    useEffect(() => {
+        const isDev = localStorage.getItem('habitisim_dev_mode');
+        if (isDev === 'true' && !user) {
+            const devUser = {
+                uid: 'dev-user-123',
+                email: 'dev@habitisim.app',
+                displayName: 'Dev Parent',
+                photoURL: null,
+                emailVerified: true,
+                isAnonymous: false,
+                metadata: {},
+                providerData: [],
+                refreshToken: '',
+                tenantId: null,
+                delete: async () => { },
+                getIdToken: async () => 'mock-token',
+                getIdTokenResult: async () => ({} as any),
+                reload: async () => { },
+                toJSON: () => ({}),
+                phoneNumber: null,
+                providerId: 'google.com',
+            } as unknown as User;
+
+            setUser(devUser);
+            setLoading(false);
+        }
+    }, [user]);
+
     const signInWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
@@ -58,8 +87,41 @@ export function useAuth() {
         }
     };
 
+    const signInAsDev = async () => {
+        const devUser = {
+            uid: 'dev-user-123',
+            email: 'dev@habitisim.app',
+            displayName: 'Dev Parent',
+            photoURL: null,
+        } as unknown as User;
+
+        // Sync mock account
+        try {
+            const account = {
+                uid: devUser.uid,
+                email: devUser.email,
+                displayName: devUser.displayName,
+                photoURL: devUser.photoURL,
+                createdAt: new Date(),
+                lastLoginAt: new Date(),
+            };
+            await db.accounts.put(account as any);
+        } catch (e) {
+            console.error("Dev sync failed", e);
+        }
+
+        setUser(devUser);
+        localStorage.setItem('habitisim_dev_mode', 'true');
+    };
+
     const signOut = async () => {
         try {
+            if (localStorage.getItem('habitisim_dev_mode')) {
+                localStorage.removeItem('habitisim_dev_mode');
+                setUser(null);
+                setActiveProfile(null);
+                return;
+            }
             await firebaseSignOut(auth);
             setActiveProfile(null);
         } catch (error) {
@@ -71,6 +133,7 @@ export function useAuth() {
         user,
         loading,
         signInWithGoogle,
+        signInAsDev,
         signOut
     };
 }
