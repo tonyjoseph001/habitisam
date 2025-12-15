@@ -12,6 +12,7 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
+    "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
     "dexie": "^4.2.1",
     "dexie-react-hooks": "^4.2.0",
@@ -22,6 +23,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "tailwind-merge": "^3.4.0",
+    "uuid": "^13.0.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
