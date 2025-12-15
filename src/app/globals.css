@@ -1,54 +1,62 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-fredoka);
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    /* Slate 50 */
+    --foreground: 222 47% 11%;
+    /* Slate 900 */
+    --primary: 262 83% 58%;
+    /* Violet 600 */
+    --primary-foreground: 210 40% 98%;
+    --secondary-foreground: 222 47% 11%;
+    --radius: 0.5rem;
+
+    /* Safe area for mobile */
+    --safe-area-top: env(safe-area-inset-top);
+    --safe-area-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Cosmic Theme (Dark Blue/Purple) */
+  [data-theme="cosmic"] {
+    --background: 224 71% 4%;
+    /* Very Dark Blue */
+    --foreground: 210 40% 98%;
+    --primary: 263 90% 51%;
+    /* Vibrant Purple */
+    --primary-foreground: 0 0% 100%;
+    --card: 224 71% 10%;
+    --card-foreground: 210 40% 98%;
+    --accent: 310 90% 60%;
+    /* Magenta Pop */
+  }
+
+  /* Enchanted Theme (Forest Green/Teal) */
+  [data-theme="enchanted"] {
+    --background: 156 40% 10%;
+    /* Dark Forest */
+    --foreground: 140 30% 98%;
+    --primary: 156 70% 40%;
+    /* Emerald */
+    --primary-foreground: 0 0% 100%;
+    --card: 156 40% 15%;
+    --card-foreground: 140 30% 98%;
+    --accent: 45 90% 60%;
+    /* Gold Pop */
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+  }
 }
 
-/* 
-  Theme B: Enchanted Realm (Light Mode / Default)
-  Background: bg-pink-50 (#fdf2f8)
-  Text: text-slate-900 (#0f172a)
-  Primary: bg-pink-500 (#ec4899)
-  Accent: text-emerald-500 (#10b981)
-*/
-:root {
-  --background: #fdf2f8;
-  --foreground: #0f172a;
-  
-  --primary: #ec4899;
-  --primary-foreground: #ffffff;
-  
-  --accent: #10b981;
-  --accent-foreground: #ffffff; 
-
-  /* Safe area for mobile */
-  --safe-area-top: env(safe-area-inset-top);
-  --safe-area-bottom: env(safe-area-inset-bottom);
-}
-
-/* 
-  Theme A: Cosmic Explorer (Dark Mode)
-  Background: bg-slate-900 (#0f172a)
-  Text: text-slate-50 (#f8fafc)
-  Primary: bg-violet-600 (#7c3aed)
-  Accent: text-amber-400 (#fbbf24)
-*/
-.theme-cosmic {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  
-  --primary: #7c3aed;
-  --primary-foreground: #ffffff;
-  
-  --accent: #fbbf24;
-  --accent-foreground: #0f172a;
-}
-
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  padding-top: var(--safe-area-top);
-  padding-bottom: var(--safe-area-bottom);
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }
