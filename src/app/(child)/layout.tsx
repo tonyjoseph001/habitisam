@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ChildLayout({
     children,
@@ -15,6 +16,7 @@ export default function ChildLayout({
     const { user, loading } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         if (!loading && !user) {
@@ -78,7 +80,18 @@ export default function ChildLayout({
 
             {/* Dynamic Content */}
             <div className="relative z-10 flex-1 flex flex-col">
-                {children}
+                <AnimatePresence mode='wait'>
+                    <motion.div
+                        key={pathname}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex-1 flex flex-col"
+                    >
+                        {children}
+                    </motion.div>
+                </AnimatePresence>
             </div>
         </div>
     );
