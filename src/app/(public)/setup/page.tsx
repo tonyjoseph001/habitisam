@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/store/useSessionStore";
 import { v4 as uuidv4 } from 'uuid';
+import { motion } from "framer-motion";
+import { Sparkles, ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function SetupPage() {
     const { user, loading } = useAuth();
@@ -19,7 +21,11 @@ export default function SetupPage() {
     const [error, setError] = useState("");
 
     const handlePinChange = (index: number, value: string) => {
-        if (value.length > 1) return; // Prevent multiple chars
+        if (!/^\d*$/.test(value)) return; // Only allow digits
+        if (value.length > 1) {
+            // Handle paste? For now just take last char
+            value = value.slice(-1);
+        }
 
         const newPin = [...pin];
         newPin[index] = value;
@@ -48,7 +54,7 @@ export default function SetupPage() {
             return;
         }
 
-        if (!user) return; // Should not happen if guarded
+        if (!user) return;
 
         try {
             // Create new Parent Profile
@@ -59,16 +65,12 @@ export default function SetupPage() {
                 type: 'parent',
                 pin: pinString,
                 theme: 'admin',
-                avatarId: 'parent-1', // Default
+                avatarId: 'parent-1',
                 createdAt: new Date()
             };
 
             await db.profiles.add(newProfile as any);
-
-            // Update session
             setActiveProfile(newProfile);
-
-            // Redirect to dashboard
             router.push("/parent/dashboard");
         } catch (err) {
             console.error("Setup failed", err);
@@ -76,64 +78,90 @@ export default function SetupPage() {
         }
     };
 
-    if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    if (loading) return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-50">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+        </div>
+    );
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center p-6">
-            {/* 1. Header */}
-            <div className="mt-12 mb-8 text-center">
-                <h2 className="text-violet-600 font-bold text-xl mb-2">Habitisim</h2>
-                <h1 className="text-3xl font-bold text-slate-900 mb-1">Welcome to Habitisim!</h1>
-                <p className="text-slate-500">Let's set up your parent profile to get started.</p>
-            </div>
-
-            {/* 2. Main Content Card */}
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 flex flex-col gap-6">
-
-                {/* Name Input */}
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700">Your Name</label>
-                    <Input
-                        placeholder="e.g., Alex"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                    />
-                </div>
-
-                {/* PIN Creation */}
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700">Create 4-digit PIN</label>
-                    <div className="flex gap-4 justify-center">
-                        {[0, 1, 2, 3].map((i) => (
-                            <input
-                                key={i}
-                                id={`pin-${i}`}
-                                type="password"
-                                inputMode="numeric"
-                                className="w-14 h-14 border border-slate-300 rounded-lg text-center text-2xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                maxLength={1}
-                                value={pin[i]}
-                                onChange={(e) => handlePinChange(i, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(i, e)}
-                            />
-                        ))}
+        <div className="min-h-screen bg-gradient-to-br from-violet-100 via-white to-pink-50 flex flex-col items-center justify-center p-6">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full max-w-lg"
+            >
+                {/* Header Section */}
+                <div className="text-center mb-8 space-y-2">
+                    <div className="w-16 h-16 bg-violet-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-violet-200 rotate-3 transform hover:rotate-6 transition-transform">
+                        <Sparkles className="w-8 h-8 text-white" />
                     </div>
-                    <p className="text-xs text-slate-500 text-center">Secure your admin dashboard</p>
+                    <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Welcome to Habitisim!</h1>
+                    <p className="text-lg text-slate-500 max-w-xs mx-auto">Let's set up your admin profile to check mission status.</p>
                 </div>
 
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                {/* Main Card */}
+                <div className="bg-white rounded-3xl shadow-xl p-8 space-y-8 border border-white/50 backdrop-blur-sm">
+                    {/* Name Input */}
+                    <div className="space-y-3">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            Admin Name
+                        </label>
+                        <Input
+                            placeholder="e.g., Mom, Dad, or Captain"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="bg-slate-50 border-slate-200 h-14 text-lg focus:ring-violet-500 focus:border-violet-500 transition-all rounded-xl"
+                        />
+                    </div>
 
-                {/* Action Button */}
-                <Button
-                    variant="cosmic"
-                    size="lg"
-                    className="w-full mt-2"
-                    onClick={handleCompleteSetup}
-                >
-                    Complete Setup
-                </Button>
+                    {/* PIN Input */}
+                    <div className="space-y-4">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-violet-500" />
+                            Create Security PIN
+                        </label>
+                        <div className="flex gap-4 justify-between px-4">
+                            {[0, 1, 2, 3].map((i) => (
+                                <motion.input
+                                    key={i}
+                                    id={`pin-${i}`}
+                                    type="password"
+                                    inputMode="numeric"
+                                    maxLength={1}
+                                    value={pin[i]}
+                                    onChange={(e) => handlePinChange(i, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(i, e)}
+                                    whileFocus={{ scale: 1.1, borderColor: "#7c3aed", boxShadow: "0 0 0 4px rgba(124, 58, 237, 0.1)" }}
+                                    className="w-16 h-16 border-2 border-slate-200 rounded-2xl text-center text-3xl font-bold text-slate-800 bg-slate-50 outline-none transition-all shadow-sm focus:bg-white"
+                                />
+                            ))}
+                        </div>
+                        <p className="text-xs text-slate-400 text-center font-medium">This PIN protects your settings from curious little fingers.</p>
+                    </div>
 
-            </div>
+                    {error && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="bg-red-50 text-red-600 text-sm p-3 rounded-lg text-center font-medium border border-red-100"
+                        >
+                            {error}
+                        </motion.div>
+                    )}
+
+                    {/* Action Button */}
+                    <Button
+                        variant="cosmic"
+                        size="lg"
+                        className="w-full h-14 text-lg font-bold rounded-xl shadow-lg shadow-violet-200 active:scale-95 transition-all"
+                        onClick={handleCompleteSetup}
+                    >
+                        Complete Setup <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                </div>
+            </motion.div>
         </div>
     );
 }

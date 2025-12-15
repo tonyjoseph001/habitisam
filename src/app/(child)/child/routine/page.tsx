@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Star, ChevronRight, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import confetti from 'canvas-confetti';
+import { playSound } from '@/lib/sound';
 
 function RoutinePlayerContent() {
     const searchParams = useSearchParams();
@@ -44,6 +45,7 @@ function RoutinePlayerContent() {
         if (!routine || !activeProfile) return;
 
         setIsComplete(true);
+        playSound('complete');
         confetti({
             particleCount: 100,
             spread: 70,
