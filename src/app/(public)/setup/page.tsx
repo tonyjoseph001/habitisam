@@ -102,7 +102,7 @@ export default function SetupPage() {
                 </div>
 
                 {/* Main Card */}
-                <div className="bg-white rounded-3xl shadow-xl p-8 space-y-8 border border-white/50 backdrop-blur-sm">
+                <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 space-y-6 sm:space-y-8 border border-white/50 backdrop-blur-sm mx-4 sm:mx-0">
                     {/* Name Input */}
                     <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
@@ -112,7 +112,7 @@ export default function SetupPage() {
                             placeholder="e.g., Mom, Dad, or Captain"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="bg-slate-50 border-slate-200 h-14 text-lg focus:ring-violet-500 focus:border-violet-500 transition-all rounded-xl"
+                            className="bg-slate-50 border-slate-200 h-12 sm:h-14 text-base sm:text-lg focus:ring-violet-500 focus:border-violet-500 transition-all rounded-xl"
                         />
                     </div>
 
@@ -122,7 +122,7 @@ export default function SetupPage() {
                             <ShieldCheck className="w-4 h-4 text-violet-500" />
                             Create Security PIN
                         </label>
-                        <div className="flex gap-4 justify-between px-4">
+                        <div className="flex gap-2 sm:gap-4 justify-between sm:px-4">
                             {[0, 1, 2, 3].map((i) => (
                                 <motion.input
                                     key={i}
@@ -134,7 +134,7 @@ export default function SetupPage() {
                                     onChange={(e) => handlePinChange(i, e.target.value)}
                                     onKeyDown={(e) => handleKeyDown(i, e)}
                                     whileFocus={{ scale: 1.1, borderColor: "#7c3aed", boxShadow: "0 0 0 4px rgba(124, 58, 237, 0.1)" }}
-                                    className="w-16 h-16 border-2 border-slate-200 rounded-2xl text-center text-3xl font-bold text-slate-800 bg-slate-50 outline-none transition-all shadow-sm focus:bg-white"
+                                    className="w-12 h-12 sm:w-16 sm:h-16 border-2 border-slate-200 rounded-2xl text-center text-2xl sm:text-3xl font-bold text-slate-800 bg-slate-50 outline-none transition-all shadow-sm focus:bg-white"
                                 />
                             ))}
                         </div>

@@ -11,13 +11,15 @@ const config: Config = {
     extend: {
       colors: {
         // Semantic colors mapped to CSS variables
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-        primary: "var(--primary)",
-        "primary-foreground": "var(--primary-foreground)",
-        accent: "var(--accent)",
-        "accent-foreground": "var(--accent-foreground)",
-        
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: "hsl(var(--primary))",
+        "primary-foreground": "hsl(var(--primary-foreground))",
+        card: "hsl(var(--card))",
+        "card-foreground": "hsl(var(--card-foreground))",
+        accent: "hsl(var(--accent))",
+        "accent-foreground": "hsl(var(--secondary-foreground))", // fallback
+
         // Literal palette (if needed directly)
         cosmic: {
           bg: '#0f172a', // slate-900
