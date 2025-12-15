@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { useRewards } from '@/lib/hooks/useRewards';
 import { Plus, Gift, Edit2, Trash2 } from 'lucide-react';
@@ -37,10 +38,17 @@ export default function RewardsPage() {
             {/* Header */}
             <header className="px-4 py-4 bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between">
                 <h1 className="text-xl font-bold text-slate-900">Rewards Shop</h1>
-                <Button size="sm" variant="cosmic" className="gap-2" onClick={handleOpenNew}>
-                    <Plus className="w-4 h-4" />
-                    New
-                </Button>
+                <div className="flex gap-2">
+                    <Link href="/parent/purchases">
+                        <Button size="sm" variant="ghost" className="text-slate-500">
+                            History
+                        </Button>
+                    </Link>
+                    <Button size="sm" variant="cosmic" className="gap-2" onClick={handleOpenNew}>
+                        <Plus className="w-4 h-4" />
+                        New
+                    </Button>
+                </div>
             </header>
 
             <RewardEditorModal
