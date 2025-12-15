@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock } from 'lucide-react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
@@ -93,12 +94,12 @@ export default function ParentDashboard() {
                         </div>
 
                         {/* Add Child Button */}
-                        <button className="flex flex-col items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
+                        <Link href="/parent/profile/add" className="flex flex-col items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
                             <div className="w-14 h-14 rounded-full bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center">
                                 <Plus className="w-6 h-6 text-slate-400" />
                             </div>
                             <span className="text-xs font-medium text-slate-500">Add</span>
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
