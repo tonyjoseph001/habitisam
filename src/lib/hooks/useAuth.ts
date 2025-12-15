@@ -8,7 +8,7 @@ import {
     type User
 } from 'firebase/auth';
 import { db } from '../db';
-import { useSessionStore } from './store/useSessionStore';
+import { useSessionStore } from '../store/useSessionStore';
 
 export function useAuth() {
     const [user, setUser] = useState<User | null>(null);
