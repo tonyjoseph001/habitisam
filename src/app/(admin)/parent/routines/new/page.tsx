@@ -41,9 +41,7 @@ export default function NewRoutinePage() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default today
     const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Default Mon-Fri
     const [assignedChildIds, setAssignedChildIds] = useState<string[]>([]);
-    const [steps, setSteps] = useState<Step[]>([
-        { id: uuidv4(), title: 'Brush Teeth', duration: 2, icon: 'Smile', stars: 5, timerDuration: 120 }
-    ]);
+    const [steps, setSteps] = useState<Step[]>([]);
 
     // Modal State
     const [isStepModalOpen, setIsStepModalOpen] = useState(false);
