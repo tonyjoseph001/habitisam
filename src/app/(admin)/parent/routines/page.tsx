@@ -1,44 +1,22 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { useRoutines } from '@/lib/hooks/useRoutines';
-import { Plus, Clock, Calendar, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Clock, Calendar, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RoutineEditorModal } from '@/components/domain/routines/RoutineEditorModal';
-import { Activity } from '@/lib/db';
-// We'll need a modal or separate page for the actual editor.
-// For now, let's keep it simple: Click "Add" -> Open Editor Modal (to be built next).
 
 export default function RoutinesPage() {
-    const { routines, addRoutine, updateRoutine, deleteRoutine } = useRoutines();
-
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const [editingRoutine, setEditingRoutine] = useState<Activity | undefined>(undefined);
+    const router = useRouter();
+    const { routines, deleteRoutine } = useRoutines();
 
     const handleOpenNew = () => {
-        setEditingRoutine(undefined);
-        setIsEditorOpen(true);
+        router.push('/parent/routines/new');
     };
 
-    const handleOpenEdit = (routine: Activity) => {
-        setEditingRoutine(routine);
-        setIsEditorOpen(true);
-    };
-
-    const handleSave = async (title: string, time: string, steps: any[], profileIds: string[]) => {
-        if (editingRoutine) {
-            // Update
-            await updateRoutine(editingRoutine.id, {
-                title,
-                timeOfDay: time,
-                steps,
-                profileIds
-            });
-        } else {
-            // Create
-            await addRoutine(title, 'recurring', time, steps, profileIds);
-        }
+    const handleOpenEdit = (routineId: string) => {
+        router.push(`/parent/routines/edit?id=${routineId}`);
     };
 
     return (
@@ -51,13 +29,6 @@ export default function RoutinesPage() {
                     New
                 </Button>
             </header>
-
-            <RoutineEditorModal
-                isOpen={isEditorOpen}
-                onClose={() => setIsEditorOpen(false)}
-                onSave={handleSave}
-                initialData={editingRoutine}
-            />
 
             <main className="p-4 flex flex-col gap-4 max-w-screen-md mx-auto">
                 {routines?.length === 0 && (
@@ -95,12 +66,11 @@ export default function RoutinesPage() {
 
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => handleOpenEdit(routine)}
+                                onClick={() => handleOpenEdit(routine.id)}
                                 className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"
                             >
                                 <Edit2 className="w-5 h-5" />
                             </button>
-                            {/* Delete Confirm could be a long press or modal. Direct delete for prototype speed. */}
                             <button
                                 onClick={() => deleteRoutine(routine.id)}
                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
