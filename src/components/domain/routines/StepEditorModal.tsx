@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Clock, ChevronDown, ArrowLeft, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Clock, Star, Trash2 } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Step } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Step } from '@/lib/db';
-import { cn } from '@/lib/utils';
-import * as Icons from 'lucide-react';
+import { VoiceRecorder } from './VoiceRecorder';
+import { Textarea } from '@/components/ui/textarea';
 
-// Hardcoded Icon Options for Kids
 interface StepEditorModalProps {
     isOpen: boolean;
     initialData?: Step;
@@ -31,6 +32,11 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
     const [timerDuration, setTimerDuration] = useState<number>(120); // seconds (default 2m)
     const [isInputFocused, setIsInputFocused] = useState(false);
 
+    // New Fields
+    const [starReward, setStarReward] = useState(5);
+    const [description, setDescription] = useState('');
+    const [voiceBlob, setVoiceBlob] = useState<Blob | undefined>(undefined);
+
     // Initialize state when modal opens
     useEffect(() => {
         if (isOpen) {
@@ -39,11 +45,17 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                 setIcon(initialData.icon);
                 setTimerDuration(initialData.timerDuration || 120);
                 setIsTimerEnabled(!!initialData.timerDuration && initialData.timerDuration > 0);
+                setStarReward(initialData.stars || 5);
+                setDescription(initialData.description || '');
+                setVoiceBlob(initialData.voiceNote);
             } else {
                 setTitle('');
                 setIcon('Smile');
                 setTimerDuration(120);
                 setIsTimerEnabled(false);
+                setStarReward(5);
+                setDescription('');
+                setVoiceBlob(undefined);
             }
         }
     }, [isOpen, initialData]);
@@ -57,7 +69,9 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
             duration: Math.ceil((isTimerEnabled ? timerDuration : 0) / 60) || 5, // Visual mins
             timerDuration: isTimerEnabled ? timerDuration : 0,
             icon,
-            stars: 5 // Default star value
+            stars: starReward,
+            description: description.trim(),
+            voiceNote: voiceBlob
         };
         onSave(finalStep);
     };
@@ -131,16 +145,24 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                     {title || "Step Name"}
                                 </h3>
 
-                                {isTimerEnabled && (
-                                    <div className="relative z-10 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-white/90 text-sm font-bold border border-white/10">
-                                        <Clock className="w-3.5 h-3.5" />
-                                        <span>{Math.floor(timerDuration / 60)}:{(timerDuration % 60).toString().padStart(2, '0')}</span>
+                                {/* Badges Row */}
+                                <div className="relative z-10 flex gap-2">
+                                    {isTimerEnabled && (
+                                        <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-white/90 text-sm font-bold border border-white/10">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            <span>{Math.floor(timerDuration / 60)}:{(timerDuration % 60).toString().padStart(2, '0')}</span>
+                                        </div>
+                                    )}
+                                    <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 text-yellow-300 text-sm font-bold border border-white/10">
+                                        <Star className="w-3.5 h-3.5 fill-yellow-300" />
+                                        <span>+{starReward}</span>
                                     </div>
-                                )}
+                                </div>
                             </div>
 
-                            {/* 3. Step Name Input */}
-                            <div className="flex flex-col gap-1">
+                            {/* 3. Basic Info & Rewards */}
+                            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-6">
+                                {/* Step Name Input */}
                                 <div className={cn(
                                     "relative rounded-lg border-2 bg-white transition-all duration-200",
                                     isInputFocused ? "border-violet-500" : "border-slate-300"
@@ -162,96 +184,130 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                         className="w-full h-12 px-4 pt-1 bg-transparent outline-none text-slate-900 font-medium rounded-lg"
                                     />
                                 </div>
-                            </div>
 
-                            {/* 4. Icon Selector */}
-                            <div className="flex flex-col gap-3">
-                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Visual Icon</h4>
-                                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                                    {AVAILABLE_ICONS.map((iconName) => {
-                                        const isSelected = icon === iconName;
-                                        return (
-                                            <button
-                                                key={iconName}
-                                                onClick={() => setIcon(iconName)}
-                                                className={cn(
-                                                    "w-12 h-12 rounded-full flex items-center justify-center shrink-0 border transition-all duration-200",
-                                                    isSelected
-                                                        ? "bg-violet-50 border-violet-500 text-violet-600 shadow-sm scale-105"
-                                                        : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
-                                                )}
-                                            >
-                                                <RenderIcon name={iconName} className="w-6 h-6" />
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* 5. Timer Settings */}
-                            <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-                                <div className="p-4 flex items-center justify-between border-b border-slate-50">
-                                    <span className="font-bold text-[#1E293B]">Enable Timer</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={isTimerEnabled}
-                                            onChange={(e) => setIsTimerEnabled(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
-                                    </label>
-                                </div>
-
-                                {isTimerEnabled && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        className="p-6 bg-slate-50 flex flex-col items-center gap-4"
-                                    >
-                                        {/* Digital Clock Display */}
-                                        <div className="bg-white border border-slate-200 rounded-xl px-8 py-4 shadow-inner">
-                                            <span className="font-mono text-3xl font-bold text-slate-700 tracking-wider">
-                                                {formatTime(timerDuration)}
-                                            </span>
+                                {/* Reward Stepper */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">REWARD (STARS)</span>
+                                    <div className="flex items-center gap-4">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setStarReward(prev => Math.max(1, prev - 1))}
+                                            className="rounded-full w-10 h-10 border-slate-200"
+                                        >
+                                            <Minus className="w-4 h-4 text-slate-500" />
+                                        </Button>
+                                        <div className="flex items-center gap-1.5 min-w-[3rem] justify-center">
+                                            <span className="text-2xl font-bold text-slate-800">{starReward}</span>
+                                            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                                         </div>
+                                        <Button
+                                            size="icon"
+                                            onClick={() => setStarReward(prev => Math.min(20, prev + 1))}
+                                            className="rounded-full w-10 h-10 bg-violet-600 hover:bg-violet-700"
+                                        >
+                                            <Plus className="w-4 h-4 text-white" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
 
-                                        {/* Quick Chips + Manual Controls */}
-                                        <div className="w-full flex flex-col gap-3">
-                                            <div className="flex justify-center gap-2">
+                            {/* 4. Visuals (Icon & Timer) */}
+                            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-6">
+                                {/* Icon Selector */}
+                                <div className="flex flex-col gap-3">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Visual Icon</h4>
+                                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+                                        {AVAILABLE_ICONS.map((iconName) => {
+                                            const isSelected = icon === iconName;
+                                            return (
+                                                <button
+                                                    key={iconName}
+                                                    onClick={() => setIcon(iconName)}
+                                                    className={cn(
+                                                        "w-12 h-12 rounded-full flex items-center justify-center shrink-0 border transition-all duration-200",
+                                                        isSelected
+                                                            ? "bg-violet-50 border-violet-500 text-violet-600 shadow-sm scale-105"
+                                                            : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
+                                                    )}
+                                                >
+                                                    <RenderIcon name={iconName} className="w-6 h-6" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-slate-100" />
+
+                                {/* Timer Settings */}
+                                <div className="">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-bold text-[#1E293B]">Enable Timer</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={isTimerEnabled}
+                                                onChange={(e) => setIsTimerEnabled(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                                        </label>
+                                    </div>
+
+                                    {isTimerEnabled && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            className="pt-6 flex flex-col items-center gap-4"
+                                        >
+                                            {/* Digital Clock Display */}
+                                            <div className="bg-slate-50 border border-slate-200 rounded-xl px-8 py-4 shadow-inner">
+                                                <span className="font-mono text-3xl font-bold text-slate-700 tracking-wider">
+                                                    {formatTime(timerDuration)}
+                                                </span>
+                                            </div>
+
+                                            {/* Quick Chips */}
+                                            <div className="flex justify-center gap-2 w-full">
                                                 {[60, 120, 300].map(seconds => (
                                                     <button
                                                         key={seconds}
                                                         onClick={() => setTimerDuration(seconds)}
-                                                        className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
+                                                        className="px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 active:scale-95 transition-all shadow-sm"
                                                     >
                                                         {seconds / 60}m
                                                     </button>
                                                 ))}
                                             </div>
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </div>
 
-                                            <div className="flex items-center justify-center gap-4">
-                                                <Button
-                                                    variant="outline" size="icon" className="h-10 w-10 rounded-full border-slate-200 bg-white"
-                                                    onClick={() => setTimerDuration(prev => Math.max(0, prev - 30))}
-                                                >
-                                                    <Minus className="w-4 h-4 text-slate-500" />
-                                                </Button>
-                                                <span className="text-xs text-slate-400 font-medium uppercase tracking-widest">Adjust</span>
-                                                <Button
-                                                    variant="outline" size="icon" className="h-10 w-10 rounded-full border-slate-200 bg-white"
-                                                    onClick={() => setTimerDuration(prev => prev + 30)}
-                                                >
-                                                    <Plus className="w-4 h-4 text-slate-500" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
+                            {/* 5. Instructions (Description & Voice) */}
+                            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Instructions (Optional)</label>
+                                    <Textarea
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Add a short note for your child..."
+                                        className="bg-slate-50 border-slate-200 min-h-[80px]"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Voice Instruction</label>
+                                    <VoiceRecorder
+                                        initialBlob={voiceBlob}
+                                        onRecordingComplete={(blob) => setVoiceBlob(blob)}
+                                        onDelete={() => setVoiceBlob(undefined)}
+                                    />
+                                </div>
                             </div>
 
                             {/* 6. Footer / Delete */}
-                            <div className="mt-4 pb-8 flex justify-center">
+                            <div className="pb-8 flex justify-center">
                                 {onDelete && (
                                     <button
                                         onClick={onDelete}

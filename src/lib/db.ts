@@ -76,6 +76,8 @@ export interface Step {
     timerDuration?: number; // Seconds (Actual timer limit, optional)
     icon: string; // Lucide icon name string or Emoji
     stars: number; // Reward value
+    description?: string; // Optional instructions
+    voiceNote?: Blob; // Actual audio file stored in IndexedDB
 }
 
 /**
