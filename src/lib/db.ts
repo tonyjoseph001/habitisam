@@ -68,14 +68,13 @@ export interface Activity {
     createdAt: Date;
 }
 
-/**
- * A single step within an Activity (Embedded Object)
- */
+// A single step within an Activity (Embedded Object)
 export interface Step {
     id: string; // UUID used for drag-and-drop keying
     title: string;
-    duration: number; // Minutes
-    icon: string; // Lucide icon name string
+    duration: number; // Minutes (Visual estimate)
+    timerDuration?: number; // Seconds (Actual timer limit, optional)
+    icon: string; // Lucide icon name string or Emoji
     stars: number; // Reward value
 }
 

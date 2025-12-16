@@ -6,11 +6,13 @@ import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { db, Profile, Activity, Step } from '@/lib/db';
+import { db, Activity, Step } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, Save, Sparkles, Plus, Clock, Calendar, Check, Trash2, GripVertical, Pencil } from 'lucide-react';
+import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
+import * as Icons from 'lucide-react';
 
 // Day Selector Options
 const DAYS = [
@@ -40,8 +42,12 @@ export default function NewRoutinePage() {
     const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Default Mon-Fri
     const [assignedChildIds, setAssignedChildIds] = useState<string[]>([]);
     const [steps, setSteps] = useState<Step[]>([
-        { id: uuidv4(), title: 'Brush Teeth', duration: 2, icon: 'toothbrush', stars: 5 }
+        { id: uuidv4(), title: 'Brush Teeth', duration: 2, icon: 'Smile', stars: 5, timerDuration: 120 }
     ]);
+
+    // Modal State
+    const [isStepModalOpen, setIsStepModalOpen] = useState(false);
+    const [editingStep, setEditingStep] = useState<Step | undefined>(undefined);
 
     // Helpers
     const toggleDay = (dayId: number) => {
@@ -60,7 +66,7 @@ export default function NewRoutinePage() {
         }
     };
 
-    const handleSave = async () => {
+    const handleSaveRoutine = async () => {
         if (!user) return;
         if (!title.trim()) return;
 
@@ -82,16 +88,40 @@ export default function NewRoutinePage() {
         router.push('/parent/routines');
     };
 
-    const addStep = () => {
-        setSteps(prev => [
-            ...prev,
-            { id: uuidv4(), title: 'New Step', duration: 5, icon: 'star', stars: 5 }
-        ]);
-        // Ideally scroll to bottom
+    // --- Step Logic ---
+
+    const openAddStep = () => {
+        setEditingStep(undefined);
+        setIsStepModalOpen(true);
     };
 
-    const removeStep = (stepId: string) => {
+    const openEditStep = (step: Step) => {
+        setEditingStep(step);
+        setIsStepModalOpen(true);
+    };
+
+    const handleSaveStep = (step: Step) => {
+        if (editingStep) {
+            // Update existing
+            setSteps(prev => prev.map(s => s.id === step.id ? step : s));
+        } else {
+            // Add new
+            setSteps(prev => [...prev, { ...step, id: uuidv4() }]);
+        }
+        setIsStepModalOpen(false);
+    };
+
+    const handleDeleteStep = (stepId: string) => {
         setSteps(prev => prev.filter(s => s.id !== stepId));
+        setIsStepModalOpen(false); // Should already be closed by modal logic but safe to ensure
+    };
+
+    // Helper for Icon Rendering
+    const RenderIcon = ({ name }: { name: string }) => {
+        // @ts-ignore
+        const LucideIcon = Icons[name as keyof typeof Icons] || Icons.HelpCircle;
+        // @ts-ignore
+        return <LucideIcon className="w-5 h-5" />;
     };
 
     return (
@@ -104,7 +134,7 @@ export default function NewRoutinePage() {
                     </Button>
                     <h1 className="text-lg font-bold text-slate-900">New Routine</h1>
                 </div>
-                <Button variant="cosmic" size="sm" className="gap-2 px-4 h-9" onClick={handleSave}>
+                <Button variant="cosmic" size="sm" className="gap-2 px-4 h-9" onClick={handleSaveRoutine}>
                     <Save className="w-4 h-4" />
                     Save
                 </Button>
@@ -286,19 +316,31 @@ export default function NewRoutinePage() {
 
                     <div className="flex flex-col gap-2 mx-4">
                         {steps.map((step, index) => (
-                            <div key={step.id} className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div
+                                key={step.id}
+                                className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform"
+                                onClick={() => openEditStep(step)}
+                            >
                                 <div className="flex items-center gap-3">
-                                    <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" />
-                                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-lg">
-                                        {step.icon === 'toothbrush' ? '🪥' : '⭐'}
+                                    <GripVertical className="w-4 h-4 text-slate-300 cursor-grab" onClick={e => e.stopPropagation()} />
+                                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+                                        <RenderIcon name={step.icon} />
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="font-bold text-slate-800 text-sm">
                                             {index + 1}. {step.title}
                                         </span>
-                                        <span className="text-[10px] text-slate-500">
-                                            {step.duration} min
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-slate-500">
+                                                {step.duration} min
+                                            </span>
+                                            {step.timerDuration && (
+                                                <div className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded-sm">
+                                                    <Clock className="w-2.5 h-2.5" />
+                                                    <span>{Math.floor(step.timerDuration / 60)}:{(step.timerDuration % 60).toString().padStart(2, '0')}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -306,12 +348,12 @@ export default function NewRoutinePage() {
                                     <span className="text-amber-500 font-bold text-xs bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
                                         +{step.stars} ⭐
                                     </span>
-                                    <div className="flex gap-1">
-                                        <button className="p-1 text-slate-400 hover:text-violet-600 rounded-md">
+                                    <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                                        <button className="p-1 text-slate-400 hover:text-violet-600 rounded-md" onClick={() => openEditStep(step)}>
                                             <Pencil className="w-3 h-3" />
                                         </button>
                                         <button
-                                            onClick={() => removeStep(step.id)}
+                                            onClick={() => handleDeleteStep(step.id)}
                                             className="p-1 text-slate-400 hover:text-red-500 rounded-md"
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -325,7 +367,7 @@ export default function NewRoutinePage() {
                             variant="outline"
                             size="sm"
                             className="w-full border-dashed border-2 border-slate-200 text-slate-500 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 h-10"
-                            onClick={addStep}
+                            onClick={openAddStep}
                         >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Step
@@ -338,6 +380,14 @@ export default function NewRoutinePage() {
             </main>
 
             <ParentNavBar />
+
+            <StepEditorModal
+                isOpen={isStepModalOpen}
+                initialData={editingStep}
+                onClose={() => setIsStepModalOpen(false)}
+                onSave={handleSaveStep}
+                onDelete={editingStep ? () => handleDeleteStep(editingStep.id) : undefined}
+            />
         </div>
     );
 }
