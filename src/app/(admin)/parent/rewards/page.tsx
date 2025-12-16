@@ -113,7 +113,7 @@ export default function RewardsPage() {
                 </section>
 
                 {/* 2. History Link */}
-                <Link href="/parent/rewards/history">
+                <Link href="/parent/purchases">
                     <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors group cursor-pointer">
                         <ScrollText className="w-4 h-4 text-slate-400 group-hover:text-violet-600" />
                         <span className="font-medium text-sm text-slate-600 group-hover:text-violet-700">View Purchase History</span>
