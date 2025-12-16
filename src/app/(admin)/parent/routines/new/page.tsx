@@ -66,26 +66,53 @@ export default function NewRoutinePage() {
         }
     };
 
+    // Mode State (could be derived from props/params in future)
+    // For now, we default to Create Mode. 
+    // If editingRoutineId were present, we'd be in Edit Mode.
+    const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+
     const handleSaveRoutine = async () => {
-        if (!user) return;
-        if (!title.trim()) return;
+        try {
+            if (!user) {
+                alert("You must be logged in to save.");
+                return;
+            }
+            if (!title.trim()) {
+                alert("Please enter a routine title.");
+                return;
+            }
+            if (steps.length === 0) {
+                alert("Please add at least one step.");
+                return;
+            }
 
-        const newRoutine: Activity = {
-            id: uuidv4(),
-            accountId: user.uid,
-            profileIds: assignedChildIds,
-            type: routineType,
-            title: title.trim(),
-            timeOfDay: time,
-            days: routineType === 'recurring' ? (selectedDays as any) : undefined,
-            date: routineType === 'one-time' ? date : undefined,
-            steps: steps,
-            isActive: true,
-            createdAt: new Date()
-        };
+            const newRoutine: Activity = {
+                id: editingRoutineId || uuidv4(),
+                accountId: user.uid,
+                profileIds: assignedChildIds,
+                type: routineType,
+                title: title.trim(),
+                timeOfDay: time,
+                days: routineType === 'recurring' ? (selectedDays as any) : undefined,
+                date: routineType === 'one-time' ? date : undefined,
+                steps: steps, // Save local steps state to DB
+                isActive: true,
+                createdAt: new Date()
+            };
 
-        await db.activities.add(newRoutine);
-        router.push('/parent/routines');
+            if (editingRoutineId) {
+                // Edit Mode: Update existing
+                await db.activities.put(newRoutine);
+            } else {
+                // Create Mode: Add new
+                await db.activities.add(newRoutine);
+            }
+
+            router.push('/parent/routines');
+        } catch (error) {
+            console.error("Failed to save routine:", error);
+            alert("Failed to save routine. Please try again.");
+        }
     };
 
     // --- Step Logic ---
@@ -100,20 +127,45 @@ export default function NewRoutinePage() {
         setIsStepModalOpen(true);
     };
 
-    const handleSaveStep = (step: Step) => {
+    const handleSaveStep = async (step: Step) => {
+        // 1. Update Local State (Always done for UI responsiveness)
+        let updatedSteps = [...steps];
         if (editingStep) {
-            // Update existing
-            setSteps(prev => prev.map(s => s.id === step.id ? step : s));
+            // Update existing step in local array
+            updatedSteps = steps.map(s => s.id === step.id ? step : s);
+            setSteps(updatedSteps);
         } else {
-            // Add new
-            setSteps(prev => [...prev, { ...step, id: uuidv4() }]);
+            // Add new step
+            const newStep = { ...step, id: uuidv4() };
+            updatedSteps = [...steps, newStep];
+            setSteps(updatedSteps);
         }
+
+        // 2. Scenario B: If in Edit Mode (Routine already exists in DB), 
+        // Sync changes immediately to prevent data loss.
+        if (editingRoutineId) {
+            // "Smart Save" - Direct Write
+            try {
+                await db.activities.update(editingRoutineId, { steps: updatedSteps });
+            } catch (err) {
+                console.error("Failed to auto-save step:", err);
+                // Optional: Revert local state or show warning
+            }
+        }
+
         setIsStepModalOpen(false);
     };
 
-    const handleDeleteStep = (stepId: string) => {
-        setSteps(prev => prev.filter(s => s.id !== stepId));
-        setIsStepModalOpen(false); // Should already be closed by modal logic but safe to ensure
+    const handleDeleteStep = async (stepId: string) => {
+        const updatedSteps = steps.filter(s => s.id !== stepId);
+        setSteps(updatedSteps);
+
+        // Scenario B: Sync Deletion immediately if Editing
+        if (editingRoutineId) {
+            await db.activities.update(editingRoutineId, { steps: updatedSteps });
+        }
+
+        setIsStepModalOpen(false);
     };
 
     // Helper for Icon Rendering
