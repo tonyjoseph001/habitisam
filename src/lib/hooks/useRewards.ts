@@ -1,23 +1,26 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, Reward } from "@/lib/db";
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from "@/lib/hooks/useAuth";
 import { useSessionStore } from "../store/useSessionStore";
 
 export function useRewards() {
+    const { user } = useAuth();
     const { activeProfile } = useSessionStore();
+
+    // Source of truth for accountId
+    const accountId = user?.uid || activeProfile?.accountId;
 
     const rewards = useLiveQuery(
         async () => {
-            if (!activeProfile?.accountId) return [];
+            if (!accountId) return [];
             return await db.rewards
                 .where("accountId")
-                .equals(activeProfile.accountId)
+                .equals(accountId)
                 .reverse()
-                .toArray(); // Sort handled manually if needed, but reverse gives newest first usually if ID is time-based? No UUID.
-            // Actually UUIDs aren't time sorted. We should probably sort by a createdAt if we added it, or trust insertion order?
-            // The schema has `createdAt?: Date`.
+                .toArray();
         },
-        [activeProfile?.accountId]
+        [accountId]
     );
 
     // Sort in JS to be safe
@@ -28,11 +31,11 @@ export function useRewards() {
     });
 
     const addReward = async (title: string, cost: number, icon: string) => {
-        if (!activeProfile?.accountId) throw new Error("No active account");
+        if (!accountId) throw new Error("No active account");
 
         const newReward: Reward = {
             id: uuidv4(),
-            accountId: activeProfile.accountId,
+            accountId: accountId,
             title,
             cost,
             icon,
@@ -40,7 +43,8 @@ export function useRewards() {
             createdAt: new Date(),
         };
 
-        await db.rewards.add(newReward as any);
+        // @ts-ignore
+        await db.rewards.add(newReward);
     };
 
     const updateReward = async (id: string, updates: Partial<Reward>) => {
