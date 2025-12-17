@@ -57,6 +57,7 @@ export interface Activity {
     profileIds: string[]; // Assigned to which child profile IDs?
     type: ActivityType;
     title: string;
+    icon?: string; // e.g. 'Sun', 'Moon', 'Book'
     timeOfDay: string; // "HH:mm"
 
     // Scheduling Logic

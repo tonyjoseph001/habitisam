@@ -4,9 +4,14 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Home, Gift, ClipboardList, Sun } from 'lucide-react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { Quicksand } from 'next/font/google';
+
+// Font setup (if Next.js 13+ optimizations allow, otherwise fallback to sans)
+const quicksand = Quicksand({ subsets: ['latin'], weight: ['500', '600', '700'] });
 
 export default function ChildLayout({
     children,
@@ -14,7 +19,7 @@ export default function ChildLayout({
     children: React.ReactNode;
 }) {
     const { user, loading } = useAuth();
-    const { activeProfile, setActiveProfile } = useSessionStore();
+    const { activeProfile } = useSessionStore();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -22,64 +27,22 @@ export default function ChildLayout({
         if (!loading && !user) {
             router.push('/login');
         } else if (!loading && user && !activeProfile) {
-            router.push('/parent/dashboard'); // Need a profile to be here
-        } else if (!loading && activeProfile?.type === 'parent') {
-            // Parent shouldn't be in child layout generally unless testing, 
-            // but strict redirect logic:
-            // router.push('/parent/dashboard'); 
+            router.push('/parent/dashboard');
         }
     }, [user, loading, activeProfile, router]);
 
-    const handleExit = () => {
-        // "Logout" of child profile -> Go back to profile selection/dashboard
-        setActiveProfile(null);
-        router.push('/parent/dashboard');
-    };
+    if (loading || !activeProfile) return <div className="min-h-screen flex items-center justify-center bg-[#EEF2FF] text-slate-400">Loading...</div>;
 
-    if (loading || !activeProfile) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">Loading Mission Control...</div>;
+    // Theme: Match HTML snippet bg
+    const bgClass = "bg-[#EEF2FF]";
 
-    // Theme Logic (Dynamic Backgrounds)
-    const isCosmic = activeProfile.theme === 'cosmic';
-    const bgClass = isCosmic
-        ? "bg-slate-900" // Placeholder for Cosmic Gradient/Image
-        : "bg-green-900"; // Placeholder for Enchanted Realm
+    // Hide Bottom Nav on Routine Player
+    const showNav = !pathname.includes('/child/routine');
 
     return (
-        <div className={`min-h-screen relative flex flex-col ${bgClass} text-white transition-colors duration-500`}>
-            {/* Immersive Background Layer */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                {/* We can add SVG stars/clouds here later */}
-                {isCosmic && <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-slate-900 to-black opacity-80"></div>}
-            </div>
-
-            {/* Child Top Bar */}
-            <header className="relative z-10 px-4 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center text-2xl shadow-lg backdrop-blur-sm">
-                        {/* Avatar */}
-                        {activeProfile.avatarId === 'child-1' ? '🧑‍🚀' : '🧚‍♀️'}
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-fredoka text-lg leading-tight text-white drop-shadow-md">{activeProfile.name}</span>
-                        <span className="text-xs text-white/70 font-medium">Lvl 1 Explorer</span>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    {/* Currency/Stats Pills */}
-                    <div className="flex items-center gap-2 bg-black/30 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
-                        <span className="text-xl">⭐</span>
-                        <span className="font-bold font-fredoka text-amber-400 text-lg">{activeProfile.stars || 0}</span>
-                    </div>
-
-                    <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/10" onClick={handleExit}>
-                        <LogOut className="w-5 h-5" />
-                    </Button>
-                </div>
-            </header>
-
+        <div className={cn(`min-h-screen relative flex flex-col ${bgClass} text-[#2B2D42] transition-colors duration-500 selection:bg-orange-100`, quicksand.className)}>
             {/* Dynamic Content */}
-            <div className="relative z-10 flex-1 flex flex-col">
+            <div className={cn("relative z-10 flex-1 flex flex-col", showNav && "pb-24")}>
                 <AnimatePresence mode='wait'>
                     <motion.div
                         key={pathname}
@@ -93,6 +56,27 @@ export default function ChildLayout({
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            {/* Floating Bottom Navigation Bar (HTML Match) */}
+            {showNav && (
+                <div className="fixed bottom-6 w-full flex justify-center z-50 pointer-events-none">
+                    <div className="bg-white rounded-full px-6 py-4 shadow-xl border border-gray-100 flex items-center gap-8 pointer-events-auto">
+                        <NavLink href="/child/dashboard" icon={<Home className="w-6 h-6" />} label="Home" isActive={pathname === '/child/dashboard'} />
+                        <NavLink href="/child/rewards" icon={<Gift className="w-6 h-6" />} label="Rewards" isActive={pathname === '/child/rewards'} />
+                        <NavLink href="/child/tasks" icon={<ClipboardList className="w-6 h-6" />} label="Tasks" isActive={pathname === '/child/tasks'} />
+                        <NavLink href="/child/routines" icon={<Sun className="w-6 h-6" />} label="Routines" isActive={pathname === '/child/routines'} />
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+function NavLink({ href, icon, label, isActive }: { href: string; icon: React.ReactNode; label: string; isActive: boolean }) {
+    return (
+        <Link href={href} className={cn("flex flex-col items-center gap-1 transition-colors", isActive ? "text-[#FF9F1C]" : "text-gray-400 hover:text-[#FF9F1C]")}>
+            {icon}
+            <span className="text-[10px] font-bold">{label}</span>
+        </Link>
     );
 }

@@ -43,6 +43,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     // Form State
     const [routineType, setRoutineType] = useState<'recurring' | 'one-time'>('recurring');
     const [title, setTitle] = useState('');
+    const [icon, setIcon] = useState('Sun');
     const [time, setTime] = useState('07:30');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default today
     const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Default Mon-Fri
@@ -60,6 +61,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
             db.activities.get(initialRoutineId).then(activity => {
                 if (activity) {
                     setTitle(activity.title);
+                    if (activity.icon) setIcon(activity.icon);
                     setRoutineType(activity.type);
                     setTime(activity.timeOfDay);
                     if (activity.date) setDate(activity.date);
@@ -113,6 +115,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 profileIds: assignedChildIds,
                 type: routineType,
                 title: title.trim(),
+                icon: icon || 'Sun',
                 timeOfDay: time,
                 days: routineType === 'recurring' ? (selectedDays as any) : undefined,
                 date: routineType === 'one-time' ? date : undefined,
@@ -259,6 +262,27 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             placeholder="e.g. Morning Rush"
                             className="text-base font-medium h-10 border-slate-200"
                         />
+                    </div>
+
+                    {/* Icon Picker */}
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Icon</label>
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                            {['Sun', 'Moon', 'Book', 'Utensils', 'Briefcase', 'ShowerHead', 'Gamepad2', 'BedDouble'].map((iconName) => (
+                                <button
+                                    key={iconName}
+                                    onClick={() => setIcon(iconName)} // ensure setIcon exists
+                                    className={cn(
+                                        "w-10 h-10 rounded-lg flex items-center justify-center transition-all border",
+                                        icon === iconName
+                                            ? "bg-violet-100 border-violet-500 text-violet-600 scale-105"
+                                            : "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100"
+                                    )}
+                                >
+                                    <RenderIcon name={iconName} />
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <Button variant="outline" className="w-full h-9 bg-violet-50 border-violet-100 text-violet-600 gap-2 hover:bg-violet-100 text-xs font-bold">
