@@ -45,6 +45,10 @@ export interface Profile {
     xp?: number;
     dob?: string; // Date of Birth (ISO string)
 
+    // Stamp System
+    activeStamp?: string; // ID of currently displayed stamp
+    unlockedStamps?: string[]; // IDs of owned stamps
+
     createdAt: Date;
 }
 
@@ -159,6 +163,9 @@ db.accounts.hook('creating', function (primKey, obj, trans) {
 });
 db.profiles.hook('creating', function (primKey, obj, trans) {
     obj.createdAt = new Date();
+    // Default Stamp
+    if (!obj.activeStamp) obj.activeStamp = 'star';
+    if (!obj.unlockedStamps) obj.unlockedStamps = ['star'];
 });
 db.activities.hook('creating', function (primKey, obj, trans) {
     obj.createdAt = new Date();
