@@ -8,7 +8,7 @@ import { Play, Clock, Star, Bell, Menu, ArrowRight, X, Check } from 'lucide-reac
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
-
+import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 
 // Visual Mapping for Stamps (Duplicate for now, ideally shared)
 const STAMP_ASSETS: Record<string, { emoji: string, color: string }> = {
@@ -27,6 +27,7 @@ export default function MissionControlPage() {
     const router = useRouter();
 
     const [isStampModalOpen, setIsStampModalOpen] = useState(false);
+    const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -85,19 +86,40 @@ export default function MissionControlPage() {
 
             {/* Header (HTML Match) */}
             <div className="px-6 pt-8 pb-4 flex justify-between items-center">
-                <button className="bg-white p-2.5 rounded-full shadow-sm text-gray-500">
-                    <Menu className="w-6 h-6" />
-                </button>
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-yellow-100 overflow-hidden border-2 border-white shadow-sm">
+                {/* Profile Switcher Trigger */}
+                <button
+                    onClick={() => setIsProfileSwitcherOpen(true)}
+                    className="flex items-center gap-3 bg-white pl-1 pr-4 py-1 rounded-full shadow-sm active:scale-95 transition-transform"
+                >
+                    <div className="w-10 h-10 rounded-full bg-yellow-100 overflow-hidden border-2 border-white shadow-sm ring-1 ring-inset ring-black/5">
                         <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
                     </div>
+                    <div>
+                        <div className="text-[10px] font-bold text-gray-400 leading-none">Playing as</div>
+                        <div className="text-sm font-bold text-gray-800 leading-none">{displayProfile.name}</div>
+                    </div>
+                </button>
+
+                <div className="flex items-center gap-3">
                     <button className="bg-white p-2.5 rounded-full shadow-sm text-gray-500 relative">
                         <Bell className="w-6 h-6" />
                         <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-400 rounded-full border border-white"></span>
                     </button>
+                    {/* Currency / Stats */}
+                    <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-white/50 flex items-center gap-1.5">
+                        <Star className="w-4 h-4 fill-orange-400 text-orange-400" />
+                        <span className="text-sm font-bold text-gray-700 font-mono">1,250</span>
+                    </div>
                 </div>
             </div>
+
+            {/* Profile Switcher Modal */}
+            <ProfileSwitcherModal
+                isOpen={isProfileSwitcherOpen}
+                onClose={() => setIsProfileSwitcherOpen(false)}
+            />
+
+            {/* ... rest of the file ... */}
 
             {/* Welcome Section */}
             <div className="px-6 mb-6 flex items-center gap-4">
