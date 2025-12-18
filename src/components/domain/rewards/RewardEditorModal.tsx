@@ -1,16 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Star, Gift, Save } from 'lucide-react';
-import { Reward } from '@/lib/db';
+import { Star, Gift, Save, Check } from 'lucide-react';
+import { Reward, db } from '@/lib/db';
+import { useSessionStore } from '@/lib/store/useSessionStore';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { cn } from '@/lib/utils';
 
 interface RewardEditorProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (title: string, cost: number, icon: string) => Promise<void>;
+    onSave: (title: string, cost: number, icon: string, requiresApproval: boolean, assignedProfileIds?: string[]) => Promise<void>;
     initialData?: Reward;
 }
 
@@ -18,6 +22,19 @@ export function RewardEditorModal({ isOpen, onClose, onSave, initialData }: Rewa
     const [title, setTitle] = useState('');
     const [cost, setCost] = useState(10);
     const [icon, setIcon] = useState('🎁');
+    const [requiresApproval, setRequiresApproval] = useState(true);
+    const [assignedProfileIds, setAssignedProfileIds] = useState<string[]>([]); // Empty = All
+
+    const { activeProfile } = useSessionStore();
+    const accountId = activeProfile?.accountId;
+
+    const children = useLiveQuery(async () => {
+        if (!accountId) return [];
+        return await db.profiles
+            .where('accountId').equals(accountId)
+            .and(p => p.type === 'child')
+            .toArray();
+    }, [accountId]);
 
     useEffect(() => {
         if (isOpen) {
@@ -25,18 +42,36 @@ export function RewardEditorModal({ isOpen, onClose, onSave, initialData }: Rewa
                 setTitle(initialData.title);
                 setCost(initialData.cost);
                 setIcon(initialData.icon);
+                setRequiresApproval(initialData.requiresApproval !== false); // Default true
+                setAssignedProfileIds(initialData.assignedProfileIds || []);
             } else {
                 setTitle('');
                 setCost(10);
                 setIcon('🎁');
+                setRequiresApproval(true);
+                setAssignedProfileIds([]);
             }
         }
     }, [isOpen, initialData]);
 
     const handleSave = async () => {
         if (!title.trim()) return;
-        await onSave(title, cost, icon);
+        await onSave(title, cost, icon, requiresApproval, assignedProfileIds.length > 0 ? assignedProfileIds : undefined);
         onClose();
+    };
+
+    const toggleChild = (childId: string) => {
+        setAssignedProfileIds(prev => {
+            if (prev.includes(childId)) {
+                return prev.filter(id => id !== childId);
+            } else {
+                return [...prev, childId];
+            }
+        });
+    };
+
+    const handleAssignAll = () => {
+        setAssignedProfileIds([]);
     };
 
     const presetEmojis = ['🎁', '🍦', '🎮', '🧸', '🍕', '🎡', '📱', '🎨'];
@@ -71,6 +106,62 @@ export function RewardEditorModal({ isOpen, onClose, onSave, initialData }: Rewa
                         </div>
                     </div>
                 </div>
+
+                {/* Approval Toggle */}
+                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <input
+                        type="checkbox"
+                        checked={requiresApproval}
+                        onChange={e => setRequiresApproval(e.target.checked)}
+                        className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                        id="approval-check"
+                    />
+                    <label htmlFor="approval-check" className="text-sm font-medium text-slate-700 cursor-pointer select-none">
+                        Require Parent Approval
+                    </label>
+                </div>
+
+                {/* Assignment - Only show if children exist */}
+                {children && children.length > 0 && (
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Assign To</label>
+                        <div className="flex flex-wrap gap-2">
+                            {/* All Children Option */}
+                            <button
+                                onClick={handleAssignAll}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-full text-xs font-bold border transition-colors flex items-center gap-1.5",
+                                    assignedProfileIds.length === 0
+                                        ? "bg-violet-100 text-violet-700 border-violet-200"
+                                        : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                                )}
+                            >
+                                {assignedProfileIds.length === 0 && <Check className="w-3 h-3" />}
+                                All Children
+                            </button>
+
+                            {/* Individual Children */}
+                            {children.map(child => {
+                                const isSelected = assignedProfileIds.includes(child.id);
+                                return (
+                                    <button
+                                        key={child.id}
+                                        onClick={() => toggleChild(child.id)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-full text-xs font-bold border transition-colors flex items-center gap-1.5",
+                                            isSelected
+                                                ? "bg-violet-100 text-violet-700 border-violet-200"
+                                                : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                                        )}
+                                    >
+                                        {isSelected && <Check className="w-3 h-3" />}
+                                        {child.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Icon Picker */}
                 <div>

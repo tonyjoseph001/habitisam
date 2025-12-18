@@ -30,7 +30,7 @@ export function useRewards() {
         return dateB - dateA; // Newest first
     });
 
-    const addReward = async (title: string, cost: number, icon: string) => {
+    const addReward = async (title: string, cost: number, icon: string, requiresApproval: boolean = true, assignedProfileIds?: string[]) => {
         if (!accountId) throw new Error("No active account");
 
         const newReward: Reward = {
@@ -40,6 +40,8 @@ export function useRewards() {
             cost,
             icon,
             isActive: true,
+            requiresApproval,
+            assignedProfileIds,
             createdAt: new Date(),
         };
 

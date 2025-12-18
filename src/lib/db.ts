@@ -110,11 +110,18 @@ export interface Reward {
     icon: string; // Emoji string
     cost: number;
     isActive: boolean;
+    requiresApproval?: boolean; // Default true if undefined
+    assignedProfileIds?: string[]; // If empty/undefined => All Children
     createdAt?: Date; // Added for sort
 }
 
 /**
  * Log of a reward redemption history
+ */
+export type PurchaseStatus = 'pending' | 'approved' | 'rejected';
+
+/**
+ * Log of a reward redemption history (now supports requests)
  */
 export interface PurchaseLog {
     id: string; // UUID
@@ -122,11 +129,15 @@ export interface PurchaseLog {
     profileId: string; // FK: Which child bought it
     rewardSnapshot: {
         // Snapshot data in case original is deleted
+        id: string; // Keep original ID reference
         title: string;
         icon: string;
         cost: number;
     };
-    purchasedAt: Date;
+    status: PurchaseStatus; // NEW: pending, approved, rejected
+    purchasedAt: Date; // Date requested
+    processedAt?: Date; // Date approved/rejected
+    processedBy?: string; // Parent ID who approved/rejected
 }
 
 // --- DATABASE INITIALIZATION ---

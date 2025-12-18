@@ -237,7 +237,7 @@ export default function MissionControlPage() {
                                             {/* Header */}
                                             <div className="px-8 pt-4 pb-2 flex items-center justify-between">
                                                 <h2 className="text-xl font-extrabold text-[#1F2937]">Select Buddy</h2>
-                                                <Link href="/parent/rewards" className="text-xs font-bold text-gray-400 hover:text-indigo-500 transition-colors">
+                                                <Link href="/child/rewards" className="text-xs font-bold text-gray-400 hover:text-indigo-500 transition-colors">
                                                     Get more in Rewards
                                                 </Link>
                                             </div>

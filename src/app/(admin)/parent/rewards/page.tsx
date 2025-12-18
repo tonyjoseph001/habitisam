@@ -46,11 +46,11 @@ export default function RewardsPage() {
         setIsEditorOpen(true);
     };
 
-    const handleSave = async (title: string, cost: number, icon: string) => {
+    const handleSave = async (title: string, cost: number, icon: string, requiresApproval: boolean, assignedProfileIds?: string[]) => {
         if (editingReward) {
-            await updateReward(editingReward.id, { title, cost, icon });
+            await updateReward(editingReward.id, { title, cost, icon, requiresApproval, assignedProfileIds });
         } else {
-            await addReward(title, cost, icon);
+            await addReward(title, cost, icon, requiresApproval, assignedProfileIds);
         }
     };
 
