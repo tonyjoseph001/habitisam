@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { Home, Gift, ClipboardList, Sun } from 'lucide-react';
+import { Home, Gift, ClipboardList, Sun, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -64,7 +64,7 @@ export default function ChildLayout({
                         <NavLink href="/child/dashboard" icon={<Home className="w-6 h-6" />} label="Home" isActive={pathname === '/child/dashboard'} />
                         <NavLink href="/child/rewards" icon={<Gift className="w-6 h-6" />} label="Rewards" isActive={pathname === '/child/rewards'} />
                         <NavLink href="/child/tasks" icon={<ClipboardList className="w-6 h-6" />} label="Tasks" isActive={pathname === '/child/tasks'} />
-                        <NavLink href="/child/routines" icon={<Sun className="w-6 h-6" />} label="Routines" isActive={pathname === '/child/routines'} />
+                        <NavLink href="/child/activity" icon={<Clock className="w-6 h-6" />} label="Activity" isActive={pathname === '/child/activity'} />
                     </div>
                 </div>
             )}

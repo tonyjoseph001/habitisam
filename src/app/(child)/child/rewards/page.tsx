@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Home, Gift, CheckSquare, List, AlertCircle, ArrowRight, X } from 'lucide-react';
+import { ChevronLeft, Home, Gift, CheckSquare, List, AlertCircle, ArrowRight, X, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
@@ -247,32 +247,7 @@ export default function ChildShopPage() {
                 </div>
             </div>
 
-            {/* Bottom Nav (Floating Dock) */}
-            <div className="fixed bottom-6 w-full flex justify-center z-50 px-4">
-                <div className="bg-white/95 backdrop-blur-xl rounded-full px-2 py-2 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.15)] border border-white flex justify-between items-center w-[90%]">
 
-                    <Link href="/child/dashboard" className="flex flex-col items-center gap-1 p-2 flex-1 text-gray-400 hover:text-orange-400 transition-colors group">
-                        <Home className="w-6 h-6 transition-transform group-active:scale-95" strokeWidth={2.5} />
-                        <span className="text-[10px] font-bold">Home</span>
-                    </Link>
-
-                    <button className="flex flex-col items-center gap-1 p-2 flex-1 text-[#FF9F1C] group">
-                        <Gift className="w-6 h-6 transition-transform group-active:scale-95" strokeWidth={2.5} fill="currentColor" />
-                        <span className="text-[10px] font-bold">Rewards</span>
-                    </button>
-
-                    <button className="flex flex-col items-center gap-1 p-2 flex-1 text-gray-400 hover:text-orange-400 transition-colors group">
-                        <CheckSquare className="w-6 h-6 transition-transform group-active:scale-95" strokeWidth={2.5} />
-                        <span className="text-[10px] font-bold">Tasks</span>
-                    </button>
-
-                    <button className="flex flex-col items-center gap-1 p-2 flex-1 text-gray-400 hover:text-orange-400 transition-colors group">
-                        <List className="w-6 h-6 transition-transform group-active:scale-95" strokeWidth={2.5} />
-                        <span className="text-[10px] font-bold">Routines</span>
-                    </button>
-
-                </div>
-            </div>
 
             {/* Confirmation Modal */}
             {mounted && isConfirmOpen && selectedReward && createPortal(

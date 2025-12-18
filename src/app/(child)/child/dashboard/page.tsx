@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { Play, Clock, Star, Bell, Menu, ArrowRight, X, Check } from 'lucide-react';
+import { ChevronDown, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
@@ -348,6 +348,8 @@ export default function MissionControlPage() {
                     animation: bounce-slow 3s infinite ease-in-out;
                 }
             `}</style>
+
+
 
         </main >
     );
