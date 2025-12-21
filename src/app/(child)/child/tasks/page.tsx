@@ -161,9 +161,17 @@ export default function ChildTasksPage() {
                             <div
                                 key={task.id}
                                 className={cn(
-                                    "bg-white rounded-3xl shadow-soft border border-gray-100 transition-all overflow-hidden relative",
-                                    isCompleted ? "opacity-60 grayscale-[0.3]" : "hover:border-orange-100",
-                                    isExpanded ? "ring-2 ring-orange-100 ring-offset-2" : ""
+                                    "bg-white rounded-3xl shadow-soft border-2 transition-all overflow-hidden relative",
+                                    isCompleted
+                                        ? "border-gray-100 opacity-60 grayscale-[0.3]"
+                                        : sectionTitle === 'Morning' ? "border-green-100 hover:border-green-200"
+                                            : sectionTitle === 'Afternoon' ? "border-blue-100 hover:border-blue-200"
+                                                : "border-purple-100 hover:border-purple-200",
+                                    isExpanded
+                                        ? sectionTitle === 'Morning' ? "ring-2 ring-green-100 ring-offset-2"
+                                            : sectionTitle === 'Afternoon' ? "ring-2 ring-blue-100 ring-offset-2"
+                                                : "ring-2 ring-purple-100 ring-offset-2"
+                                        : ""
                                 )}
                             >
                                 {/* Main Task Card Header */}

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
+import { differenceInMinutes, parse, format, isPast, isToday, addDays, isSameDay } from 'date-fns';
 
 // Visual Mapping for Stamps (Duplicate for now, ideally shared)
 const STAMP_ASSETS: Record<string, { emoji: string, color: string }> = {
@@ -39,13 +40,31 @@ export default function MissionControlPage() {
         [activeProfile?.id]
     );
 
-    const routines = useLiveQuery(async () => {
-        if (!activeProfile) return [];
-        return await db.activities
+    const data = useLiveQuery(async () => {
+        if (!activeProfile) return { routines: [], logs: [] };
+        const myRoutines = await db.activities
             .where('profileIds')
             .equals(activeProfile.id)
             .toArray();
+
+        const today = new Date();
+        const myLogs = await db.activityLogs
+            .where('profileId')
+            .equals(activeProfile.id)
+            .filter(l => {
+                const logDate = new Date(l.date);
+                return logDate.getDate() === today.getDate() &&
+                    logDate.getMonth() === today.getMonth() &&
+                    logDate.getFullYear() === today.getFullYear();
+            })
+            .toArray();
+
+        return { routines: myRoutines, logs: myLogs };
     }, [activeProfile?.id]);
+
+    const routines = data?.routines || [];
+    const logs = data?.logs || [];
+    const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
 
     // Stamp Selection Handler
     const handleSelectStamp = async (stampId: string) => {
@@ -54,13 +73,131 @@ export default function MissionControlPage() {
         setIsStampModalOpen(false);
     };
 
+    // Helper: Filter Routines for a specific date
+    const getRoutinesForDate = (allRoutines: any[], date: Date) => {
+        const dayOfWeek = date.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+        return allRoutines.filter(r => {
+            if (r.type === 'recurring') return r.days?.includes(dayOfWeek);
+            if (r.type === 'one-time' && r.date) return isSameDay(new Date(r.date), date);
+            return true; // Default fallback
+        }).sort((a, b) => {
+            if (!a.timeOfDay || !b.timeOfDay) return 0;
+            return a.timeOfDay.localeCompare(b.timeOfDay);
+        });
+    };
+
+    const today = new Date();
+    const tomorrow = addDays(today, 1);
+
+    const todayRoutines = React.useMemo(() => getRoutinesForDate(routines, today), [routines]);
+    const tomorrowRoutines = React.useMemo(() => getRoutinesForDate(routines, tomorrow), [routines]);
+
+    // "Upcoming Task" logic:
+    // 1. Check Today: First uncompleted future task.
+    // 2. If None Today: Check Tomorrow: First task (regardless of time, since it's tomorrow).
+    const upNextContext = React.useMemo(() => {
+        const now = new Date();
+
+        // 1. Try Today
+        const todayNext = todayRoutines.find(r => {
+            if (completedTaskIds.has(r.id)) return false;
+            if (!r.timeOfDay) return false;
+            try {
+                const t = parse(r.timeOfDay, 'HH:mm', now);
+                return differenceInMinutes(t, now) > 0;
+            } catch { return false; }
+        });
+
+        if (todayNext) return { routine: todayNext, isTomorrow: false };
+
+        // 2. Try Tomorrow (First routine of the day)
+        // We only show tomorrow if today has NO pending tasks (either all done or all past & done? User said 'if today all task are completed')
+        // But what if I have an overdue task?
+        // User said: "so overdue task i wanted to show in assigned task list" - implying Upcoming should SKIP overdue.
+        // So if I have overdue tasks, but no FUTURE tasks today, I should show Tomorrow?
+        // Yes, that seems to be the intent.
+
+        if (tomorrowRoutines.length > 0) {
+            return { routine: tomorrowRoutines[0], isTomorrow: true };
+        }
+
+        return null;
+    }, [todayRoutines, tomorrowRoutines, completedTaskIds]);
+
+    const upNextRoutine = upNextContext?.routine;
+    const isTomorrow = upNextContext?.isTomorrow;
+
+    // Assigned Tasks: All TODAY routines that are NOT the upcoming one (if upcoming is today)
+    // If upcoming is Tomorrow, then Assigned Tasks should be ALL of Today's routines (Overdue/Completed/Past-Uncompleted).
+    const assignedTasks = React.useMemo(() => {
+        if (isTomorrow) return todayRoutines; // Show all today tasks in list
+        return todayRoutines.filter(r => r.id !== upNextRoutine?.id);
+    }, [todayRoutines, upNextRoutine, isTomorrow]);
+
+    // Time calculations
+    const timeStatus = React.useMemo(() => {
+        if (!upNextRoutine || !upNextRoutine.timeOfDay) return null;
+        try {
+            const now = new Date();
+            // If tomorrow, we need to parse relative to tomorrow
+            const baseDate = isTomorrow ? tomorrow : now;
+            const taskTime = parse(upNextRoutine.timeOfDay, 'HH:mm', baseDate);
+
+            // If tomorrow, diffMins will be large, so we might want to just show "Tomorrow" text
+            const diffMins = differenceInMinutes(taskTime, now);
+
+            if (isTomorrow) {
+                return {
+                    formatted: format(taskTime, 'h:mm a'),
+                    diffMins,
+                    isLate: false,
+                    text: 'Tomorrow'
+                };
+            }
+
+            let text = '';
+            if (diffMins < 0) {
+                text = 'Overdue';
+            } else if (diffMins === 0) {
+                text = 'Starts Now';
+            } else {
+                const hours = Math.floor(diffMins / 60);
+                const mins = diffMins % 60;
+                if (hours > 0) {
+                    text = `Starts in ${hours}h ${mins}m`;
+                } else {
+                    text = `Starts in ${diffMins}m`;
+                }
+            }
+
+            return {
+                formatted: format(taskTime, 'h:mm a'),
+                diffMins,
+                isLate: diffMins < 0,
+                text
+            };
+        } catch (e) {
+            return { formatted: upNextRoutine.timeOfDay, diffMins: 0, isLate: false, text: 'Today' };
+        }
+    }, [upNextRoutine, isTomorrow]);
+
+    // Helper to determine status for list items
+    const getTaskStatus = (task: any) => {
+        if (completedTaskIds.has(task.id)) return 'completed';
+
+        try {
+            const now = new Date();
+            const t = parse(task.timeOfDay, 'HH:mm', now);
+            if (differenceInMinutes(t, now) < 0) return 'overdue';
+        } catch { }
+
+        return 'pending';
+    };
+
     if (!activeProfile) return null;
 
     // Use live data if available, otherwise fallback to session
     const displayProfile = liveProfile || activeProfile;
-
-    const upNextRoutine = routines?.[0];
-    const assignedTasks = routines?.slice(1) || [];
 
     // Avatar Logic
     const avatarSrc = `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayProfile.name}&clothing=graphicShirt`;
@@ -69,15 +206,17 @@ export default function MissionControlPage() {
     const activeStampId = displayProfile.activeStamp || 'star';
     const stampAsset = STAMP_ASSETS[activeStampId] || STAMP_ASSETS['star'];
 
-    // Helper for Icon Rendering
+    // Helper for Icon Rendering using Lucide or fallback
     const RenderIcon = ({ name, className }: { name?: string; className?: string }) => {
+        // Simple mapping or lazy load. 
+        // Note: In client component, requiring lucide-react dynamically inside render might be checking performance, 
+        // but let's stick to the existing pattern or use the simpler map if defined elsewhere.
+        // Using the pattern from ChildTasksPage is safer but requires copying that map.
+        // Let's try to just render a known icon for safety if dynamic fails, or use the existing logic if it works.
+        // existing logic:
+        const iconName = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Star';
         // @ts-ignore
-        const LucideIcon = React.useMemo(() => {
-            if (!name) return Star; // Fallback
-            // @ts-ignore
-            return require('lucide-react')[name] || Star;
-        }, [name]);
-
+        const LucideIcon = require('lucide-react')[iconName] || Star;
         return <LucideIcon className={className || "w-6 h-6"} />;
     };
 
@@ -119,8 +258,6 @@ export default function MissionControlPage() {
                 onClose={() => setIsProfileSwitcherOpen(false)}
             />
 
-            {/* ... rest of the file ... */}
-
             {/* Welcome Section */}
             <div className="px-6 mb-6 flex items-center gap-4">
 
@@ -159,11 +296,19 @@ export default function MissionControlPage() {
                 {upNextRoutine ? (
                     <div className="bg-white rounded-[2rem] p-5 shadow-[0_10px_20px_rgba(0,0,0,0.05)] border border-blue-50 relative overflow-hidden group">
 
-                        {/* Timer Badge (Absolute) */}
+                        {/* Timer Badge (Absolute Left - Relative) */}
                         <div className="absolute top-4 left-4 z-10">
-                            <div className="bg-red-50 text-red-500 px-3 py-1 rounded-lg text-xs font-bold border border-red-100 flex items-center gap-1">
+                            <div className={`px-3 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 ${timeStatus?.isLate ? 'bg-red-50 text-red-500 border-red-100' : 'bg-blue-50 text-blue-500 border-blue-100'
+                                }`}>
                                 <Clock className="w-3 h-3" />
-                                <span>Starts in 10m</span>
+                                <span>{timeStatus?.text}</span>
+                            </div>
+                        </div>
+
+                        {/* Timer Badge (Absolute Right - Actual Time) */}
+                        <div className="absolute top-4 right-4 z-10">
+                            <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold border border-gray-200">
+                                {timeStatus?.formatted}
                             </div>
                         </div>
 
@@ -173,7 +318,7 @@ export default function MissionControlPage() {
                             </div>
 
                             <div className="flex-1">
-                                <h3 className="font-bold text-gray-900 text-lg leading-tight">{upNextRoutine.title}</h3>
+                                <h3 className="font-bold text-gray-900 text-lg leading-tight w-3/4">{upNextRoutine.title}</h3>
 
                                 <div className="flex items-center gap-2 mt-2">
                                     <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-lg">
@@ -300,7 +445,10 @@ export default function MissionControlPage() {
 
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-gray-400 bg-white rounded-[2rem] shadow-sm">No upcoming tasks!</div>
+                    <div className="text-center py-8 text-gray-400 bg-white rounded-[2rem] shadow-sm">
+                        <p className="font-bold">✨ All caught up!</p>
+                        <p className="text-xs mt-1">Great job!</p>
+                    </div>
                 )}
             </div>
 
@@ -316,26 +464,52 @@ export default function MissionControlPage() {
                 <div className="space-y-4">
                     {assignedTasks.length === 0 && <p className="text-slate-400 text-sm text-center">All caught up!</p>}
 
-                    {assignedTasks.map((task, i) => (
-                        <div key={task.id} className={`bg-white rounded-3xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)] flex items-center gap-4 border ${i % 2 === 0 ? 'border-blue-50' : 'border-red-50'}`}>
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${i % 2 === 0 ? 'bg-blue-100 text-blue-500' : 'bg-red-100 text-red-500'}`}>
-                                <RenderIcon name={task.icon} className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-gray-800 text-lg">{task.title}</h4>
-                                <p className="text-xs font-bold text-gray-400">{task.steps.length} steps</p>
-                            </div>
+                    {assignedTasks.map((task, i) => {
+                        const status = getTaskStatus(task);
 
-                            <div className="flex flex-col items-end gap-1">
-                                <div className="flex items-center gap-1 text-gray-500 font-bold text-xs bg-gray-50 px-2 py-1 rounded-md">
-                                    <span>{task.timeOfDay}</span>
+                        return (
+                            <Link href={`/child/routine?id=${task.id}`} key={task.id} className="block">
+                                <div className={`bg-white rounded-3xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)] flex items-center gap-4 border ${status === 'overdue' ? 'border-red-100 bg-red-50/10' :
+                                    status === 'completed' ? 'border-green-100 opacity-60' :
+                                        i % 2 === 0 ? 'border-blue-50' : 'border-red-50'
+                                    }`}>
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${status === 'completed' ? 'bg-green-100 text-green-500' :
+                                        status === 'overdue' ? 'bg-red-100 text-red-500' :
+                                            i % 2 === 0 ? 'bg-blue-100 text-blue-500' : 'bg-red-100 text-red-500'
+                                        }`}>
+                                        {status === 'completed' ? <Check className="w-6 h-6" /> : <RenderIcon name={task.icon} className="w-6 h-6" />}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className={`font-bold text-lg ${status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {status === 'overdue' && (
+                                                <span className="text-[10px] font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded">
+                                                    Overdue
+                                                </span>
+                                            )}
+                                            {status === 'completed' && (
+                                                <span className="text-[10px] font-bold text-green-500 bg-green-100 px-2 py-0.5 rounded">
+                                                    Completed
+                                                </span>
+                                            )}
+                                            <p className="text-xs font-bold text-gray-400">{task.steps.length} steps</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-1 text-gray-500 font-bold text-xs bg-gray-50 px-2 py-1 rounded-md">
+                                            <span>{task.timeOfDay}</span>
+                                        </div>
+                                        {status !== 'completed' && (
+                                            <div className="flex items-center gap-1 text-yellow-600 font-bold text-xs bg-yellow-50 px-2 py-1 rounded-md">
+                                                <span>⭐ +{task.steps?.reduce((a: number, b: any) => a + (b.stars || 0), 0) || 0}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-1 text-yellow-600 font-bold text-xs bg-yellow-50 px-2 py-1 rounded-md">
-                                    <span>⭐ +{task.steps?.reduce((a: number, b: any) => a + (b.stars || 0), 0) || 0}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                            </Link>
+                        );
+                    })}
                 </div>
             </div>
 
