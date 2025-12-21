@@ -140,6 +140,36 @@ export interface PurchaseLog {
     processedBy?: string; // Parent ID who approved/rejected
 }
 
+// ==========================================
+// NEW: Goals / Quests
+// ==========================================
+export type GoalType = 'checklist' | 'slider' | 'counter' | 'timer' | 'savings' | 'binary';
+export type GoalStatus = 'active' | 'pending_approval' | 'completed';
+
+export interface Goal {
+    id: string; // UUID
+    accountId: string; // FK
+    profileId: string; // FK
+    title: string;
+    description?: string;
+    type: GoalType;
+
+    // Progress Tracking
+    target: number; // e.g. 10 (books), 100 (%), 50 (dollars)
+    current: number; // e.g. 3
+
+    // Rewards
+    stars: number;
+
+    // Visuals & Meta
+    icon: string; // Emoji
+    dueDate?: string; // "Nov 15" or simple string provided by parent
+    status: GoalStatus;
+
+    createdAt?: Date;
+    completedAt?: Date;
+}
+
 // --- DATABASE INITIALIZATION ---
 
 interface HabitisimDB extends Dexie {
@@ -149,6 +179,7 @@ interface HabitisimDB extends Dexie {
     activityLogs: EntityTable<ActivityLog, 'id'>;
     rewards: EntityTable<Reward, 'id'>;
     purchaseLogs: EntityTable<PurchaseLog, 'id'>;
+    goals: EntityTable<Goal, 'id'>;
 }
 
 const db = new Dexie('HabitisimDB') as HabitisimDB;
@@ -165,6 +196,7 @@ db.version(1).stores({
     activityLogs: 'id, accountId, [profileId+date], activityId',
     rewards: 'id, accountId',
     purchaseLogs: 'id, accountId, profileId, purchasedAt',
+    goals: 'id, accountId, profileId, type, status'
 });
 
 // Hooks to populate createdAt automatically
@@ -180,6 +212,11 @@ db.profiles.hook('creating', function (primKey, obj, trans) {
 });
 db.activities.hook('creating', function (primKey, obj, trans) {
     obj.createdAt = new Date();
+});
+db.goals.hook('creating', function (primKey, obj, trans) {
+    obj.createdAt = new Date();
+    if (!obj.status) obj.status = 'active';
+    if (!obj.current) obj.current = 0;
 });
 
 export { db };
