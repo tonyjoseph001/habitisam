@@ -6,9 +6,18 @@ import { db, Goal } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Check } from 'lucide-react';
+
 import * as Icons from 'lucide-react';
 
+import { cn } from '@/lib/utils';
+
 export default function ChildGoalsPage() {
+    const RenderIcon = ({ name }: { name: string }) => {
+        // @ts-ignore
+        const LucideIcon = Icons[name];
+        if (LucideIcon) return <LucideIcon className="w-8 h-8 text-white" />;
+        return <span className="text-3xl leading-none">{name}</span>;
+    };
     const { activeProfile } = useSessionStore();
     const [mockGoals, setMockGoals] = useState<Goal[]>([]);
     const [confirmationGoal, setConfirmationGoal] = useState<Goal | null>(null);
@@ -123,12 +132,7 @@ export default function ChildGoalsPage() {
         }
     };
 
-    const RenderIcon = ({ name }: { name: string }) => {
-        // @ts-ignore
-        const LucideIcon = Icons[name] || Icons.HelpCircle;
-        // @ts-ignore
-        return <LucideIcon className="w-8 h-8" />;
-    };
+
 
     // Fallback if no real data (Mock for demonstration/dev based on screenshot)
     const displayGoals = (goals && goals.length > 0) ? goals : [

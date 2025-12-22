@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Minus, Plus, Clock, Star, Trash2 } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import { cn } from '@/lib/utils';
 import { Step } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ const AVAILABLE_ICONS = [
 export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete }: StepEditorModalProps) {
     const [title, setTitle] = useState('');
     const [icon, setIcon] = useState('Smile');
+    const [showPicker, setShowPicker] = useState(false);
     const [isTimerEnabled, setIsTimerEnabled] = useState(false);
     const [timerDuration, setTimerDuration] = useState<number>(120); // seconds (default 2m)
     const [isInputFocused, setIsInputFocused] = useState(false);
@@ -77,11 +79,12 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
     };
 
     // Helper to render Lucide icon dynamically
+    // Helper to render Lucide icon dynamically
     const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
         // @ts-ignore - Dynamic access
-        const LucideIcon = Icons[name as keyof typeof Icons] || Icons.HelpCircle;
-        // @ts-ignore
-        return <LucideIcon className={className} />;
+        const LucideIcon = Icons[name as keyof typeof Icons];
+        if (LucideIcon) return <LucideIcon className={className} />;
+        return <span className={cn(className?.includes('w-') ? 'text-4xl' : 'text-xl', "leading-none")}>{name}</span>;
     };
 
     const formatTime = (seconds: number) => {
@@ -215,27 +218,38 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                             {/* 4. Visuals (Icon & Timer) */}
                             <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-6">
                                 {/* Icon Selector */}
-                                <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-3 relative">
                                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Visual Icon</h4>
-                                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                                        {AVAILABLE_ICONS.map((iconName) => {
-                                            const isSelected = icon === iconName;
-                                            return (
-                                                <button
-                                                    key={iconName}
-                                                    onClick={() => setIcon(iconName)}
-                                                    className={cn(
-                                                        "w-12 h-12 rounded-full flex items-center justify-center shrink-0 border transition-all duration-200",
-                                                        isSelected
-                                                            ? "bg-violet-50 border-violet-500 text-violet-600 shadow-sm scale-105"
-                                                            : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
-                                                    )}
-                                                >
-                                                    <RenderIcon name={iconName} className="w-6 h-6" />
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    <button
+                                        onClick={() => setShowPicker(!showPicker)}
+                                        className="w-full h-16 rounded-xl border-2 border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50 transition-all flex items-center gap-4 px-4 shadow-sm"
+                                    >
+                                        <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center text-2xl">
+                                            <RenderIcon name={icon || 'Smile'} className="w-6 h-6" />
+                                        </div>
+                                        <span className="font-bold text-slate-600">
+                                            {showPicker ? 'Close Picker' : 'Choose Icon...'}
+                                        </span>
+                                    </button>
+
+                                    {showPicker && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="shadow-2xl rounded-xl overflow-hidden border border-slate-200">
+                                                <EmojiPicker
+                                                    onEmojiClick={(emojiData) => {
+                                                        setIcon(emojiData.emoji);
+                                                        setShowPicker(false);
+                                                    }}
+                                                    width="100%"
+                                                    height={350}
+                                                    lazyLoadEmojis={true}
+                                                    searchDisabled={false}
+                                                    skinTonesDisabled={true}
+                                                    previewConfig={{ showPreview: false }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="h-px bg-slate-100" />

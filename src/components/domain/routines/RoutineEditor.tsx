@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
 import * as Icons from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 
 // Day Selector Options
 const DAYS = [
@@ -31,7 +32,7 @@ const TRACKING_TYPES = [
     { id: 'binary', label: 'Done?', desc: 'Yes / No', icon: CheckCircle2 },
 ];
 
-const ICONS_LIST = ['Sun', 'Moon', 'Book', 'Utensils', 'Briefcase', 'ShowerHead', 'Gamepad2', 'BedDouble', 'Trophy', 'Target', 'PiggyBank', 'Bike', 'Music', 'Star', 'Heart', 'Zap', 'Smile', 'Camera', 'Palette', 'Rocket'];
+
 
 interface RoutineEditorProps {
     initialRoutineId?: string;
@@ -47,6 +48,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     // --- State ---
     // Top Toggle state: 'recurring' | 'one-time' | 'goal'
     const [editorType, setEditorType] = useState<'recurring' | 'one-time' | 'goal'>('recurring');
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     // Shared
     const [title, setTitle] = useState('');
@@ -215,9 +217,9 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
     const RenderIcon = ({ name, size = "w-5 h-5" }: { name: string, size?: string }) => {
         // @ts-ignore
-        const Icon = Icons[name] || Icons.HelpCircle;
-        // @ts-ignore
-        return <Icon className={size} />;
+        const LucideIcon = Icons[name];
+        if (LucideIcon) return <LucideIcon className={size} />;
+        return <span className={cn(size?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none")}>{name}</span>;
     };
 
     if (isLoading) return <div className="p-8 text-center text-slate-500">Loading Item...</div>;
@@ -253,12 +255,39 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     {/* Improved Icon Picker Grid */}
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
-                        <div className="grid grid-cols-6 gap-3">
-                            {ICONS_LIST.map(name => (
-                                <button key={name} onClick={() => setIcon(name)} className={cn("aspect-square rounded-xl flex items-center justify-center transition-all border-2", icon === name ? "border-violet-600 bg-violet-50 text-violet-600" : "border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-300")}>
-                                    <RenderIcon name={name} size="w-6 h-6" />
-                                </button>
-                            ))}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                className="w-full h-16 rounded-xl border-2 border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50 transition-all flex items-center gap-4 px-4 shadow-sm"
+                            >
+                                <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center text-2xl">
+                                    <RenderIcon name={icon || 'Smile'} size="w-6 h-6" />
+                                </div>
+                                <span className="font-bold text-slate-600">
+                                    {showEmojiPicker ? 'Close Picker' : 'Choose Icon...'}
+                                </span>
+                                <ChevronLeft className={cn("w-5 h-5 text-slate-400 ml-auto transition-transform -rotate-90", showEmojiPicker && "rotate-90")} />
+                            </button>
+
+                            {/* Emoji Picker Popover */}
+                            {showEmojiPicker && (
+                                <div className="absolute top-full left-0 right-0 mt-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="shadow-2xl rounded-xl overflow-hidden border border-slate-200">
+                                        <EmojiPicker
+                                            onEmojiClick={(emojiData) => {
+                                                setIcon(emojiData.emoji);
+                                                setShowEmojiPicker(false);
+                                            }}
+                                            width="100%"
+                                            height={400}
+                                            lazyLoadEmojis={true}
+                                            searchDisabled={false}
+                                            skinTonesDisabled={true}
+                                            previewConfig={{ showPreview: false }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

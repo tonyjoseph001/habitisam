@@ -4,7 +4,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { useRoutines } from '@/lib/hooks/useRoutines';
-import { Plus, Clock, Calendar, Edit2, Trash2, CheckCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle } from 'lucide-react';
+import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -96,13 +97,19 @@ export default function RoutinesPage() {
         return acc;
     }, {} as Record<string, typeof completedGoals>);
 
+    const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
+        // @ts-ignore
+        const LucideIcon = Icons[name];
+        if (LucideIcon) return <LucideIcon className={className} />;
+        return <span className={className?.includes('text-2xl') ? 'text-2xl' : 'text-xl'}>{name}</span>;
+    };
+
     const RenderGoalCard = ({ goal }: { goal: any }) => (
         <div key={goal.id} className={`bg-white rounded-xl p-4 shadow-sm border border-slate-100 group ${goal.status === 'pending_approval' ? 'border-orange-200 bg-orange-50/30' : ''}`}>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${goal.status === 'completed' ? 'bg-green-100 grayscale' : 'bg-blue-50'}`}>
-                        {/* Simple mapping for now, assuming emoji or icon name */}
-                        {goal.icon === 'Target' ? '🎯' : goal.icon === 'Book' ? '📚' : '🏆'}
+                        <RenderIcon name={goal.icon} className="w-6 h-6 text-slate-700" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
@@ -165,7 +172,7 @@ export default function RoutinesPage() {
                         {routines?.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
                                 <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                                    <Calendar className="w-10 h-10 text-slate-300" />
+                                    <CalendarIcon className="w-10 h-10 text-slate-300" />
                                 </div>
                                 <h3 className="font-bold text-slate-700">No Routines Yet</h3>
                                 <p className="text-sm text-slate-500 max-w-xs">Create routines like "Morning Rush" or "Bedtime".</p>
@@ -175,10 +182,7 @@ export default function RoutinesPage() {
                             <div key={routine.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex items-center justify-between group">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-lg bg-violet-50 flex items-center justify-center text-2xl">
-                                        {/* Dynamic Icon based on title/type logic or stored icon - reusing primitive logic or use actual icon if available */}
-                                        {/* Note: In previous steps we added 'icon' to activity, so we should use it if present */}
-                                        {/* @ts-ignore */}
-                                        {routine.icon === 'Sun' ? '☀️' : routine.icon === 'Moon' ? '🌙' : '📝'}
+                                        <RenderIcon name={routine.icon || 'Star'} className="w-6 h-6 text-slate-700" />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-slate-900">{routine.title}</h3>

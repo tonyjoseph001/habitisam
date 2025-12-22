@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock, User as UserIcon } from 'lucide-react';
+import * as Icons from 'lucide-react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
@@ -50,6 +51,13 @@ export default function ParentDashboard() {
 
     const totalStars = 150;
     const streak = 5;
+
+    const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
+        // @ts-ignore
+        const LucideIcon = Icons[name];
+        if (LucideIcon) return <LucideIcon className={className} />;
+        return <span className={cn(className?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none")}>{name}</span>;
+    };
 
     return (
         <div className="min-h-screen bg-slate-100 pb-20 font-sans">
@@ -228,13 +236,18 @@ export default function ParentDashboard() {
                             const childNames = routine.profileIds.map(pid => getChildName(pid)).join(', ');
                             return (
                                 <div key={routine.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between border border-slate-200">
-                                    <div className="flex flex-col">
-                                        <h4 className="font-bold text-slate-800 text-sm">
-                                            {routine.title} <span className="font-normal text-slate-500 text-xs">({childNames})</span>
-                                        </h4>
-                                        <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
-                                            <Clock className="w-3 h-3" />
-                                            <span>{routine.timeOfDay}</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500">
+                                            <RenderIcon name={routine.icon || 'Star'} className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <h4 className="font-bold text-slate-800 text-sm">
+                                                {routine.title} <span className="font-normal text-slate-500 text-xs">({childNames})</span>
+                                            </h4>
+                                            <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
+                                                <Clock className="w-3 h-3" />
+                                                <span>{routine.timeOfDay}</span>
+                                            </div>
                                         </div>
                                     </div>
 

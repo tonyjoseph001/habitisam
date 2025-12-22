@@ -5,11 +5,13 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { ChevronDown, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check } from 'lucide-react';
+import * as Icons from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { differenceInMinutes, parse, format, isPast, isToday, addDays, isSameDay } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 // Visual Mapping for Stamps (Duplicate for now, ideally shared)
 const STAMP_ASSETS: Record<string, { emoji: string, color: string }> = {
@@ -208,16 +210,11 @@ export default function MissionControlPage() {
 
     // Helper for Icon Rendering using Lucide or fallback
     const RenderIcon = ({ name, className }: { name?: string; className?: string }) => {
-        // Simple mapping or lazy load. 
-        // Note: In client component, requiring lucide-react dynamically inside render might be checking performance, 
-        // but let's stick to the existing pattern or use the simpler map if defined elsewhere.
-        // Using the pattern from ChildTasksPage is safer but requires copying that map.
-        // Let's try to just render a known icon for safety if dynamic fails, or use the existing logic if it works.
-        // existing logic:
-        const iconName = name ? name.charAt(0).toUpperCase() + name.slice(1) : 'Star';
+        if (!name) return <Star className={className || "w-6 h-6"} />;
         // @ts-ignore
-        const LucideIcon = require('lucide-react')[iconName] || Star;
-        return <LucideIcon className={className || "w-6 h-6"} />;
+        const LucideIcon = Icons[name];
+        if (LucideIcon) return <LucideIcon className={className || "w-6 h-6"} />;
+        return <span className={cn("leading-none flex items-center justify-center", className)} style={{ fontSize: className?.match(/text-(\d+xl|\[\d+px\])/) ? undefined : 'inherit' }}>{name}</span>;
     };
 
     return (
@@ -313,8 +310,8 @@ export default function MissionControlPage() {
                         </div>
 
                         <div className="flex gap-4 mb-4 mt-8">
-                            <div className="w-16 h-16 rounded-2xl bg-orange-100 overflow-hidden flex-shrink-0 border-2 border-gray-100 p-2 flex items-center justify-center text-orange-500">
-                                <RenderIcon name={upNextRoutine.icon} className="w-8 h-8" />
+                            <div className="flex-shrink-0 flex items-center justify-center w-20 h-20">
+                                <RenderIcon name={upNextRoutine.icon} className="w-20 h-20 text-7xl" />
                             </div>
 
                             <div className="flex-1">
@@ -473,11 +470,14 @@ export default function MissionControlPage() {
                                     status === 'completed' ? 'border-green-100 opacity-60' :
                                         i % 2 === 0 ? 'border-blue-50' : 'border-red-50'
                                     }`}>
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${status === 'completed' ? 'bg-green-100 text-green-500' :
-                                        status === 'overdue' ? 'bg-red-100 text-red-500' :
-                                            i % 2 === 0 ? 'bg-blue-100 text-blue-500' : 'bg-red-100 text-red-500'
+                                    <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 ${status === 'completed'
+                                        ? 'rounded-xl bg-green-100 text-green-500'
+                                        : ''
                                         }`}>
-                                        {status === 'completed' ? <Check className="w-6 h-6" /> : <RenderIcon name={task.icon} className="w-6 h-6" />}
+                                        {status === 'completed'
+                                            ? <Check className="w-6 h-6" />
+                                            : <RenderIcon name={task.icon} className="w-12 h-12 text-4xl" />
+                                        }
                                     </div>
                                     <div className="flex-1">
                                         <h4 className={`font-bold text-lg ${status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
