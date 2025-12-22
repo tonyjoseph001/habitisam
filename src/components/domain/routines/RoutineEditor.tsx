@@ -321,8 +321,14 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             <div className="flex flex-col gap-2">
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Due Date</label>
                                 <div className="relative">
-                                    <CalendarIcon className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
-                                    <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="pl-10 h-12 border-slate-200 font-medium text-slate-900" />
+                                    <CalendarIcon className="absolute left-3 top-3.5 w-5 h-5 text-slate-400 pointer-events-none" />
+                                    <Input
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={e => setDueDate(e.target.value)}
+                                        onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
+                                        className="pl-10 h-12 border-slate-200 font-medium text-slate-900 block w-full"
+                                    />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -364,7 +370,13 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Date</label>
-                                    <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-12 border-slate-200 text-slate-900" />
+                                    <Input
+                                        type="date"
+                                        value={date}
+                                        onChange={e => setDate(e.target.value)}
+                                        onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
+                                        className="h-12 border-slate-200 text-slate-900 block w-full"
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Time</label>

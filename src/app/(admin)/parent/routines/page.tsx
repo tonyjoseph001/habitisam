@@ -15,12 +15,13 @@ export default function RoutinesPage() {
     const { routines, deleteRoutine } = useRoutines();
     const [activeTab, setActiveTab] = React.useState<'routines' | 'goals'>('routines');
     const [approvingGoal, setApprovingGoal] = React.useState<any | null>(null);
+    const [rejectingGoal, setRejectingGoal] = React.useState<any | null>(null);
     const [awardStars, setAwardStars] = React.useState<number>(0);
 
     const goals = useLiveQuery(() => db.goals.toArray());
     const profiles = useLiveQuery(() => db.profiles.toArray());
 
-    const pendingGoals = goals?.filter(g => g.status === 'pending_approval') || [];
+
 
     const handleOpenNew = () => {
         router.push('/parent/routines/new');
@@ -47,7 +48,10 @@ export default function RoutinesPage() {
         if (!approvingGoal || !approvingGoal.profileId) return;
 
         // 1. Mark goal completed
-        await db.goals.update(approvingGoal.id, { status: 'completed' });
+        await db.goals.update(approvingGoal.id, {
+            status: 'completed',
+            completedAt: new Date()
+        });
 
         // 2. Add stars to profile (use awardStars state)
         const profile = profiles?.find(p => p.id === approvingGoal.profileId);
@@ -59,12 +63,80 @@ export default function RoutinesPage() {
         setApprovingGoal(null);
     };
 
-    const handleRejectGoal = async (goal: any) => {
-        if (confirm("Reject this completion request? Status will be set back to active.")) {
-            await db.goals.update(goal.id, { status: 'active' }); // Send back to active
-            toast.info("Goal rejected and set back to active.");
-        }
+    const handleRejectClick = (goal: any) => {
+        setRejectingGoal(goal);
     };
+
+    const handleConfirmReject = async () => {
+        if (!rejectingGoal) return;
+
+        await db.goals.update(rejectingGoal.id, {
+            status: 'active',
+            current: rejectingGoal.type === 'binary' ? 0 : rejectingGoal.current, // Reset binary? Or keep progress? Keeping for now but setting status active.
+            completedAt: undefined // Clear completedAt if it was set
+        });
+        toast.info("Goal rejected and set back to active.");
+        setRejectingGoal(null);
+    };
+
+    // --- Grouping Logic ---
+    const pendingGoals = goals?.filter(g => g.status === 'pending_approval') || [];
+    const activeGoals = goals?.filter(g => g.status === 'active') || [];
+
+    const completedGoals = goals?.filter(g => g.status === 'completed').sort((a, b) => {
+        // Sort by completion date desc
+        return new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime();
+    }) || [];
+
+    const groupedHistory = completedGoals.reduce((acc, goal) => {
+        const date = goal.completedAt ? new Date(goal.completedAt) : new Date();
+        const key = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(goal);
+        return acc;
+    }, {} as Record<string, typeof completedGoals>);
+
+    const RenderGoalCard = ({ goal }: { goal: any }) => (
+        <div key={goal.id} className={`bg-white rounded-xl p-4 shadow-sm border border-slate-100 group ${goal.status === 'pending_approval' ? 'border-orange-200 bg-orange-50/30' : ''}`}>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${goal.status === 'completed' ? 'bg-green-100 grayscale' : 'bg-blue-50'}`}>
+                        {/* Simple mapping for now, assuming emoji or icon name */}
+                        {goal.icon === 'Target' ? '🎯' : goal.icon === 'Book' ? '📚' : '🏆'}
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className={`font-bold ${goal.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{goal.title}</h3>
+                            {/* Status Badge */}
+                            {goal.status === 'pending_approval' && <span className="bg-orange-100 text-orange-600 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Waiting</span>}
+                            {goal.status === 'active' && <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Active</span>}
+                            {goal.status === 'completed' && <span className="bg-green-100 text-green-600 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Completed</span>}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                            <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold capitalize">{goal.type}</span>
+                            <span className="text-slate-400">Target: {goal.target} {goal.unit}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Edit/Delete Actions (Only for Active) */}
+                {goal.status === 'active' && (
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => handleOpenEdit(goal.id)} className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-5 h-5" /></button>
+                        <button onClick={() => handleDeleteGoal(goal.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
+                    </div>
+                )}
+            </div>
+
+            {/* Pending Actions Footer */}
+            {goal.status === 'pending_approval' && (
+                <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-orange-200/50">
+                    <Button size="sm" variant="ghost" onClick={() => handleRejectClick(goal)} className="text-red-500 hover:text-red-600 hover:bg-red-50 px-4">Reject</Button>
+                    <Button size="sm" onClick={() => handleApproveClick(goal)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 shadow-sm shadow-green-200">Approve</Button>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24">
@@ -128,33 +200,48 @@ export default function RoutinesPage() {
                 {/* GOALS LIST */}
                 {activeTab === 'goals' && (
                     <>
-                        {/* PENDING APPROVALS */}
+                        {/* PENDING APPROVALS SECTION */}
                         {pendingGoals.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="text-sm font-bold text-slate-500 mb-2 uppercase tracking-wider">Waiting for Approval ({pendingGoals.length})</h3>
+                            <div className="mb-8">
+                                <h3 className="text-sm font-bold text-orange-600 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <Clock className="w-4 h-4" /> Waiting Approval
+                                    <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">{pendingGoals.length}</span>
+                                </h3>
                                 <div className="space-y-3">
-                                    {pendingGoals.map(goal => (
-                                        <div key={goal.id} className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
-                                                    <Clock className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-slate-800">{goal.title}</h4>
-                                                    <p className="text-xs text-slate-500">Claiming {goal.stars} Stars</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button size="sm" variant="outline" onClick={() => handleRejectGoal(goal)} className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-100">
-                                                    Reject
-                                                </Button>
-                                                <Button size="sm" onClick={() => handleApproveClick(goal)} className="bg-green-600 hover:bg-green-700 text-white font-bold gap-2">
-                                                    Approve <CheckCircle className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                    {pendingGoals.map(goal => <RenderGoalCard key={goal.id} goal={goal} />)}
                                 </div>
+                            </div>
+                        )}
+
+                        {/* ACTIVE GOALS SECTION */}
+                        <div className="mb-8">
+                            <h3 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center justify-between">
+                                Active Quests
+                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{activeGoals.length}</span>
+                            </h3>
+                            {activeGoals.length === 0 && (
+                                <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">No active quests. Create one!</div>
+                            )}
+                            <div className="space-y-3">
+                                {activeGoals.map(goal => <RenderGoalCard key={goal.id} goal={goal} />)}
+                            </div>
+                        </div>
+
+                        {/* HISTORY SECTION (Grouped) */}
+                        {Object.keys(groupedHistory).length > 0 && (
+                            <div className="space-y-6">
+                                {Object.entries(groupedHistory).map(([dateLabel, monthGoals]) => (
+                                    <div key={dateLabel}>
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="h-px bg-slate-200 flex-1"></div>
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{dateLabel}</span>
+                                            <div className="h-px bg-slate-200 flex-1"></div>
+                                        </div>
+                                        <div className="space-y-3 opacity-75 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+                                            {monthGoals.map(goal => <RenderGoalCard key={goal.id} goal={goal} />)}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -167,27 +254,6 @@ export default function RoutinesPage() {
                                 <p className="text-sm text-slate-500 max-w-xs">Create long term quests like "Read 10 Books".</p>
                             </div>
                         )}
-                        {goals?.map((goal) => (
-                            <div key={goal.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex items-center justify-between group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-2xl">
-                                        {/* Simple mapping for now, assuming emoji or icon name */}
-                                        {goal.icon === 'Target' ? '🎯' : goal.icon === 'Book' ? '📚' : '🏆'}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-900">{goal.title}</h3>
-                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                            <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold capitalize">{goal.type}</span>
-                                            <span className="text-slate-400">Target: {goal.target} {goal.unit}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => handleOpenEdit(goal.id)} className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-5 h-5" /></button>
-                                    <button onClick={() => handleDeleteGoal(goal.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
-                                </div>
-                            </div>
-                        ))}
                     </>
                 )}
 
@@ -203,6 +269,17 @@ export default function RoutinesPage() {
                         <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
                         <h3 className="text-lg font-bold text-slate-900 mb-1">Approve Completion</h3>
                         <p className="text-sm text-slate-500 mb-6">Review and award stars for <span className="font-bold text-slate-700">{approvingGoal.title}</span>.</p>
+                        <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{approvingGoal.type} Goal</span>
+                                <span className="text-xs font-bold text-slate-600">{approvingGoal.current} / {approvingGoal.target} {approvingGoal.unit}</span>
+                            </div>
+                            {approvingGoal.type !== 'binary' && (
+                                <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((approvingGoal.current / approvingGoal.target) * 100))}%` }}></div>
+                                </div>
+                            )}
+                        </div>
 
                         <div className="bg-yellow-50 rounded-xl p-4 mb-6 border border-yellow-100">
                             <label className="block text-xs font-bold text-yellow-700 uppercase tracking-wider mb-2">Stars to Award</label>
@@ -220,6 +297,24 @@ export default function RoutinesPage() {
                         <div className="flex gap-3">
                             <Button variant="outline" className="flex-1" onClick={() => setApprovingGoal(null)}>Cancel</Button>
                             <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleConfirmApprove}>Confirm</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* REJECT MODAL */}
+            {rejectingGoal && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center sm:items-center">
+                    <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-10 shadow-2xl animate-in slide-in-from-bottom fade-in duration-300">
+                        <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+                        <h3 className="text-lg font-bold text-red-600 mb-1">Reject Completion?</h3>
+                        <p className="text-sm text-slate-500 mb-6">
+                            Are you sure you want to reject <span className="font-bold text-slate-700">{rejectingGoal.title}</span>?
+                            <br />It will be sent back to the child's active list.
+                        </p>
+
+                        <div className="flex gap-3">
+                            <Button variant="outline" className="flex-1" onClick={() => setRejectingGoal(null)}>Cancel</Button>
+                            <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleConfirmReject}>Reject</Button>
                         </div>
                     </div>
                 </div>
