@@ -90,7 +90,8 @@ export default function AddChildProfilePage() {
                             type="date"
                             value={dob}
                             onChange={e => setDob(e.target.value)}
-                            className="bg-white h-10 border-slate-200"
+                            className="bg-white h-10 border-slate-200 block w-full"
+                            onClick={(e) => e.currentTarget.showPicker()}
                         />
                     </div>
                 </div>

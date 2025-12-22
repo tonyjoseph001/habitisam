@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
-import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock, User as UserIcon } from 'lucide-react';
+import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock, User as UserIcon, X, CheckCheck } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -30,7 +30,13 @@ export default function ParentDashboard() {
         () => db.activities.toArray()
     );
 
-    // Filter Logic
+    const pendingGoals = useLiveQuery(
+        () => db.goals.where('status').equals('pending_approval').toArray()
+    );
+
+    const getChild = (id: string) => childProfiles?.find(p => p.id === id);
+
+    // ... (rest of filtering logic remains the same)
     const filteredRoutines = allRoutines?.filter(routine => {
         if (selectedChildIds.length === 0) return true;
         return routine.profileIds.some(id => selectedChildIds.includes(id));
@@ -44,11 +50,6 @@ export default function ParentDashboard() {
         }
     };
 
-    const getChildName = (id: string) => {
-        const child = childProfiles?.find(p => p.id === id);
-        return child ? child.name : 'Unknown';
-    };
-
     const totalStars = 150;
     const streak = 5;
 
@@ -57,6 +58,27 @@ export default function ParentDashboard() {
         const LucideIcon = Icons[name];
         if (LucideIcon) return <LucideIcon className={className} />;
         return <span className={cn(className?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none")}>{name}</span>;
+    };
+
+    const getAvatarIcon = (avatarId?: string) => {
+        switch (avatarId) {
+            case 'boy': return '🧑‍🚀';
+            case 'girl': return '👩‍🚀';
+            case 'alien': return '👽';
+            case 'robot': return '🤖';
+            case 'rocket': return '🚀';
+            default: return '👶';
+        }
+    };
+
+    const handleApprove = async (goalId: string) => {
+        await db.goals.update(goalId, { status: 'active' });
+    };
+
+    const handleDeny = async (goalId: string) => {
+        if (confirm("Reject this goal request?")) {
+            await db.goals.delete(goalId);
+        }
     };
 
     return (
@@ -77,12 +99,22 @@ export default function ParentDashboard() {
                     <ChevronDown className="w-4 h-4 text-slate-500" />
                 </button>
 
-                <h1 className="text-lg font-bold text-slate-900">Dashboard</h1>
+                {pendingGoals && pendingGoals.length > 0 ? (
+                    <Link href="/parent/routines" className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full animate-pulse">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-xs font-bold">{pendingGoals.length} Approval{pendingGoals.length > 1 ? 's' : ''}</span>
+                    </Link>
+                ) : (
+                    <h1 className="text-lg font-bold text-slate-900">Dashboard</h1>
+                )}
 
-                <Link href="/parent/settings" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-full">
+                <Link href="/parent/profiles" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-full">
                     <Settings className="w-5 h-5" />
                 </Link>
             </header>
+
+
+
 
             <ProfileSwitcherModal
                 isOpen={isSwitcherOpen}
@@ -90,6 +122,8 @@ export default function ParentDashboard() {
             />
 
             <main className="py-4 flex flex-col gap-6 max-w-screen-md mx-auto">
+
+
 
                 {/* 2. Quick Stats Card: Compact with margins */}
                 <div className="mx-4 bg-gradient-to-r from-violet-600 to-teal-400 rounded-xl p-4 text-white shadow-sm relative overflow-hidden border border-white/10">
@@ -121,75 +155,53 @@ export default function ParentDashboard() {
                     </div>
                 </div>
 
-                {/* 3. Children Section: Compact */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center px-5">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Children</h3>
-                        <button className="text-[10px] font-bold text-violet-600 uppercase tracking-wide opacity-50 cursor-not-allowed">Toggle</button>
-                    </div>
-
-                    <div className="flex items-center gap-4 overflow-x-auto py-1 px-4 scrollbar-hide">
-                        {childProfiles?.map(child => {
-                            const isSelected = selectedChildIds.includes(child.id!);
-
-                            let AvatarIcon = '👶';
-                            switch (child.avatarId) {
-                                case 'boy': AvatarIcon = '🧑‍🚀'; break;
-                                case 'girl': AvatarIcon = '👩‍🚀'; break;
-                                case 'alien': AvatarIcon = '👽'; break;
-                                case 'robot': AvatarIcon = '🤖'; break;
-                                case 'rocket': AvatarIcon = '🚀'; break;
-                                default: AvatarIcon = '👶';
-                            }
-
-                            const colorMap: Record<string, string> = {
-                                cyan: 'bg-cyan-100 border-cyan-300',
-                                purple: 'bg-violet-100 border-violet-300',
-                                green: 'bg-emerald-100 border-emerald-300',
-                                orange: 'bg-orange-100 border-orange-300'
-                            };
-                            const colorClass = colorMap[child.colorTheme || 'cyan'] || 'bg-slate-100 border-slate-200';
-
-                            return (
-                                <button
-                                    key={child.id}
-                                    onClick={() => toggleChildSelection(child.id!)}
-                                    className="flex flex-col items-center gap-1 group min-w-[50px]"
-                                >
-                                    <div className={cn(
-                                        "w-12 h-12 rounded-full flex items-center justify-center transition-all border-2 shadow-sm relative",
-                                        isSelected
-                                            ? "border-violet-600 bg-violet-50 scale-105"
-                                            : `group-hover:border-violet-200 ${colorClass}`
-                                    )}>
-                                        <div className="text-2xl">
-                                            {AvatarIcon}
-                                        </div>
-
-                                        {isSelected && (
-                                            <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-0.5 border-2 border-white">
-                                                <Check className="w-2 h-2" />
+                {/* 2. Approvals Section */}
+                {pendingGoals && pendingGoals.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center px-5">
+                            <h3 className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                                Approvals Needed
+                            </h3>
+                        </div>
+                        <div className="flex flex-col gap-2 px-4">
+                            {pendingGoals.map(goal => {
+                                const child = getChild(goal.profileId);
+                                return (
+                                    <div key={goal.id} className="bg-white rounded-xl p-3 shadow-md border border-orange-200 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-2xl border-2 border-white shadow-sm">
+                                                {getAvatarIcon(child?.avatarId)}
                                             </div>
-                                        )}
+                                            <div className="flex flex-col">
+                                                <h4 className="font-bold text-slate-800 text-sm">{goal.title}</h4>
+                                                <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                                                    <span className="font-bold text-violet-600">{child?.name}</span>
+                                                    <span>•</span>
+                                                    <span>Target: {goal.target} {goal.unit || 'units'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleDeny(goal.id)}
+                                                className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-colors"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleApprove(goal.id)}
+                                                className="w-8 h-8 rounded-full bg-green-100 text-green-600 hover:bg-green-200 hover:scale-110 flex items-center justify-center transition-all shadow-sm"
+                                            >
+                                                <CheckCheck className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <span className={cn(
-                                        "text-[10px] font-medium transition-colors truncate w-full text-center",
-                                        isSelected ? "text-violet-700 font-bold" : "text-slate-500"
-                                    )}>
-                                        {child.name}
-                                    </span>
-                                </button>
-                            );
-                        })}
-
-                        <Link href="/parent/profile/add" className="flex flex-col items-center gap-1 min-w-[50px]">
-                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors border border-slate-200">
-                                <Plus className="w-5 h-5 text-slate-400" />
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-400">Add</span>
-                        </Link>
+                                )
+                            })}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* 4. Quick Actions: Smaller */}
                 <div className="flex flex-col gap-2">
@@ -233,28 +245,46 @@ export default function ParentDashboard() {
                         )}
 
                         {filteredRoutines?.map(routine => {
-                            const childNames = routine.profileIds.map(pid => getChildName(pid)).join(', ');
                             return (
                                 <div key={routine.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between border border-slate-200">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 flex-shrink-0">
                                             <RenderIcon name={routine.icon || 'Star'} className="w-5 h-5" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <h4 className="font-bold text-slate-800 text-sm">
-                                                {routine.title} <span className="font-normal text-slate-500 text-xs">({childNames})</span>
-                                            </h4>
-                                            <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
-                                                <Clock className="w-3 h-3" />
-                                                <span>{routine.timeOfDay}</span>
+                                            <h4 className="font-bold text-slate-800 text-sm">{routine.title}</h4>
+
+                                            {/* Child Icons */}
+                                            <div className="flex items-center gap-1 mt-1">
+                                                {routine.profileIds.map((pid: string) => {
+                                                    const child = getChild(pid);
+                                                    if (!child) return null;
+                                                    const colorMap: Record<string, string> = {
+                                                        cyan: 'bg-cyan-100 text-cyan-700',
+                                                        purple: 'bg-violet-100 text-violet-700',
+                                                        green: 'bg-emerald-100 text-emerald-700',
+                                                        orange: 'bg-orange-100 text-orange-700'
+                                                    };
+                                                    const colorClass = colorMap[child.colorTheme || 'cyan'] || 'bg-slate-100';
+                                                    return (
+                                                        <div key={pid} className={cn("flex items-center gap-1.5 px-1.5 py-0.5 rounded-full", colorClass)}>
+                                                            <span className="text-xs leading-none">{getAvatarIcon(child.avatarId)}</span>
+                                                            <span className="text-[10px] font-bold leading-none">{child.name}</span>
+                                                        </div>
+                                                    )
+                                                })}
+                                                <div className="w-px h-3 bg-slate-200 mx-1"></div>
+                                                <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>{routine.timeOfDay}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Status: Compact */}
-                                    <div className="flex items-center gap-1 text-amber-500 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
-                                        <Clock className="w-3 h-3" />
-                                        <span className="text-[10px] font-bold uppercase tracking-wide">Pending</span>
+                                    <div className="flex items-center gap-1 text-slate-300">
+                                        <Clock className="w-4 h-4" />
                                     </div>
                                 </div>
                             );
@@ -265,6 +295,6 @@ export default function ParentDashboard() {
             </main>
 
             <ParentNavBar />
-        </div>
+        </div >
     );
 }

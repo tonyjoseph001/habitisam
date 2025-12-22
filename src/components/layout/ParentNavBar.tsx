@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ListTodo, Gift, Settings } from 'lucide-react';
+import { LayoutDashboard, ListTodo, Gift, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ParentNavBar() {
@@ -13,7 +13,7 @@ export function ParentNavBar() {
         { label: 'Dashboard', href: '/parent/dashboard', icon: LayoutDashboard },
         { label: 'Routines', href: '/parent/routines', icon: ListTodo },
         { label: 'Rewards', href: '/parent/rewards', icon: Gift },
-        { label: 'Settings', href: '/parent/settings', icon: Settings },
+        { label: 'Profiles', href: '/parent/profiles', icon: Users },
     ];
 
     return (
