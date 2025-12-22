@@ -5,11 +5,15 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { db, Goal } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, Check } from 'lucide-react';
+import * as Icons from 'lucide-react';
 
 export default function ChildGoalsPage() {
     const { activeProfile } = useSessionStore();
     const [mockGoals, setMockGoals] = useState<Goal[]>([]);
+    const [confirmationGoal, setConfirmationGoal] = useState<Goal | null>(null);
 
+    // Real Data Query
     // Real Data Query
     const goals = useLiveQuery(async () => {
         if (!activeProfile) return [];
@@ -43,6 +47,87 @@ export default function ChildGoalsPage() {
             case 'indigo': return { bg: 'bg-indigo-50', border: 'border-indigo-50', text: 'text-indigo-600', badgeBs: 'bg-indigo-100', accent: 'bg-indigo-500', iconBg: 'bg-indigo-50', btn: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' };
             default: return { bg: 'bg-pink-50', border: 'border-pink-50', text: 'text-pink-600', badgeBs: 'bg-pink-100', accent: 'bg-pink-500', iconBg: 'bg-pink-50', btn: 'bg-pink-100 text-pink-700 hover:bg-pink-200' };
         }
+    };
+
+    // --- Actions ---
+    const updateGoalProgress = async (goal: Goal, newCurrent: number) => {
+        try {
+            // Clamp current between 0 and target (unless overachievement allowed? let's clamp for now)
+            // Actually for savings/counter allows going over target usually.
+            // For binary, max is 1.
+            let val = newCurrent;
+            if (val < 0) val = 0;
+            if (goal.type === 'binary' && val > 1) val = 1;
+
+            // Limit to target (except maybe savings? let's clamp ALL for now to prevent confusion)
+            if (val > goal.target) val = goal.target;
+
+            // Check completion
+            let newStatus = goal.status;
+            if (val >= goal.target && goal.status === 'active') {
+                // If goal met, mark pending approval or completed?
+                // Let's say pending approval for child goals.
+                // Or maybe just 'completed' for simple ones?
+                // Per requirement: "I Did It!" -> pending_approval
+                // newStatus = 'pending_approval'; // Actually maybe just let parent approve?
+                // For now keep active but show 100%?
+            }
+
+            await db.goals.update(goal.id, { current: val });
+        } catch (err) { console.error("Failed to update goal", err); }
+    };
+
+    const handleCounter = async (goal: any, increment: number) => {
+        if (goal.status !== 'active') return;
+        const newCurrent = Math.max(0, Math.min(goal.target, goal.current + increment));
+        await db.goals.update(goal.id, { current: newCurrent });
+    };
+
+    const handleSliderUpdate = async (goal: any, value: number) => {
+        if (goal.status !== 'active') return;
+        await db.goals.update(goal.id, { current: value });
+    };
+
+    const handleBinary = (goal: Goal) => {
+        updateGoalProgress(goal, 1);
+    };
+
+    const handleInputUpdate = (goal: Goal) => {
+        const promptMsg = goal.type === 'savings' ? "Enter amount saved ($):" :
+            goal.type === 'timer' ? "Enter minutes done:" :
+                goal.type === 'slider' ? "Enter new percentage (0-100):" : "Enter value:";
+
+        const res = window.prompt(promptMsg);
+        if (res !== null) {
+            const val = parseFloat(res);
+            if (!isNaN(val)) {
+                if (goal.type === 'savings' || goal.type === 'timer') {
+                    // Add to existing
+                    updateGoalProgress(goal, goal.current + val);
+                } else {
+                    // Set absolute (slider)
+                    updateGoalProgress(goal, val);
+                }
+            }
+        }
+    };
+
+    const handleComplete = (goal: Goal) => {
+        setConfirmationGoal(goal);
+    };
+
+    const confirmCompletion = async () => {
+        if (confirmationGoal) {
+            await db.goals.update(confirmationGoal.id, { status: 'pending_approval', current: confirmationGoal.target });
+            setConfirmationGoal(null);
+        }
+    };
+
+    const RenderIcon = ({ name }: { name: string }) => {
+        // @ts-ignore
+        const LucideIcon = Icons[name] || Icons.HelpCircle;
+        // @ts-ignore
+        return <LucideIcon className="w-8 h-8" />;
     };
 
     // Fallback if no real data (Mock for demonstration/dev based on screenshot)
@@ -91,12 +176,12 @@ export default function ChildGoalsPage() {
 
                             {/* Header */}
                             <div className="flex items-start gap-4 mb-3">
-                                <div className={`w-14 h-14 ${colors.iconBg} rounded-2xl flex items-center justify-center text-3xl`}>
-                                    {goal.icon}
+                                <div className={`w-14 h-14 ${colors.iconBg} rounded-2xl flex items-center justify-center`}>
+                                    <RenderIcon name={goal.icon} />
                                 </div>
                                 <div className="pt-1">
                                     <h3 className="text-lg font-extrabold text-gray-800 leading-tight">{goal.title}</h3>
-                                    <p className="text-xs font-bold text-gray-400 mt-1">{goal.description}</p>
+                                    <p className="text-xs font-bold text-gray-400 mt-1">{goal.description || 'Keep it up!'}</p>
                                 </div>
                             </div>
 
@@ -106,10 +191,10 @@ export default function ChildGoalsPage() {
                                     <>
                                         <div className="flex justify-between items-end mb-1">
                                             <span className="text-xs font-bold text-gray-400">Progress</span>
-                                            <span className={`text-xs font-bold ${colors.text}`}>{Math.round((goal.current / goal.target) * 100)}%</span>
+                                            <span className={`text-xs font-bold ${colors.text}`}>{goal.target > 0 ? Math.round((goal.current / goal.target) * 100) : 0}%</span>
                                         </div>
                                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                            <div className={`h-full ${colors.accent} rounded-full`} style={{ width: `${(goal.current / goal.target) * 100}%` }}></div>
+                                            <div className={`h-full ${colors.accent} rounded-full`} style={{ width: `${goal.target > 0 ? (goal.current / goal.target) * 100 : 0}%` }}></div>
                                         </div>
                                     </>
                                 )}
@@ -120,15 +205,26 @@ export default function ChildGoalsPage() {
                                             <span className="text-xs font-bold text-gray-400">Confidence</span>
                                             <span className={`text-xs font-bold ${colors.text}`}>{goal.current}%</span>
                                         </div>
-                                        <input type="range" className={`w-full accent-${colors.accent.replace('bg-', '')}`} value={goal.current} readOnly />
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-${colors.accent.replace('bg-', '')}`}
+                                            value={goal.current}
+                                            onChange={(e) => handleSliderUpdate(goal, Number(e.target.value))}
+                                            disabled={goal.status !== 'active'}
+                                        />
                                     </>
                                 )}
 
                                 {goal.type === 'counter' && (
                                     <div className={`flex items-center justify-between ${colors.bg} rounded-xl p-2 mb-2`}>
-                                        <button className={`w-8 h-8 bg-white rounded-lg shadow-sm ${colors.text} font-bold hover:scale-95 transition`}>-</button>
-                                        <span className={`text-xl font-black ${colors.text}`}>{goal.current} <span className="text-xs text-gray-400 font-bold">/ {goal.target}</span></span>
-                                        <button className={`w-8 h-8 ${colors.accent} rounded-lg shadow-sm text-white font-bold hover:opacity-90 active:scale-95 transition`}>+</button>
+                                        <button onClick={() => handleCounter(goal, -1)} disabled={goal.status !== 'active'} className={`w-8 h-8 bg-white rounded-lg shadow-sm ${colors.text} font-bold hover:scale-95 transition disabled:opacity-50`}>-</button>
+                                        <div className="flex flex-col items-center">
+                                            <span className={`text-xl font-black ${colors.text}`}>{goal.current} <span className="text-xs text-gray-400 font-bold">/ {goal.target} {goal.unit}</span></span>
+                                            {goal.status === 'pending_approval' && <span className="text-[10px] text-orange-500 font-bold">Waiting Approval</span>}
+                                        </div>
+                                        <button onClick={() => handleCounter(goal, 1)} disabled={goal.status !== 'active'} className={`w-8 h-8 ${colors.accent} rounded-lg shadow-sm text-white font-bold hover:opacity-90 active:scale-95 transition disabled:opacity-50`}>+</button>
                                     </div>
                                 )}
 
@@ -147,6 +243,19 @@ export default function ChildGoalsPage() {
                                         <span className={`text-xs font-bold ${colors.text}`}>{goal.current}m / {goal.target}m</span>
                                     </div>
                                 )}
+
+                                {goal.type === 'binary' && (
+                                    <div className={`flex items-center justify-center py-4 ${colors.bg} rounded-xl border-dashed ${goal.current >= 1 ? 'border-2 border-solid bg-opacity-20 ' + colors.border.replace('border-', 'bg-') : 'border-2 ' + colors.border}`}>
+                                        {goal.current >= 1 ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="bg-green-500 text-white rounded-full p-1"><Check className="w-5 h-5" /></div>
+                                                <span className={`text-lg font-black ${colors.text}`}>Completed!</span>
+                                            </div>
+                                        ) : (
+                                            <span className={`text-sm font-bold ${colors.text}`}>Not Done Yet</span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Footer / Actions */}
@@ -156,14 +265,37 @@ export default function ChildGoalsPage() {
                                     <span className="text-xs font-black text-yellow-600">{goal.stars} Stars</span>
                                 </div>
 
-                                {goal.type !== 'counter' && (
-                                    <button className={`${colors.btn} font-bold py-2 px-4 rounded-xl text-xs transition-colors`}>
-                                        {goal.type === 'checklist' ? 'View Steps' :
-                                            goal.type === 'slider' ? 'Update' :
-                                                goal.type === 'savings' ? 'Add $' :
-                                                    goal.type === 'timer' ? '+ Log Time' :
-                                                        'I Did It'}
-                                    </button>
+                                {goal.status === 'pending_approval' ? (
+                                    <div className="bg-orange-100 text-orange-700 font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-2 animate-pulse">
+                                        <Icons.Clock className="w-4 h-4" /> Waiting
+                                    </div>
+                                ) : goal.status === 'completed' ? (
+                                    <div className="bg-green-100 text-green-700 font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-2">
+                                        <Check className="w-4 h-4" /> Done!
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        {/* Primary Action (Update/Log) - Hide for Binary/Counter/Slider if standard input is enough */}
+                                        {goal.type !== 'binary' && goal.type !== 'counter' && goal.type !== 'slider' && (
+                                            <button
+                                                onClick={() => handleInputUpdate(goal)}
+                                                className={`${colors.btn} font-bold py-2 px-4 rounded-xl text-xs transition-colors`}
+                                            >
+                                                {goal.type === 'checklist' ? 'View Steps' :
+                                                    goal.type === 'slider' ? 'Update' :
+                                                        goal.type === 'savings' ? 'Add $' :
+                                                            goal.type === 'timer' ? '+ Log' : 'Update'}
+                                            </button>
+                                        )}
+
+                                        {/* Styled Done Button */}
+                                        <button
+                                            onClick={() => goal.type === 'binary' ? handleBinary(goal) : handleComplete(goal)}
+                                            className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-slate-200 hover:bg-black hover:scale-105 transition active:scale-95"
+                                        >
+                                            <Check className="w-4 h-4 text-white" /> Done
+                                        </button>
+                                    </div>
                                 )}
                             </div>
 
@@ -171,7 +303,58 @@ export default function ChildGoalsPage() {
                     );
                 })}
 
+
+
             </div>
+
+            {/* Confirmation Modal */}
+            <AnimatePresence>
+                {confirmationGoal && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                            onClick={() => setConfirmationGoal(null)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-white rounded-3xl p-6 z-50 shadow-2xl max-w-sm mx-auto overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-purple-500"></div>
+
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-4 text-green-500 shadow-sm border border-green-100">
+                                    <Icons.Trophy className="w-10 h-10" />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-800 mb-2">Quest Complete?</h3>
+                                <p className="text-slate-500 font-bold mb-8 leading-relaxed">
+                                    Did you finish <span className="text-slate-800 bg-slate-100 px-1 rounded">"{confirmationGoal.title}"</span>? <br />
+                                    Your parent will need to approve it.
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-3 w-full">
+                                    <button
+                                        onClick={() => setConfirmationGoal(null)}
+                                        className="py-3.5 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+                                    >
+                                        Not Yet
+                                    </button>
+                                    <button
+                                        onClick={confirmCompletion}
+                                        className="py-3.5 rounded-2xl font-black text-white bg-slate-900 shadow-lg shadow-slate-200 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-2"
+                                    >
+                                        <Check className="w-5 h-5" /> Yes, I Did It!
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </main>
     );
 }

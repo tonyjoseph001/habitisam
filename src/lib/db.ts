@@ -157,13 +157,15 @@ export interface Goal {
     // Progress Tracking
     target: number; // e.g. 10 (books), 100 (%), 50 (dollars)
     current: number; // e.g. 3
+    unit?: string; // e.g. "Books", "Laps", "Dollars"
+    checklist?: string[]; // For 'checklist' type goals
 
     // Rewards
     stars: number;
 
     // Visuals & Meta
     icon: string; // Emoji
-    dueDate?: string; // "Nov 15" or simple string provided by parent
+    dueDate?: string; // ISO date string YYYY-MM-DD
     status: GoalStatus;
 
     createdAt?: Date;

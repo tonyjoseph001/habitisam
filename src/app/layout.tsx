@@ -28,6 +28,8 @@ export const viewport: Viewport = {
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 
+import { Toaster } from 'sonner';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -46,6 +48,7 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             {children}
+            <Toaster position="top-center" richColors />
           </ThemeProvider>
         </AuthProvider>
       </body>
