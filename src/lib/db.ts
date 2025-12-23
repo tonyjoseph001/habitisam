@@ -94,10 +94,11 @@ export interface ActivityLog {
     profileId: string;
     activityId: string;
     date: string; // YYYY-MM-DD
-    status: 'completed' | 'skipped' | 'partial';
+    status: 'completed' | 'skipped' | 'partial' | 'missed';
     completedAt?: Date;
     starsEarned?: number;
     earnedXP?: number;
+    stepsCompleted?: number;
     metadata?: any;
 }
 

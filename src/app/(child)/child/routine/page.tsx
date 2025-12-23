@@ -167,7 +167,7 @@ function RoutinePlayerContent() {
             date: new Date().toISOString().split('T')[0],
             status: 'completed',
             completedAt: new Date(),
-            earnedStars: routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0),
+            starsEarned: routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0),
             earnedXP: 50
         });
 

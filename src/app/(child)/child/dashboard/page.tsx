@@ -35,6 +35,7 @@ export default function MissionControlPage() {
     const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+    const [confirmTask, setConfirmTask] = useState<any | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -103,6 +104,92 @@ export default function MissionControlPage() {
         }
     }, [rewards.length]);
 
+    // Data for processed tasks (completed OR missed)
+    const processedTaskIds = new Set(logs.filter(l => l.status === 'completed' || l.status === 'missed').map(l => l.activityId));
+
+    // Expiration Check Effect
+    useEffect(() => {
+        if (!routines.length) return;
+
+        const checkExpiration = async () => {
+            if (!activeProfile) return;
+            const now = new Date();
+            const todayStr = format(now, 'yyyy-MM-dd');
+
+            for (const r of routines) {
+                // Only for one-time tasks assigned for today
+                if (r.type === 'one-time' && r.date === todayStr && !processedTaskIds.has(r.id)) {
+                    if (r.timeOfDay) {
+                        try {
+                            const dueTime = parse(r.timeOfDay, 'HH:mm', now);
+                            // If passed by more than 1 minute (buffer), mark as missed
+                            if (differenceInMinutes(now, dueTime) > 1) {
+                                console.log('Marking task as missed:', r.title);
+                                await db.activityLogs.add({
+                                    id: crypto.randomUUID(),
+                                    accountId: activeProfile.accountId,
+                                    activityId: r.id,
+                                    profileId: activeProfile?.id || '',
+                                    date: now.toISOString(),
+                                    status: 'missed',
+                                    stepsCompleted: 0
+                                });
+                                toast.error(`Time's up for "${r.title}"!`, { icon: '⏰' });
+                            }
+                        } catch (e) {
+                            console.error("Date parse error", e);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Check every minute
+        const interval = setInterval(checkExpiration, 60000);
+        checkExpiration(); // Initial check
+
+        return () => clearInterval(interval);
+    }, [routines, processedTaskIds, activeProfile?.id]);
+
+    // Quick Complete Handler
+    const handleQuickComplete = async (task: any) => {
+        if (!activeProfile) return;
+
+        try {
+            const points = task.steps?.reduce((acc: number, s: any) => acc + (s.stars || 0), 0) || 0;
+
+            // 1. Add Log
+            await db.activityLogs.add({
+                id: crypto.randomUUID(),
+                accountId: activeProfile.accountId,
+                activityId: task.id,
+                profileId: activeProfile.id,
+                date: new Date().toISOString(),
+                status: 'completed',
+                starsEarned: points,
+                stepsCompleted: task.steps?.length || 1
+            });
+
+            // 2. Add Stars
+            await db.profiles.update(activeProfile.id, {
+                stars: (activeProfile.stars || 0) + points
+            });
+
+            // 3. Feedback
+            toast.success("Task Complete!", {
+                description: `You earned ${points} stars!`,
+                icon: '🌟'
+            });
+
+            // Close expand if open
+            setExpandedTaskId(null);
+
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to complete task");
+        }
+    };
+
     // Stamp Selection Handler
     const handleSelectStamp = async (stampId: string) => {
         if (!activeProfile) return;
@@ -117,9 +204,11 @@ export default function MissionControlPage() {
     // Helper: Filter Routines for a specific date
     const getRoutinesForDate = (allRoutines: any[], date: Date) => {
         const dayOfWeek = date.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+        const dateStr = format(date, 'yyyy-MM-dd');
+
         return allRoutines.filter(r => {
             if (r.type === 'recurring') return r.days?.includes(dayOfWeek);
-            if (r.type === 'one-time' && r.date) return isSameDay(new Date(r.date), date);
+            if (r.type === 'one-time' && r.date) return r.date === dateStr;
             return true; // Default fallback
         }).sort((a, b) => {
             if (!a.timeOfDay || !b.timeOfDay) return 0;
@@ -141,7 +230,7 @@ export default function MissionControlPage() {
 
         // 1. Try Today
         const todayNext = todayRoutines.find(r => {
-            if (completedTaskIds.has(r.id)) return false;
+            if (processedTaskIds.has(r.id)) return false;
             if (!r.timeOfDay) return false;
             try {
                 const t = parse(r.timeOfDay, 'HH:mm', now);
@@ -163,7 +252,7 @@ export default function MissionControlPage() {
         }
 
         return null;
-    }, [todayRoutines, tomorrowRoutines, completedTaskIds]);
+    }, [todayRoutines, tomorrowRoutines, processedTaskIds]);
 
     const upNextRoutine = upNextContext?.routine;
     const isTomorrow = upNextContext?.isTomorrow;
@@ -231,10 +320,11 @@ export default function MissionControlPage() {
             } else {
                 const hours = Math.floor(diffMins / 60);
                 const mins = diffMins % 60;
+                const label = upNextRoutine.type === 'one-time' ? 'Ends in' : 'Starts in';
                 if (hours > 0) {
-                    text = `Starts in ${hours}h ${mins}m`;
+                    text = `${label} ${hours}h ${mins}m`;
                 } else {
-                    text = `Starts in ${diffMins}m`;
+                    text = `${label} ${diffMins}m`;
                 }
             }
 
@@ -326,6 +416,53 @@ export default function MissionControlPage() {
                 onClose={() => setIsProfileSwitcherOpen(false)}
             />
 
+            {/* Task Confirmation Modal */}
+            <AnimatePresence>
+                {confirmTask && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setConfirmTask(null)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white w-full max-w-sm rounded-[2rem] p-6 text-center relative z-10 shadow-2xl"
+                        >
+                            <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                                <Check className="w-8 h-8" strokeWidth={4} />
+                            </div>
+                            <h3 className="text-xl font-black text-gray-800 mb-2">Did you finish it?</h3>
+                            <p className="text-gray-500 font-medium mb-6">
+                                You are about to complete <br />
+                                <span className="text-blue-500 font-bold">"{confirmTask.title}"</span>
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setConfirmTask(null)}
+                                    className="flex-1 py-3.5 rounded-xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        handleQuickComplete(confirmTask);
+                                        setConfirmTask(null);
+                                    }}
+                                    className="flex-1 py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg shadow-green-200 transition"
+                                >
+                                    Yes, I did!
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
 
 
             {/* Welcome Section */}
@@ -407,24 +544,26 @@ export default function MissionControlPage() {
                             </div>
                         </div>
 
-                        {/* Steps */}
-                        <div className="mb-5">
-                            <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl overflow-x-auto scrollbar-hide">
-                                {upNextRoutine.steps.slice(0, 3).map((step: any, i: number) => (
-                                    <React.Fragment key={step.id || i}>
-                                        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-500 shadow-sm flex-shrink-0">
-                                            <RenderIcon name={step.icon} className="w-4 h-4" />
-                                        </div>
-                                        {i < Math.min(upNextRoutine.steps.length, 3) - 1 && (
-                                            <div className="text-gray-300 text-[10px]">➜</div>
-                                        )}
-                                    </React.Fragment>
-                                ))}
-                                {upNextRoutine.steps.length > 3 && (
-                                    <div className="ml-auto text-xs font-bold text-gray-400 pl-2">+{upNextRoutine.steps.length - 3}</div>
-                                )}
+                        {/* Steps - Only for Routine */}
+                        {upNextRoutine.type !== 'one-time' && (
+                            <div className="mb-5">
+                                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl overflow-x-auto scrollbar-hide">
+                                    {upNextRoutine.steps.slice(0, 3).map((step: any, i: number) => (
+                                        <React.Fragment key={step.id || i}>
+                                            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-500 shadow-sm flex-shrink-0">
+                                                <RenderIcon name={step.icon} className="w-4 h-4" />
+                                            </div>
+                                            {i < Math.min(upNextRoutine.steps.length, 3) - 1 && (
+                                                <div className="text-gray-300 text-[10px]">➜</div>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                    {upNextRoutine.steps.length > 3 && (
+                                        <div className="ml-auto text-xs font-bold text-gray-400 pl-2">+{upNextRoutine.steps.length - 3}</div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* INLINED PORTAL MODAL */}
                         {mounted && isStampModalOpen && (
@@ -506,12 +645,23 @@ export default function MissionControlPage() {
                                 );
                             })()
                         )}
-                        <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
-                            <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                <Play className="w-5 h-5 fill-current" />
-                                START TASK
+
+                        {upNextRoutine.type === 'one-time' ? (
+                            <button
+                                onClick={() => setConfirmTask(upNextRoutine)}
+                                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Check className="w-5 h-5" strokeWidth={3} />
+                                Mark Complete
                             </button>
-                        </Link>
+                        ) : (
+                            <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
+                                <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                    <Play className="w-5 h-5 fill-current" />
+                                    START TASK
+                                </button>
+                            </Link>
+                        )}
 
                     </div>
                 ) : (
@@ -598,30 +748,37 @@ export default function MissionControlPage() {
                                 {isExpanded && status !== 'completed' && (
                                     <div className="mx-4 bg-white/50 border-x border-b border-blue-100 rounded-b-3xl p-4 pt-6 -mt-4 animate-in slide-in-from-top-2 flex flex-col gap-4">
                                         {/* Steps Preview */}
-                                        {task.steps?.length > 0 ? (
-                                            <div className="flex flex-col gap-2">
-                                                {task.steps.map((step: any, idx: number) => (
-                                                    <div key={idx} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
-                                                        <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold">
-                                                            {idx + 1}
-                                                        </div>
-                                                        <span className="text-sm font-bold text-gray-700">{step.title}</span>
-                                                        {step.stars > 0 && <span className="ml-auto text-xs font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">+{step.stars}</span>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-2 text-gray-400 text-sm italic">
-                                                No specific steps. Ready to start!
-                                            </div>
-                                        )}
+                                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                                            {task.steps?.map((step: any, i: number) => (
+                                                <div key={i} className="flex-shrink-0 flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-blue-50">
+                                                    <span className="text-xl">{step.icon === '⚡' ? '⚡' : <RenderIcon name={step.icon} className="w-5 h-5" />}</span>
+                                                    <span className="text-xs font-bold text-gray-600">{step.title}</span>
+                                                </div>
+                                            ))}
+                                        </div>
 
-                                        <Link href={`/child/routine?id=${task.id}`} className="w-full">
-                                            <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-2.5 rounded-xl shadow-md shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
-                                                <Play className="w-4 h-4 fill-current" />
-                                                Start
-                                            </button>
-                                        </Link>
+                                        {/* Actions */}
+                                        <div className="flex gap-2">
+                                            {task.type === 'one-time' ? (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleQuickComplete(task);
+                                                    }}
+                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <Check className="w-5 h-5" strokeWidth={3} />
+                                                    Done
+                                                </button>
+                                            ) : (
+                                                <Link href={`/child/routine?id=${task.id}`} className="flex-1 block">
+                                                    <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                                        <Play className="w-5 h-5 fill-current" />
+                                                        Start Routine
+                                                    </button>
+                                                </Link>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>

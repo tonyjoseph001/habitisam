@@ -226,7 +226,10 @@ export default function ParentDashboard() {
                             <span className="text-[10px] font-bold text-slate-700">Add Stars</span>
                         </button>
 
-                        <button className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 opacity-60 cursor-not-allowed">
+                        <button
+                            onClick={() => router.push('/parent/tasks/quick')}
+                            className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-teal-200 transition-colors"
+                        >
                             <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 mb-1">
                                 <Zap className="w-5 h-5 fill-current" />
                             </div>
@@ -248,7 +251,19 @@ export default function ParentDashboard() {
 
                         {filteredRoutines?.map(routine => {
                             return (
-                                <div key={routine.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between border border-slate-200">
+                                <div
+                                    key={routine.id}
+                                    onClick={() => {
+                                        if (routine.type === 'one-time') {
+                                            router.push(`/parent/tasks/edit?id=${routine.id}`);
+                                        } else {
+                                            // Assuming existing editor supports ID param or path
+                                            // Based on routes, it seems to be /parent/routines/edit
+                                            router.push(`/parent/routines/edit?id=${routine.id}`);
+                                        }
+                                    }}
+                                    className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between border border-slate-200 cursor-pointer hover:border-slate-300 transition active:scale-[0.99]"
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 flex-shrink-0">
                                             <RenderIcon name={routine.icon || 'Star'} className="w-5 h-5" />

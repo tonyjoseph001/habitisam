@@ -15,7 +15,7 @@
 Your **first response** must be an analysis of the provided specifications. You must:
 
 1.  Confirm your understanding of the core constraints (Offline-first, Dexie.js, Pixel-Perfect UI).
-2.  **Review ALL attached UI mockup images (`.png` files) and confirm you understand the visual design intent for each screen. All the screen shots are in the folder /Users/tony/workspace/habitisam/ux/.**
+2.  **Review ALL attached UI mockup images (`.png` files) and confirm you understand the visual design intent for each screen. All the screen shots are in the folder /Users/tony/workspace/antigravity/habitisam/ux/.**
 3.  List **any ambiguities, missing information, or potential conflicts** you see in the plan below or between the plan and the mockups.
 4.  If everything is clear, explicitly state: "The specification and mockups are clear. I am ready to begin implementation starting with [Phase X]."
     **Wait for user confirmation before writing code.**
@@ -153,8 +153,6 @@ export interface Step {
   duration: number; // Minutes
   icon: string; // Lucide icon name string
   stars: number; // Reward value
-  description: string; // Optional instructions
-  voiceNote: Blob; // Actual audio file stored in IndexedDB
 }
 
 /**
@@ -635,73 +633,7 @@ This is a detailed UI mockup description for the **Parent Routine Editor** scree
 Here is the detailed UI mockup description for the **Parent's Routine History** screen, based on the latest Master Plan.
 
 ---
-### 📱 Screen3.1: Step Editor (Activity Detail)
-Here is the detailed UI mockup description for the **Step Editor**, used when adding or editing a routine step based on the visual design in `Screen3.1-Parent-Routine-Step-Editor.png`.
 
-**Aesthetic Style:** Consistent with the Dashboard. Modern, clean, professional. Light off-white background. The layout relies heavily on distinct, rounded-corner white "cards" with soft drop shadows to group related information cleanly. Primary accent color is moderate purple (`#7C3AED`).
-
-**Layout & Components (Top to Bottom):**
-
-1.  **Top App Bar:**
-    * **Style:** Clean white background with a subtle elevation (shadow).
-    * **Left Action:** Standard Android **Back Arrow** icon (`←`) in Slate Grey (`#64748B`).
-    * **Title:** Left-aligned text (Font: Fredoka, SemiBold, `text-xl`) reading "**Edit Step**". Color: Dark Slate (`#1E293B`).
-    * **Right Action:** A "**Save**" text button in bold Primary Violet (`#7C3AED`).
-
-2.  **Child Preview Card (Hero Section):**
-    * *Purpose: Visualizes exactly what the child will see.*
-    * **Container:** A full-width card with rounded corners (`rounded-2xl`) and soft shadow.
-    * **Background:** **Deep Cosmic Navy** (`#1E1B4B`). High contrast against the white page.
-    * **Content (Centered):**
-        * **Icon:** Large, white vector icon (approx `64dp`) (e.g., Toothbrush).
-        * **Text:** Step name (e.g., "**Brush Teeth**") in large, white, rounded font.
-        * **Badges Row:**
-            * **Timer:** A translucent pill badge (`bg-white/20`) reading "**⏱ 02:00**" (visible only if timer is enabled).
-            * **Reward:** A translucent pill badge showing a yellow star icon and count (e.g., "**⭐ +5**").
-
-3.  **Basic Info & Rewards:**
-    * **Container:** White rounded card.
-    * **Step Name Input:**
-        * **Style:** Material 3 "Outlined Text Field".
-        * **Border:** Slate Grey outline (`border-slate-300`) with rounded corners (`rounded-lg`).
-        * **Label:** Floating label reading "**Step Name**" (Font: Inter, Medium).
-        * **State:** When focused, the border turns thick Violet (`border-violet-500`).
-    * **Reward Value:**
-        * **Label:** Small uppercase label "**REWARD (STARS)**".
-        * **Control:** A "Stepper" row.
-            * *Minus Button:* Outline circle (`-`).
-            * *Value:* Large bold number (e.g., "**5**") paired with a Golden Star icon.
-            * *Plus Button:* Filled Violet circle (`+`).
-
-4.  **Visuals & Time:**
-    * **Container:** White rounded card.
-    * **Icon Selector:**
-        * **Label:** Subheader text "**VISUAL ICON**" (Font: Inter, Bold, Uppercase, `text-xs`, Slate Grey).
-        * **Component:** Horizontal Scroll Row (Chips).
-        * **Items:** Circular toggle buttons (`48dp`) with generic icons (Shirt, Book, Bed, Toothbrush, Toilet, Toy).
-    * **Timer Settings:**
-        * **Toggle Row:** Text "**Enable Timer**" (Dark Slate) on the left; **Material Switch** on the right (Track becomes Violet when ON).
-        * **Time Editor (Visible when ON):**
-            * **Clock:** Large centered digital display `02 : 00` in a light grey box.
-            * **Quick Chips:** A row of small pill buttons below: `+1m` `+2m` `+5m`.
-
-5.  **Instructions (Description & Voice):**
-    * **Container:** White rounded card.
-    * **Text Note:**
-        * **Style:** Outlined Text Area (Multiline).
-        * **Label:** "**Instructions (Optional)**".
-        * **Placeholder:** "Add a short note..."
-    * **Voice Note:**
-        * **Label:** "**Voice Instruction**" (Small header).
-        * **Action Button:** A large, full-width button.
-            * *State A (Empty):* Outline style with Microphone icon and text "**Hold to Record**".
-            * *State B (Recorded):* Filled Violet style featuring a "Play" triangle icon, a simple waveform visualization line, and a "Trash" icon on the right to delete.
-
-6.  **Delete Action (Footer):**
-    * **Position:** Centered at the bottom, separated by whitespace.
-    * **Style:** Text Button.
-    * **Text:** "**Remove this step**" in Red (`#EF4444`). Matches the "Delete" style on the Profile screen.
----
 ### 📱 Screen 4: Parent Routine History (The Audit Log)
 This is a detailed UI mockup description for the **Parent Routine History** screen, based on the visual design in `Screen4-Parent-Routine-History.png`._
 

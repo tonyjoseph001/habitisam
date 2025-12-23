@@ -82,7 +82,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
     // Helper to render Lucide icon dynamically
     const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
         // @ts-ignore - Dynamic access
-        const LucideIcon = Icons[name as keyof typeof Icons];
+        const LucideIcon = Icons[name as keyof typeof Icons] as any;
         if (LucideIcon) return <LucideIcon className={className} />;
         return <span className={cn(className?.includes('w-') ? 'text-4xl' : 'text-xl', "leading-none")}>{name}</span>;
     };
