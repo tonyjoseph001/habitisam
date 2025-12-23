@@ -47,11 +47,27 @@ export default function ChildActivityPage() {
         const earnedItems: ActivityItem[] = [];
         for (const log of logs) {
             if (log.status === 'completed') {
+                // SPECIAL CASE: Manual Reward
+                if (log.activityId === 'manual_reward') {
+                    earnedItems.push({
+                        id: log.id,
+                        type: 'earned',
+                        title: (log.metadata as any)?.reason || 'Reward Received',
+                        stars: log.starsEarned || 0,
+                        date: new Date(log.date),
+                        icon: '⭐'
+                    });
+                    continue;
+                }
+
                 const act = activityMap.get(log.activityId);
-                let starsEarned = 0;
-                if (act && act.steps) {
+                let starsEarned = log.starsEarned || 0; // Use stored value if available
+
+                // Fallback to calculating from steps if not stored (old logs)
+                if (starsEarned === 0 && act && act.steps) {
                     starsEarned = act.steps.reduce((acc, step) => acc + (step.stars || 0), 0);
                 }
+
                 earnedItems.push({
                     id: log.id,
                     type: 'earned',

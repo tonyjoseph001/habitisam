@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { ChevronDown, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,8 @@ import { createPortal } from 'react-dom';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { differenceInMinutes, parse, format, isPast, isToday, addDays, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Visual Mapping for Stamps (Duplicate for now, ideally shared)
 const STAMP_ASSETS: Record<string, { emoji: string, color: string }> = {
@@ -32,6 +34,7 @@ export default function MissionControlPage() {
     const [isStampModalOpen, setIsStampModalOpen] = useState(false);
     const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -61,18 +64,54 @@ export default function MissionControlPage() {
             })
             .toArray();
 
-        return { routines: myRoutines, logs: myLogs };
+        // Check for manual rewards (ad-hoc stars) today
+        const rewards = await db.activityLogs
+            .where('profileId')
+            .equals(activeProfile.id)
+            .filter(l => {
+                const logDate = new Date(l.date);
+                return l.activityId === 'manual_reward' &&
+                    logDate.getDate() === today.getDate() &&
+                    logDate.getMonth() === today.getMonth() &&
+                    logDate.getFullYear() === today.getFullYear();
+            })
+            .toArray();
+
+        return { routines: myRoutines, logs: myLogs, rewards };
     }, [activeProfile?.id]);
 
     const routines = data?.routines || [];
     const logs = data?.logs || [];
+    const rewards = data?.rewards || [];
     const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
+
+    // Notification Effect
+    useEffect(() => {
+        if (rewards.length > 0) {
+            // Check if we just got a new one (simple check: if latest reward is very recent)
+            const latest = rewards.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            const diff = new Date().getTime() - new Date(latest.date).getTime();
+
+            // If reward is within last 5 seconds (roughly), show toast
+            if (diff < 5000) {
+                toast.success(`You got ${latest.starsEarned} Stars!`, {
+                    description: (latest.metadata as any)?.reason || "Great job!",
+                    icon: "⭐",
+                    duration: 5000
+                });
+            }
+        }
+    }, [rewards.length]);
 
     // Stamp Selection Handler
     const handleSelectStamp = async (stampId: string) => {
         if (!activeProfile) return;
         await db.profiles.update(activeProfile.id, { activeStamp: stampId });
         setIsStampModalOpen(false);
+    };
+
+    const toggleExpand = (id: string) => {
+        setExpandedTaskId(prev => prev === id ? null : id);
     };
 
     // Helper: Filter Routines for a specific date
@@ -135,6 +174,33 @@ export default function MissionControlPage() {
         if (isTomorrow) return todayRoutines; // Show all today tasks in list
         return todayRoutines.filter(r => r.id !== upNextRoutine?.id);
     }, [todayRoutines, upNextRoutine, isTomorrow]);
+
+    // Merge Tasks and Rewards for the list
+    const combinedList = React.useMemo(() => {
+        // Transform rewards to match a generic 'list item' shape or just handle them in the map
+        const rewardItems = rewards.map(r => ({
+            id: r.id,
+            type: 'reward_log',
+            title: (r.metadata as any)?.reason || 'Reward',
+            stars: r.starsEarned || 0,
+            date: r.date,
+            icon: 'Star'
+        }));
+
+        // Combine
+        return [...assignedTasks, ...rewardItems].sort((a, b) => {
+            // Sort logic: active tasks first? or simple time?
+            // Let's put Rewards at the top if they are new? Or just mix them?
+            // Simple: Tasks first, then rewards? 
+            // Better: 'Completed' things usually go to bottom.
+            const isADone = 'type' in a && a.type === 'reward_log' ? true : completedTaskIds.has(a.id);
+            const isBDone = 'type' in b && b.type === 'reward_log' ? true : completedTaskIds.has(b.id);
+
+            if (isADone && !isBDone) return 1;
+            if (!isADone && isBDone) return -1;
+            return 0;
+        });
+    }, [assignedTasks, rewards, completedTaskIds]);
 
     // Time calculations
     const timeStatus = React.useMemo(() => {
@@ -237,14 +303,19 @@ export default function MissionControlPage() {
                 </button>
 
                 <div className="flex items-center gap-3">
-                    <button className="bg-white p-2.5 rounded-full shadow-sm text-gray-500 relative">
+                    <button
+                        onClick={() => router.push('/child/notifications')}
+                        className="bg-white p-2.5 rounded-full shadow-sm text-gray-500 relative transition-transform active:scale-95"
+                    >
                         <Bell className="w-6 h-6" />
-                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-400 rounded-full border border-white"></span>
+                        {rewards.length > 0 && (
+                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-400 rounded-full border border-white animate-pulse"></span>
+                        )}
                     </button>
                     {/* Currency / Stats */}
                     <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-white/50 flex items-center gap-1.5">
                         <Star className="w-4 h-4 fill-orange-400 text-orange-400" />
-                        <span className="text-sm font-bold text-gray-700 font-mono">1,250</span>
+                        <span className="text-sm font-bold text-gray-700 font-mono">{displayProfile.stars || 0}</span>
                     </div>
                 </div>
             </div>
@@ -254,6 +325,8 @@ export default function MissionControlPage() {
                 isOpen={isProfileSwitcherOpen}
                 onClose={() => setIsProfileSwitcherOpen(false)}
             />
+
+
 
             {/* Welcome Section */}
             <div className="px-6 mb-6 flex items-center gap-4">
@@ -463,24 +536,29 @@ export default function MissionControlPage() {
 
                     {assignedTasks.map((task, i) => {
                         const status = getTaskStatus(task);
+                        const isExpanded = expandedTaskId === task.id;
 
                         return (
-                            <Link href={`/child/routine?id=${task.id}`} key={task.id} className="block">
-                                <div className={`bg-white rounded-3xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)] flex items-center gap-4 border ${status === 'overdue' ? 'border-red-100 bg-red-50/10' :
-                                    status === 'completed' ? 'border-green-100 opacity-60' :
-                                        i % 2 === 0 ? 'border-blue-50' : 'border-red-50'
-                                    }`}>
-                                    <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 ${status === 'completed'
+                            <div key={task.id} className="block relative group">
+                                <div
+                                    onClick={() => toggleExpand(task.id)}
+                                    className={`relative z-10 bg-white rounded-3xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.05)] flex items-center gap-4 border transition-all cursor-pointer ${status === 'overdue' ? 'border-red-100 bg-red-50/10' :
+                                        status === 'completed' ? 'border-green-100 opacity-60' :
+                                            isExpanded ? 'border-blue-200 ring-4 ring-blue-50' :
+                                                i % 2 === 0 ? 'border-blue-50' : 'border-red-50'
+                                        }`}
+                                >
+                                    <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 ${status === 'completed'
                                         ? 'rounded-xl bg-green-100 text-green-500'
-                                        : ''
+                                        : 'bg-gray-50 rounded-2xl'
                                         }`}>
                                         {status === 'completed'
                                             ? <Check className="w-6 h-6" />
                                             : <RenderIcon name={task.icon} className="w-12 h-12 text-4xl" />
                                         }
                                     </div>
-                                    <div className="flex-1">
-                                        <h4 className={`font-bold text-lg ${status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className={`font-bold text-lg truncate ${status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
                                         <div className="flex items-center gap-2 mt-1">
                                             {status === 'overdue' && (
                                                 <span className="text-[10px] font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded">
@@ -492,22 +570,61 @@ export default function MissionControlPage() {
                                                     Completed
                                                 </span>
                                             )}
-                                            <p className="text-xs font-bold text-gray-400">{task.steps.length} steps</p>
+                                            {!status && (
+                                                <div className="flex items-center gap-1 text-gray-400 font-bold text-xs bg-gray-50 px-2 py-0.5 rounded-md">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>{task.timeOfDay}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
                                     <div className="flex flex-col items-end gap-1">
-                                        <div className="flex items-center gap-1 text-gray-500 font-bold text-xs bg-gray-50 px-2 py-1 rounded-md">
-                                            <span>{task.timeOfDay}</span>
-                                        </div>
                                         {status !== 'completed' && (
-                                            <div className="flex items-center gap-1 text-yellow-600 font-bold text-xs bg-yellow-50 px-2 py-1 rounded-md">
+                                            <div className="flex items-center gap-1 text-yellow-600 font-bold text-xs bg-yellow-50 px-2 py-1 rounded-md mb-1">
                                                 <span>⭐ +{task.steps?.reduce((a: number, b: any) => a + (b.stars || 0), 0) || 0}</span>
+                                            </div>
+                                        )}
+
+                                        {status !== 'completed' && (
+                                            <div className="text-gray-300">
+                                                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                            </Link>
+
+                                {/* Expanded Details */}
+                                {isExpanded && status !== 'completed' && (
+                                    <div className="mx-4 bg-white/50 border-x border-b border-blue-100 rounded-b-3xl p-4 pt-6 -mt-4 animate-in slide-in-from-top-2 flex flex-col gap-4">
+                                        {/* Steps Preview */}
+                                        {task.steps?.length > 0 ? (
+                                            <div className="flex flex-col gap-2">
+                                                {task.steps.map((step: any, idx: number) => (
+                                                    <div key={idx} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100/50 shadow-sm">
+                                                        <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs font-bold">
+                                                            {idx + 1}
+                                                        </div>
+                                                        <span className="text-sm font-bold text-gray-700">{step.title}</span>
+                                                        {step.stars > 0 && <span className="ml-auto text-xs font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">+{step.stars}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-2 text-gray-400 text-sm italic">
+                                                No specific steps. Ready to start!
+                                            </div>
+                                        )}
+
+                                        <Link href={`/child/routine?id=${task.id}`} className="w-full">
+                                            <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-2.5 rounded-xl shadow-md shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm">
+                                                <Play className="w-4 h-4 fill-current" />
+                                                Start
+                                            </button>
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
                         );
                     })}
                 </div>

@@ -84,15 +84,20 @@ export default function ChildTasksPage() {
         // Filter logs for the SELECTED date
         const dateLogs = allLogs.filter(log => isSameDay(new Date(log.date), selectedDate));
 
-        return { routines: myRoutines, logs: dateLogs };
+        // Separate rewards from task logs for cleaner counting
+        const rewards = dateLogs.filter(l => l.activityId === 'manual_reward');
+        const taskLogs = dateLogs.filter(l => l.activityId !== 'manual_reward');
+
+        return { routines: myRoutines, logs: taskLogs, rewards };
     }, [activeProfile?.id, selectedDate]);
 
     if (!mounted || !activeProfile || !data) return null;
 
-    const { routines, logs } = data;
+    const { routines, logs, rewards } = data;
 
     const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
-    const completedCount = completedTaskIds.size;
+    // Count real tasks + rewards as 'completed' items? Or just keep tasks.
+    const completedCount = completedTaskIds.size + (rewards?.length || 0);
 
     const getTimeCategory = (timeStr?: string) => {
         if (!timeStr) return 'any_time';
@@ -329,7 +334,42 @@ export default function ChildTasksPage() {
                 </div>
             </div>
 
-            <div className="px-5 mt-6 space-y-8">
+            {/* Rewards Section */}
+            {rewards && rewards.length > 0 && (
+                <div className="px-5 mt-6 mb-8">
+                    <h3 className="text-sm font-black text-yellow-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        Rewards & Achievements
+                    </h3>
+                    <div className="space-y-3">
+                        {rewards.map(reward => (
+                            <div key={reward.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-2xl shadow-sm">
+                                    ⭐
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <h4 className="font-bold text-slate-800">
+                                            {(reward.metadata as any)?.reason || "Reward Received"}
+                                        </h4>
+                                        <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full">
+                                            {format(new Date(reward.date), 'h:mm a')}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                        Great job!
+                                    </p>
+                                </div>
+                                <div className="font-black text-xl text-yellow-500">
+                                    +{reward.starsEarned}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="px-5 space-y-8 pb-24">
                 {morningTasks.length === 0 && afternoonTasks.length === 0 && eveningTasks.length === 0 && anyTimeTasks.length === 0 && (
                     <div className="text-center py-10 opacity-50">
                         <p className="font-bold text-gray-400">No tasks assigned for {isSameDay(selectedDate, new Date()) ? 'today' : format(selectedDate, 'EEE, MMM d')}!</p>

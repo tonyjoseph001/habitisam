@@ -96,8 +96,9 @@ export interface ActivityLog {
     date: string; // YYYY-MM-DD
     status: 'completed' | 'skipped' | 'partial';
     completedAt?: Date;
-    earnedStars?: number;
+    starsEarned?: number;
     earnedXP?: number;
+    metadata?: any;
 }
 
 /**

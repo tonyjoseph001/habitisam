@@ -217,7 +217,9 @@ export default function ParentDashboard() {
                             <span className="text-[10px] font-bold text-slate-700">New Routine</span>
                         </button>
 
-                        <button className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 opacity-60 cursor-not-allowed">
+                        <button
+                            onClick={() => router.push('/parent/stars/add')}
+                            className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-blue-200 transition-colors">
                             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-1">
                                 <Star className="w-5 h-5 fill-current" />
                             </div>
