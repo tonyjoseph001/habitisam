@@ -40,6 +40,12 @@ export default function ParentDashboard() {
         () => db.goals.where('status').equals('pending_approval').toArray()
     );
 
+    const pendingPurchases = useLiveQuery(
+        () => db.purchaseLogs.filter(p => p.status === 'pending').toArray()
+    );
+
+    const totalAlerts = (pendingGoals?.length || 0) + (pendingPurchases?.length || 0);
+
     const getChild = (id: string) => childProfiles?.find(p => p.id === id);
 
     // ... (rest of filtering logic remains the same)
@@ -56,8 +62,48 @@ export default function ParentDashboard() {
         }
     };
 
-    const totalStars = 150;
-    const streak = 5;
+    // --- NEW STATS CARD ---
+    const StatsCard = () => (
+        <div className="mx-4 relative overflow-hidden bg-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-slate-200">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-[60px] opacity-30"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-30"></div>
+
+            <div className="relative z-10 grid grid-cols-2 gap-6">
+
+                <div className="flex flex-col gap-1 border-r border-white/10">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Action Needed</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-3xl font-black text-white">{totalAlerts}</span>
+                        {totalAlerts > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">Alerts</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-1 pl-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Weekly Success</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-3xl font-black text-green-400">85%</span>
+                        <div className="w-5 h-5 text-green-400 fill-current">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16H224A8,8,0,0,1,232,208ZM165.66,82.34a8,8,0,0,0-11.32,0L102.63,134.06,69.66,101.09a8,8,0,0,0-11.32,11.32l38.63,38.62a8,8,0,0,0,11.32,0l57.37-57.37,42.34,42.34a8,8,0,0,0,11.31-11.31Z"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-span-2 pt-4 border-t border-white/10 flex justify-between items-center">
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Rewards</span>
+                        <span className="text-xl font-bold text-white">{(pendingPurchases?.length || 0)} Reward{(pendingPurchases?.length !== 1) ? 's' : ''} Due</span>
+                    </div>
+                    <Link href="/parent/purchases">
+                        <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
+                            View Details
+                        </button>
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
 
     const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
         // @ts-ignore
@@ -187,34 +233,7 @@ export default function ParentDashboard() {
 
 
                 {/* 2. Quick Stats Card: Compact with margins */}
-                <div className="mx-4 bg-gradient-to-r from-violet-600 to-teal-400 rounded-xl p-4 text-white shadow-sm relative overflow-hidden border border-white/10">
-                    <div className="relative z-10 flex justify-between items-start text-center">
-                        <div className="flex flex-col items-center flex-1">
-                            <p className="text-[10px] font-bold opacity-90 uppercase tracking-wider mb-0.5">TODAY</p>
-                            <div className="flex flex-col items-center">
-                                <span className="text-2xl font-extrabold leading-none">2/3</span>
-                                <span className="text-[9px] lowercase opacity-80 mt-0.5">routines done</span>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col items-center flex-1">
-                            <p className="text-[10px] font-bold opacity-90 uppercase tracking-wider mb-0.5">STARS</p>
-                            <div className="flex items-center gap-1">
-                                <span className="text-2xl font-extrabold leading-none">{totalStars}</span>
-                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col items-center flex-1">
-                            <p className="text-[10px] font-bold opacity-90 uppercase tracking-wider mb-0.5">STREAK</p>
-                            <div className="flex items-center gap-1">
-                                <span className="text-2xl font-extrabold leading-none">{streak}</span>
-                                <span className="text-xl">🔥</span>
-                            </div>
-                            <span className="text-[9px] opacity-80 mt-0.5">days</span>
-                        </div>
-                    </div>
-                </div>
+                <StatsCard />
 
                 {/* 2. Approvals Section */}
                 {pendingGoals && pendingGoals.length > 0 && (
