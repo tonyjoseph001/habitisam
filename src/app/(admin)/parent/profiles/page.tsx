@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { cn } from '@/lib/utils';
 import { ParentHeader } from '@/components/layout/ParentHeader';
+import { deleteProfileCascading } from '@/lib/logic/profileLogic';
 
 export default function ProfilesPage() {
     const router = useRouter();
@@ -23,8 +24,13 @@ export default function ProfilesPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this profile?")) {
-            await db.profiles.delete(id);
+        if (confirm("Are you sure you want to delete this profile? All related data (logs, goals, history) will be permanently removed.")) {
+            try {
+                await deleteProfileCascading(id);
+            } catch (error) {
+                console.error("Failed to delete profile:", error);
+                alert("Failed to delete profile completely. See console.");
+            }
         }
     };
 

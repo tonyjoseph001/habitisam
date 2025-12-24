@@ -64,44 +64,114 @@ export default function ParentDashboard() {
     };
 
     // --- NEW STATS CARD ---
-    const StatsCard = () => (
-        <div className="mx-4 relative overflow-hidden bg-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-slate-200">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-[60px] opacity-30"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-30"></div>
+    // --- NEW STATS CARD ---
+    const StatsCard = () => {
+        // Find child with max stars for the "Milestone" placeholder
+        const topChild = childProfiles?.reduce((prev, current) => (prev.stars || 0) > (current.stars || 0) ? current : prev, childProfiles[0]);
 
-            <div className="relative z-10 grid grid-cols-2 gap-6">
-                <div className="flex flex-col gap-1 border-r border-white/10">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Action Needed</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-3xl font-black text-white">{totalAlerts}</span>
-                        {totalAlerts > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">Alerts</span>
-                        )}
-                    </div>
-                </div>
-                <div className="flex flex-col gap-1 pl-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Weekly Success</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-3xl font-black text-green-400">85%</span>
-                        <div className="w-5 h-5 text-green-400 fill-current">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16H224A8,8,0,0,1,232,208ZM165.66,82.34a8,8,0,0,0-11.32,0L102.63,134.06,69.66,101.09a8,8,0,0,0-11.32,11.32l38.63,38.62a8,8,0,0,0,11.32,0l57.37-57.37,42.34,42.34a8,8,0,0,0,11.31-11.31Z"></path></svg>
+        if (totalAlerts === 0) {
+            // "ALL CAUGHT UP" STATE
+            return (
+                <div className="mx-4 relative overflow-hidden rounded-[2rem] p-6 text-white shadow-xl shadow-slate-200 group">
+                    {/* Gradient Background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7]"></div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500 opacity-20 rounded-full blur-2xl"></div>
+
+                    <div className="relative z-10 flex flex-col h-full">
+                        {/* Top Section */}
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <div className="flex items-center gap-2 mb-2 text-indigo-100">
+                                    <div className="w-5 h-5 rounded-full bg-green-400 flex items-center justify-center text-indigo-900">
+                                        <Check className="w-3 h-3 stroke-[4]" />
+                                    </div>
+                                    <span className="text-xs font-bold uppercase tracking-wider">All Caught Up</span>
+                                </div>
+                                <h2 className="text-3xl font-black leading-tight mb-2">
+                                    You're doing <br />great!
+                                </h2>
+                                <p className="text-indigo-100 text-sm font-medium">
+                                    No pending actions for today.
+                                </p>
+                            </div>
+
+                            <div className="text-right">
+                                <span className="text-4xl font-black tracking-tight">85%</span>
+                                <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider flex items-center justify-end gap-1">
+                                    Weekly Success
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7 7m0 0l7-7m-7 7V3"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="w-full h-px bg-white/20 mb-4"></div>
+
+                        {/* Bottom Section: Milestone / Teaser */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl backdrop-blur-sm border border-white/20">
+                                    🎁
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider">Next Milestone</p>
+                                    <p className="text-sm font-bold text-white">
+                                        {topChild ? `${topChild.name} has ${topChild.stars} stars!` : "Kids are earning stars!"}
+                                    </p>
+                                </div>
+                            </div>
+                            <Link href="/parent/rewards">
+                                <button className="bg-white text-indigo-600 px-5 py-2 rounded-xl text-xs font-black shadow-lg hover:scale-105 transition-transform">
+                                    View
+                                </button>
+                            </Link>
                         </div>
                     </div>
                 </div>
-                <div className="col-span-2 pt-4 border-t border-white/10 flex justify-between items-center">
-                    <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Rewards</span>
-                        <span className="text-xl font-bold text-white">{(pendingPurchases?.length || 0)} Reward{(pendingPurchases?.length !== 1) ? 's' : ''} Due</span>
+            );
+        }
+
+        // "ACTION NEEDED" STATE (Existing)
+        return (
+            <div className="mx-4 relative overflow-hidden bg-slate-900 rounded-[2rem] p-6 text-white shadow-xl shadow-slate-200">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-[60px] opacity-30"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-30"></div>
+
+                <div className="relative z-10 grid grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-1 border-r border-white/10">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Action Needed</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-3xl font-black text-white">{totalAlerts}</span>
+                            {totalAlerts > 0 && (
+                                <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">Alerts</span>
+                            )}
+                        </div>
                     </div>
-                    <Link href="/parent/purchases">
-                        <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
-                            View Details
-                        </button>
-                    </Link>
+                    <div className="flex flex-col gap-1 pl-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Weekly Success</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-3xl font-black text-green-400">85%</span>
+                            <div className="w-5 h-5 text-green-400 fill-current">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16H224A8,8,0,0,1,232,208ZM165.66,82.34a8,8,0,0,0-11.32,0L102.63,134.06,69.66,101.09a8,8,0,0,0-11.32,11.32l38.63,38.62a8,8,0,0,0,11.32,0l57.37-57.37,42.34,42.34a8,8,0,0,0,11.31-11.31Z"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-span-2 pt-4 border-t border-white/10 flex justify-between items-center">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Rewards</span>
+                            <span className="text-xl font-bold text-white">{(pendingPurchases?.length || 0)} Reward{(pendingPurchases?.length !== 1) ? 's' : ''} Due</span>
+                        </div>
+                        <Link href="/parent/purchases">
+                            <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
+                                View Details
+                            </button>
+                        </Link>
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
         // @ts-ignore

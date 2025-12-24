@@ -39,6 +39,81 @@ export default function PurchaseHistoryPage() {
         return enrichedLogs;
     }, [accountId]);
 
+    const pendingPurchases = purchases?.filter(p => p.status === 'pending') || [];
+    const historyPurchases = purchases?.filter(p => p.status !== 'pending') || [];
+
+    const getAvatarIcon = (avatarId?: string) => {
+        switch (avatarId) {
+            case 'boy': return '🧑‍🚀';
+            case 'girl': return '👩‍🚀';
+            case 'alien': return '👽';
+            case 'robot': return '🤖';
+            case 'rocket': return '🚀';
+            default: return '👶';
+        }
+    };
+
+    const getProfileColor = (theme?: string) => {
+        const colorMap: Record<string, string> = {
+            cyan: 'bg-cyan-100 border-cyan-200',
+            purple: 'bg-violet-100 border-violet-200',
+            green: 'bg-emerald-100 border-emerald-200',
+            orange: 'bg-orange-100 border-orange-200'
+        };
+        return colorMap[theme || 'cyan'] || 'bg-slate-100 border-slate-200';
+    };
+
+    const handleApprove = async (log: any) => {
+        try {
+            // 1. Deduct Stars
+            const profile = await db.profiles.get(log.profileId);
+
+            if (!profile) {
+                if (confirm("Child profile not found (it may have been deleted). Do you want to delete this invalid request?")) {
+                    await db.purchaseLogs.delete(log.id);
+                }
+                return;
+            }
+
+            const cost = log.rewardSnapshot.cost;
+            const currentStars = profile.stars || 0;
+            const newStars = Math.max(0, currentStars - cost);
+
+            await db.profiles.update(profile.id, { stars: newStars });
+
+            // 2. Update Log
+            await db.purchaseLogs.update(log.id, {
+                status: 'approved',
+                processedAt: new Date()
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Failed to approve");
+        }
+    };
+
+    const handleReject = async (log: any) => {
+        try {
+            // If profile is missing, we might as well delete the log to clean up history, 
+            // but keeping it as rejected is also fine. Let's allowing deleting if missing.
+            const profile = await db.profiles.get(log.profileId);
+            if (!profile) {
+                if (confirm("Child profile not found. permanently delete this request record?")) {
+                    await db.purchaseLogs.delete(log.id);
+                    return;
+                }
+            }
+
+            await db.purchaseLogs.update(log.id, {
+                status: 'rejected',
+                processedAt: new Date()
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Failed to reject");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
             {/* Header */}
@@ -54,66 +129,127 @@ export default function PurchaseHistoryPage() {
                 </div>
             </header>
 
-            <main className="p-4 flex flex-col gap-4 max-w-screen-md mx-auto">
-                {purchases?.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
-                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                            <ShoppingBag className="w-8 h-8 text-slate-300" />
+            <main className="p-4 flex flex-col gap-6 max-w-screen-md mx-auto">
+                {/* 1. PENDING REQUESTS SECTION */}
+                {pendingPurchases?.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 px-1">
+                            <h3 className="text-xs font-bold text-orange-600 uppercase tracking-wider">Pending Requests</h3>
+                            <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{pendingPurchases.length}</span>
                         </div>
-                        <h3 className="font-bold text-slate-700 text-sm">No Purchases Yet</h3>
-                        <p className="text-xs text-slate-500 max-w-xs">
-                            When kids buy rewards, they appear here.
-                        </p>
+                        <div className="flex flex-col gap-3">
+                            {pendingPurchases.map((log) => {
+                                const AvatarIcon = getAvatarIcon(log.profileAvatarId);
+                                const colorClass = getProfileColor(log.profileColorTheme);
+                                const isOrphaned = !log.profileName;
+
+                                return (
+                                    <div key={log.id} className={cn("bg-white rounded-xl p-4 shadow-md border-l-4 flex flex-col gap-3 animate-in slide-in-from-left-2", isOrphaned ? "border-slate-400 opacity-75" : "border-orange-400")}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-xl border-2 flex-shrink-0", colorClass)}>
+                                                    {AvatarIcon}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                        {isOrphaned ? "Deleted Profile" : `${log.profileName} wants`}
+                                                    </span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xl">{log.rewardSnapshot.icon}</span>
+                                                        <h3 className="font-bold text-slate-900 text-sm">{log.rewardSnapshot.title}</h3>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="flex items-center justify-end gap-1 text-orange-600 font-black text-lg">
+                                                    {log.rewardSnapshot.cost} <Star className="w-4 h-4 fill-current" />
+                                                </div>
+                                                <span className="text-[10px] text-slate-400 font-medium">
+                                                    {formatDistanceToNow(log.purchasedAt, { addSuffix: true })}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                                            <Button
+                                                onClick={() => handleReject(log)}
+                                                variant="outline"
+                                                className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 border-red-100"
+                                            >
+                                                {isOrphaned ? "Delete Record" : "Reject"}
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleApprove(log)}
+                                                className={cn("w-full shadow-sm shadow-green-200", isOrphaned ? "bg-slate-300 text-white cursor-not-allowed" : "bg-green-600 hover:bg-green-700 text-white")}
+                                                disabled={isOrphaned} // Actually handleApprove handles it, but disabled is better UI
+                                            >
+                                                Approve
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
+
+                {/* 2. HISTORY SECTION */}
                 <div className="flex flex-col gap-2">
-                    {purchases?.map((log) => {
-                        // Avatar Logic
-                        let AvatarIcon = '👶';
-                        switch (log.profileAvatarId) {
-                            case 'boy': AvatarIcon = '🧑‍🚀'; break;
-                            case 'girl': AvatarIcon = '👩‍🚀'; break;
-                            case 'alien': AvatarIcon = '👽'; break;
-                            case 'robot': AvatarIcon = '🤖'; break;
-                            case 'rocket': AvatarIcon = '🚀'; break;
-                        }
-                        const colorMap: Record<string, string> = {
-                            cyan: 'bg-cyan-100 border-cyan-200',
-                            purple: 'bg-violet-100 border-violet-200',
-                            green: 'bg-emerald-100 border-emerald-200',
-                            orange: 'bg-orange-100 border-orange-200'
-                        };
-                        const colorClass = colorMap[log.profileColorTheme || 'cyan'] || 'bg-slate-100 border-slate-200';
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">History</h3>
 
-                        return (
-                            <div key={log.id} className="bg-white rounded-xl p-2 shadow-sm border border-slate-200 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    {/* Child Avatar */}
-                                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-xl border-2 flex-shrink-0", colorClass)}>
-                                        {AvatarIcon}
-                                    </div>
-
-                                    {/* Reward Details */}
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-base">{log.rewardSnapshot.icon}</span>
-                                            <h3 className="font-bold text-slate-900 text-sm leading-tight">{log.rewardSnapshot.title}</h3>
-                                        </div>
-                                        <span className="text-[10px] text-slate-400 font-medium">
-                                            {formatDistanceToNow(log.purchasedAt, { addSuffix: true })}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Cost */}
-                                <div className="flex items-center gap-1 pr-1">
-                                    <span className="font-bold text-red-500 text-sm">-{log.rewardSnapshot.cost}</span>
-                                    <Star className="w-3 h-3 text-red-500 fill-red-500" />
-                                </div>
+                    {historyPurchases?.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                                <ShoppingBag className="w-8 h-8 text-slate-300" />
                             </div>
-                        );
-                    })}
+                            <h3 className="font-bold text-slate-700 text-sm">No History Yet</h3>
+                            <p className="text-xs text-slate-500 max-w-xs">
+                                Past purchases and decisions will appear here.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-2">
+                        {historyPurchases?.map((log) => {
+                            const AvatarIcon = getAvatarIcon(log.profileAvatarId);
+                            const colorClass = getProfileColor(log.profileColorTheme);
+                            const isRejected = log.status === 'rejected';
+
+                            return (
+                                <div key={log.id} className={cn("bg-white rounded-xl p-3 shadow-sm border flex items-center justify-between opacity-80 hover:opacity-100 transition-opacity", isRejected ? "border-slate-100 bg-slate-50/50" : "border-slate-200")}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-xl border-2 flex-shrink-0 grayscale opacity-70", colorClass)}>
+                                            {AvatarIcon}
+                                        </div>
+
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-base grayscale">{log.rewardSnapshot.icon}</span>
+                                                <h3 className={cn("font-bold text-sm leading-tight", isRejected ? "text-slate-500 line-through decoration-slate-300" : "text-slate-900")}>
+                                                    {log.rewardSnapshot.title}
+                                                </h3>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium h-4">
+                                                <span>{log.profileName}</span>
+                                                <span>•</span>
+                                                <span>{formatDistanceToNow(log.purchasedAt, { addSuffix: true })}</span>
+                                                {isRejected && <span className="text-red-400 font-bold bg-red-50 px-1 rounded">Rejected</span>}
+                                                {log.status === 'approved' && <span className="text-green-600 font-bold bg-green-50 px-1 rounded">Approved</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-1 pr-1">
+                                        <span className={cn("font-bold text-sm", isRejected ? "text-slate-400 line-through" : "text-red-500")}>
+                                            -{log.rewardSnapshot.cost}
+                                        </span>
+                                        <Star className={cn("w-3 h-3 fill-current", isRejected ? "text-slate-300" : "text-red-500")} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </main>
 
