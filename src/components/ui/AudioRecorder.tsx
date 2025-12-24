@@ -123,14 +123,13 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     return (
         <div className="w-full">
             {!audioUrl && !isRecording && (
-                <Button
+                <button
                     onClick={startRecording}
-                    variant="outline"
-                    className="w-full h-12 bg-slate-50 border-2 border-slate-200 border-dashed rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:text-violet-600 hover:border-violet-300 hover:bg-violet-50 transition-all font-bold"
+                    className="w-full h-12 bg-slate-50 border-2 border-slate-200 border-dashed rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all font-bold"
                 >
-                    <Mic className="w-4 h-4" />
-                    <span>Record Voice Note</span>
-                </Button>
+                    <Mic className="w-5 h-5" />
+                    Record Voice Note
+                </button>
             )}
 
             {isRecording && (

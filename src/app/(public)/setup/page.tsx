@@ -64,7 +64,7 @@ export default function SetupPage() {
                 name: name.trim(),
                 type: 'parent',
                 pin: pinString,
-                theme: 'admin',
+                theme: 'default',
                 avatarId: 'parent-1',
                 createdAt: new Date()
             };

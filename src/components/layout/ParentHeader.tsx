@@ -25,7 +25,7 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
                     onClick={() => setIsSwitcherOpen(true)}
                     className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-50 transition-colors"
                 >
-                    <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 border border-violet-200">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                         {activeProfile?.avatarId ? (
                             <span className="text-sm font-bold">{activeProfile.name[0]}</span>
                         ) : (
@@ -56,7 +56,7 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
                     {rightAction ? (
                         rightAction
                     ) : (
-                        <Link href="/parent/profiles" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-full">
+                        <Link href="/parent/settings" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-full">
                             <Settings className="w-5 h-5" />
                         </Link>
                     )}

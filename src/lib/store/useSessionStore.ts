@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Profile } from '../db';
+import { Profile, ThemeType } from '../db';
 
 interface SessionState {
     activeProfile: Profile | null;
     setActiveProfile: (profile: Profile | null) => void;
 
     // Theme might be derived from profile, but we can override locally
-    currentTheme: 'cosmic' | 'enchanted' | 'admin';
-    setTheme: (theme: 'cosmic' | 'enchanted' | 'admin') => void;
+    currentTheme: ThemeType;
+    setTheme: (theme: ThemeType) => void;
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -18,10 +18,10 @@ export const useSessionStore = create<SessionState>()(
             setActiveProfile: (profile) => set({
                 activeProfile: profile,
                 // Auto-update theme based on profile type if profile is set
-                currentTheme: profile?.theme || (profile?.type === 'parent' ? 'admin' : 'cosmic')
+                currentTheme: profile?.theme || 'default'
             }),
 
-            currentTheme: 'admin', // Default start theme
+            currentTheme: 'default', // Default start theme
             setTheme: (theme) => set({ currentTheme: theme }),
         }),
         {

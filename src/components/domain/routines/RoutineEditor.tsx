@@ -248,9 +248,9 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
             <main className="py-4 flex flex-col gap-4 max-w-screen-md mx-auto px-4">
                 {/* 1. TOP TOGGLE (Segmented Control) */}
                 <div className="bg-white rounded-xl p-1 shadow-sm border border-slate-200 flex">
-                    <button onClick={() => setEditorType('recurring')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all", editorType === 'recurring' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>Routine</button>
-                    <button onClick={() => setEditorType('one-time')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all", editorType === 'one-time' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>One-Time</button>
-                    <button onClick={() => setEditorType('goal')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1", editorType === 'goal' ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>Goal 🏆</button>
+                    <button onClick={() => setEditorType('recurring')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all", editorType === 'recurring' ? "bg-primary text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>Routine</button>
+                    <button onClick={() => setEditorType('one-time')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all", editorType === 'one-time' ? "bg-primary text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>One-Time</button>
+                    <button onClick={() => setEditorType('goal')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1", editorType === 'goal' ? "bg-primary text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>Goal 🏆</button>
                 </div>
 
                 {/* 2. MAIN CONFIGURATION CARD */}
@@ -276,7 +276,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
                                     <button
                                         onClick={() => setShowIconModal(true)}
-                                        className="w-full h-12 bg-violet-100 rounded-xl border border-violet-200 flex items-center justify-center text-violet-600 hover:scale-105 transition-transform"
+                                        className="w-full h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
                                     >
                                         <RenderIcon name={icon} size="w-6 h-6" />
                                     </button>
@@ -303,7 +303,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
                                     placeholder="Add details..."
-                                    className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-y"
+                                    className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent resize-y"
                                 />
                             </div>
 
@@ -346,14 +346,14 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         value={title}
                                         onChange={e => setTitle(e.target.value)}
                                         placeholder="e.g. Morning Routine"
-                                        className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-base focus-visible:ring-violet-500"
+                                        className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-base focus-visible:ring-primary/50"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
                                     <button
                                         onClick={() => setShowIconModal(true)}
-                                        className="w-12 h-12 bg-violet-100 rounded-xl border border-violet-200 flex items-center justify-center text-violet-600 hover:scale-105 transition-transform"
+                                        className="w-12 h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
                                     >
                                         <RenderIcon name={icon} size="w-6 h-6" />
                                     </button>
@@ -367,7 +367,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
                                     placeholder="Add details..."
-                                    className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-y"
+                                    className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent resize-y"
                                 />
                             </div>
 
@@ -399,12 +399,12 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     const isSelected = goalType === t.id;
                                     const Icon = t.icon;
                                     return (
-                                        <button key={t.id} onClick={() => setGoalType(t.id as GoalType)} className={cn("relative p-3 rounded-xl border-2 flex flex-col items-start gap-2 transition-all text-left", isSelected ? "border-blue-500 bg-blue-50/50" : "border-slate-100 hover:border-slate-300")}>
+                                        <button key={t.id} onClick={() => setGoalType(t.id as GoalType)} className={cn("relative p-3 rounded-xl border-2 flex flex-col items-start gap-2 transition-all text-left", isSelected ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-300")}>
                                             <div className="flex justify-between w-full">
-                                                <div className={cn("p-1.5 rounded-lg", isSelected ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-400")}><Icon className="w-5 h-5" /></div>
-                                                {isSelected && <Check className="w-4 h-4 text-blue-500" />}
+                                                <div className={cn("p-1.5 rounded-lg", isSelected ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Icon className="w-5 h-5" /></div>
+                                                {isSelected && <Check className="w-4 h-4 text-primary" />}
                                             </div>
-                                            <div><div className={cn("text-xs font-bold", isSelected ? "text-blue-900" : "text-slate-600")}>{t.label}</div></div>
+                                            <div><div className={cn("text-xs font-bold", isSelected ? "text-primary" : "text-slate-600")}>{t.label}</div></div>
                                         </button>
                                     )
                                 })}
@@ -462,7 +462,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         <label className="text-[10px] font-bold text-slate-400 uppercase">Repeat On</label>
                                         <div className="flex justify-between gap-1">
                                             {DAYS.map(day => (
-                                                <button key={day.id} onClick={() => toggleDay(day.id)} className={cn("w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all", selectedDays.includes(day.id) ? "bg-slate-900 text-white shadow-md scale-105" : "bg-slate-100 text-slate-400")}>{day.label}</button>
+                                                <button key={day.id} onClick={() => toggleDay(day.id)} className={cn("w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all", selectedDays.includes(day.id) ? "bg-primary text-white shadow-md scale-105" : "bg-slate-100 text-slate-400")}>{day.label}</button>
                                             ))}
                                         </div>
                                     </div>
@@ -477,7 +477,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         value={date}
                                         onChange={e => setDate(e.target.value)}
                                         onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
-                                        className="h-10 border-slate-200 text-sm font-bold text-slate-900 block w-full bg-slate-50"
+                                        className="h-10 border-slate-200 text-sm font-bold border-slate-900 block w-full bg-slate-50"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2">
@@ -499,11 +499,11 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             switch (child.avatarId) { case 'boy': AvatarIcon = '🧑‍🚀'; break; case 'girl': AvatarIcon = '👩‍🚀'; break; case 'alien': AvatarIcon = '👽'; break; case 'robot': AvatarIcon = '🤖'; break; }
                             return (
                                 <button key={child.id} onClick={() => toggleChild(child.id!)} className="flex flex-col items-center gap-2 group min-w-[64px]">
-                                    <div className={cn("w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all border-2 shadow-sm relative", isSelected ? "border-violet-600 bg-violet-50 scale-105" : "bg-slate-50 border-slate-100")}>
+                                    <div className={cn("w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all border-2 shadow-sm relative", isSelected ? "border-primary bg-primary/5 scale-105" : "bg-slate-50 border-slate-100")}>
                                         {AvatarIcon}
-                                        {isSelected && <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-0.5 border-2 border-white"><Check className="w-3 h-3" /></div>}
+                                        {isSelected && <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5 border-2 border-white"><Check className="w-3 h-3" /></div>}
                                     </div>
-                                    <span className={cn("text-xs font-medium truncate w-full text-center", isSelected ? "text-violet-700 font-bold" : "text-slate-500")}>{child.name}</span>
+                                    <span className={cn("text-xs font-medium truncate w-full text-center", isSelected ? "text-primary font-bold" : "text-slate-500")}>{child.name}</span>
                                 </button>
                             );
                         })}
@@ -530,7 +530,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     <button onClick={e => { e.stopPropagation(); handleDeleteStep(step.id); }} className="p-2 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             ))}
-                            <Button variant="outline" onClick={openAddStep} className="h-12 border-dashed border-2 border-slate-200 text-slate-500 hover:text-violet-600 hover:border-violet-300 hover:bg-violet-50 bg-slate-50">+ Add Step</Button>
+                            <Button variant="outline" onClick={openAddStep} className="h-12 border-dashed border-2 border-slate-200 text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 bg-slate-50">+ Add Step</Button>
                         </div>
                     </div>
                 )}
@@ -540,7 +540,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 pb-8 z-40 flex justify-center">
                 <div className="max-w-screen-md w-full flex gap-3">
                     <Button variant="ghost" onClick={() => router.back()} className="flex-1 text-slate-500 font-bold">Cancel</Button>
-                    <Button onClick={handleSave} className="flex-[2] bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 rounded-xl text-base shadow-lg shadow-slate-200">
+                    <Button onClick={handleSave} className="flex-[2] bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl text-base shadow-lg shadow-slate-200">
                         Save
                     </Button>
                 </div>

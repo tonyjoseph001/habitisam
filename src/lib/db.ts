@@ -5,7 +5,7 @@ import Dexie, { type EntityTable } from 'dexie';
 export type ActivityType = 'recurring' | 'one-time';
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Sunday, 1=Monday, etc.
 export type ProfileType = 'parent' | 'child';
-export type ThemeType = 'admin' | 'cosmic';
+export type ThemeType = 'default' | 'ocean' | 'sunset' | 'forest' | 'candy' | 'midnight';
 export type LogStatus = 'completed' | 'incomplete' | 'skipped';
 
 // ==========================================

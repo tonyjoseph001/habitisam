@@ -168,7 +168,7 @@ export default function ParentRewardsPage() {
             <div className="fixed bottom-24 left-0 w-full px-6 flex justify-center z-40 pointer-events-none">
                 <button
                     onClick={() => router.push('/parent/rewards/add?returnUrl=/parent/rewards')}
-                    className="pointer-events-auto bg-slate-900 text-white pl-5 pr-6 py-4 rounded-full font-bold text-sm shadow-xl shadow-slate-300 flex items-center gap-2 hover:scale-105 active:scale-95 transition"
+                    className="pointer-events-auto bg-primary text-white pl-5 pr-6 py-4 rounded-full font-bold text-sm shadow-xl shadow-slate-300 flex items-center gap-2 hover:scale-105 active:scale-95 transition"
                 >
                     <Plus className="w-5 h-5" />
                     Add Reward

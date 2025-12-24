@@ -47,7 +47,7 @@ export default function AddChildProfilePage() {
             accountId: user.uid,
             name: name.trim(),
             type: 'child',
-            theme: 'cosmic', // System theme
+            theme: 'default', // System theme
             colorTheme: selectedTheme, // Persist visual choice
             avatarId: selectedAvatar,
             stars: 0,

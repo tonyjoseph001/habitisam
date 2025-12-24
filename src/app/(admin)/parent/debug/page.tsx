@@ -25,7 +25,7 @@ export default function DebugPage() {
                 type: "child",
                 avatarId: "robot",
                 colorTheme: "green",
-                theme: "cosmic",
+                theme: "ocean",
                 createdAt: new Date(),
                 stars: 150,
                 xp: 320,

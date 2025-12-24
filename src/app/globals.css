@@ -8,8 +8,8 @@
     /* Slate 100 */
     --foreground: 222 47% 11%;
     /* Slate 900 */
-    --primary: 262 83% 58%;
-    /* Violet 600 */
+    --primary: 243 75% 59%;
+    /* Indigo 600 (Matches Default Theme) */
     --primary-foreground: 210 40% 98%;
     --secondary-foreground: 222 47% 11%;
     --radius: 0.5rem;
@@ -19,32 +19,46 @@
     --safe-area-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Cosmic Theme (Dark Blue/Purple) */
-  [data-theme="cosmic"] {
-    --background: 224 71% 4%;
-    /* Very Dark Blue */
-    --foreground: 210 40% 98%;
-    --primary: 263 90% 51%;
-    /* Vibrant Purple */
+  /* --- THEME PRESETS --- */
+
+  /* Ocean (Blue) */
+  html[data-theme="ocean"] {
+    --primary: 199 89% 48%;
+    /* Sky 500 */
     --primary-foreground: 0 0% 100%;
-    --card: 224 71% 10%;
-    --card-foreground: 210 40% 98%;
-    --accent: 310 90% 60%;
-    /* Magenta Pop */
+    --ring: 199 89% 48%;
   }
 
-  /* Enchanted Theme (Forest Green/Teal) */
-  [data-theme="enchanted"] {
-    --background: 156 40% 10%;
-    /* Dark Forest */
-    --foreground: 140 30% 98%;
-    --primary: 156 70% 40%;
-    /* Emerald */
+  /* Sunset (Orange) */
+  html[data-theme="sunset"] {
+    --primary: 25 95% 53%;
+    /* Orange 500 */
     --primary-foreground: 0 0% 100%;
-    --card: 156 40% 15%;
-    --card-foreground: 140 30% 98%;
-    --accent: 45 90% 60%;
-    /* Gold Pop */
+    --ring: 25 95% 53%;
+  }
+
+  /* Forest (Green) */
+  html[data-theme="forest"] {
+    --primary: 160 84% 39%;
+    /* Emerald 500 */
+    --primary-foreground: 0 0% 100%;
+    --ring: 160 84% 39%;
+  }
+
+  /* Candy (Pink) */
+  html[data-theme="candy"] {
+    --primary: 333 71% 51%;
+    /* Pink 600 */
+    --primary-foreground: 0 0% 100%;
+    --ring: 333 71% 51%;
+  }
+
+  /* Midnight (Dark Slate) */
+  html[data-theme="midnight"] {
+    --primary: 222 47% 11%;
+    /* Slate 900 */
+    --primary-foreground: 0 0% 100%;
+    --ring: 222 47% 11%;
   }
 
   body {

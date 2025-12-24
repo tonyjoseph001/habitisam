@@ -133,7 +133,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                 )}
                                 <Button
                                     onClick={handleSave}
-                                    className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg h-9 px-4 text-sm"
+                                    className="bg-primary hover:bg-primary/90 text-white font-bold rounded-lg h-9 px-4 text-sm"
                                 >
                                     Save
                                 </Button>
@@ -150,7 +150,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
                                     placeholder="e.g. Brush Teeth"
-                                    className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-sm focus-visible:ring-violet-500 placeholder:text-slate-300"
+                                    className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-sm focus-visible:ring-primary/50 placeholder:text-slate-300"
                                     autoFocus
                                 />
                             </div>
@@ -162,7 +162,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
                                     <button
                                         onClick={() => setShowPicker(!showPicker)}
-                                        className="w-full h-12 bg-violet-100 rounded-xl border border-violet-200 flex items-center justify-center text-violet-600 hover:scale-105 transition-transform"
+                                        className="w-full h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
                                     >
                                         <RenderIcon name={icon} className="w-6 h-6" />
                                     </button>
@@ -216,7 +216,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                     </div>
                                     <label className="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" className="sr-only peer" checked={isTimerEnabled} onChange={(e) => setIsTimerEnabled(e.target.checked)} />
-                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                                     </label>
                                 </div>
 
@@ -230,7 +230,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                                     className={cn(
                                                         "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
                                                         (timerDuration === opt.value && !customMinutes)
-                                                            ? "bg-violet-600 text-white border-violet-600 shadow-sm"
+                                                            ? "bg-primary text-white border-primary shadow-sm"
                                                             : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
                                                     )}
                                                 >
@@ -259,7 +259,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
                                     placeholder="Add details..."
-                                    className="bg-slate-50 border-slate-200 min-h-[80px] text-sm font-medium focus:ring-violet-500 text-slate-900 placeholder:text-slate-300"
+                                    className="bg-slate-50 border-slate-200 min-h-[80px] text-sm font-medium focus:ring-primary/50 text-slate-900 placeholder:text-slate-300"
                                 />
                             </div>
 

@@ -27,12 +27,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         // Variants
         const variants = {
             default: "bg-primary text-primary-foreground hover:bg-primary/90",
-            destructive: "bg-red-500 text-white hover:bg-red-600",
-            outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-            secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+            destructive:
+                "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+            outline:
+                "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+            secondary:
+                "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             ghost: "hover:bg-accent hover:text-accent-foreground",
             link: "text-primary underline-offset-4 hover:underline",
-            cosmic: "bg-violet-600 text-white hover:bg-violet-700 shadow-[0_0_15px_rgba(124,58,237,0.5)]", // Custom cosmic glow
+            cosmic: "bg-primary text-white hover:bg-primary/90 shadow-[0_0_15px_hsl(var(--primary)/0.5)]", // Custom cosmic glow
             google: "bg-white text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50",
         }
 

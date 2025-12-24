@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ListTodo, Gift, Users, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 export function ParentNavBar() {
     const pathname = usePathname();
@@ -28,12 +29,21 @@ export function ParentNavBar() {
                         key={item.href}
                         href={item.href}
                         className={cn(
-                            "flex flex-col items-center justify-center w-full h-full gap-1 transition-colors",
-                            isActive ? "text-violet-600" : "text-slate-400 hover:text-slate-600"
+                            "group relative flex flex-col items-center justify-center w-full h-full gap-1 transition-colors", // Added 'group' and 'relative'
+                            isActive ? "text-primary" : "text-slate-400 hover:text-slate-600" // Replaced text-violet-600 with text-primary
                         )}
                     >
                         <Icon className={cn("w-6 h-6", isActive && "stroke-[2.5px]")} />
-                        <span className="text-[10px] font-medium">{item.label}</span>
+                        <span className={cn( // Modified span className
+                            "text-[10px] font-bold mt-1 transition-colors",
+                            isActive ? "text-primary" : "text-slate-400 group-hover:text-slate-600"
+                        )}>{item.label}</span>
+                        {isActive && ( // Added motion.div for active indicator
+                            <motion.div
+                                layoutId="navIndicator"
+                                className="absolute -top-3 w-12 h-1 bg-primary rounded-full shadow-[0_2px_8px_hsl(var(--primary)/0.4)]"
+                            />
+                        )}
                     </Link>
                 );
             })}

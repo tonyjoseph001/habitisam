@@ -15,7 +15,7 @@ const fredoka = Fredoka({
 
 export const metadata: Metadata = {
   title: "Habitisim",
-  description: "Cosmic Routine Builder for Kids",
+  description: "Gamified chores and routines for kids",
 };
 
 export const viewport: Viewport = {
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { ThemeProvider } from '@/components/providers/ThemeContext';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 
 import { Toaster } from 'sonner';
