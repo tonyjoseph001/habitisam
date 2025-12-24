@@ -55,10 +55,35 @@ export default function RoutinesPage() {
         });
 
         // 2. Add stars to profile (use awardStars state)
-        const profile = profiles?.find(p => p.id === approvingGoal.profileId);
+        // 2. Add stars to profile (use awardStars state)
+        // Fetch fresh profile to ensure we update correct balance
+        const profile = await db.profiles.get(approvingGoal.profileId);
+
         if (profile) {
-            await db.profiles.update(profile.id, { stars: (profile.stars || 0) + awardStars });
+            const newStars = (profile.stars || 0) + awardStars;
+            await db.profiles.update(profile.id, { stars: newStars });
+
+            // 3. Log Activity for Child Feed
+            await db.activityLogs.add({
+                id: crypto.randomUUID(),
+                accountId: approvingGoal.accountId,
+                profileId: approvingGoal.profileId,
+                activityId: approvingGoal.id, // Link to Goal ID
+                date: new Date().toISOString().split('T')[0],
+                status: 'completed',
+                completedAt: new Date(),
+                starsEarned: awardStars,
+                metadata: {
+                    type: 'goal',
+                    title: approvingGoal.title,
+                    goalType: approvingGoal.type
+                }
+            });
+
             toast.success(`Approved! Awarded ${awardStars} stars.`);
+        } else {
+            console.error("Profile not found for approval", approvingGoal.profileId);
+            toast.error("Could not find child profile to award stars.");
         }
 
         setApprovingGoal(null);

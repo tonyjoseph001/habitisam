@@ -9,6 +9,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { createPortal } from 'react-dom';
 import { type Reward } from '@/lib/db';
+import ChildHeader from '@/components/child/ChildHeader';
 
 const REWARD_COLORS = [
     'bg-orange-50',
@@ -135,23 +136,10 @@ export default function ChildShopPage() {
                 }
             `}</style>
 
-            <div className="px-5 pt-6 pb-2">
+            <div className="pt-2 pb-2">
 
                 {/* Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <button
-                        onClick={() => router.back()}
-                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-50 shadow-sm transition-colors"
-                    >
-                        <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
-                    </button>
-                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm">
-                        <div className="w-6 h-6 rounded-full bg-yellow-100 overflow-hidden">
-                            <img src={avatarSrc} className="w-full h-full object-cover" alt="Profile" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-700">{displayProfile.name}'s Shop</span>
-                    </div>
-                </div>
+                <ChildHeader showBack={true} />
 
                 {/* Hero Card */}
                 <div className="relative w-full h-44 rounded-[2rem] overflow-hidden shadow-[0_15px_30px_-5px_rgba(255,159,28,0.4)] group transform transition-transform hover:scale-[1.02]">

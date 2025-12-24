@@ -8,6 +8,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ChevronLeft } from 'lucide-react';
+import ChildHeader from '@/components/child/ChildHeader';
 
 type ActivityItem = {
     id: string;
@@ -68,13 +69,17 @@ export default function ChildActivityPage() {
                     starsEarned = act.steps.reduce((acc, step) => acc + (step.stars || 0), 0);
                 }
 
+                // Check for metadata title (e.g. for Goals)
+                const metaTitle = (log.metadata as any)?.title;
+                const metaType = (log.metadata as any)?.type;
+
                 earnedItems.push({
                     id: log.id,
                     type: 'earned',
-                    title: act?.title || 'Unknown Routine',
+                    title: act?.title || metaTitle || 'Unknown Activity',
                     stars: starsEarned,
                     date: log.completedAt || new Date(log.date),
-                    icon: '✅' // Default if no activity icon
+                    icon: act?.icon ? undefined : (metaType === 'goal' ? '🏆' : '✅') // Use specific icon for goals if available
                 });
             }
         }
@@ -118,14 +123,11 @@ export default function ChildActivityPage() {
         <div className="min-h-screen bg-[#EEF2FF] text-[#2B2D42] pb-32 select-none relative font-sans">
 
             {/* Header & Filters */}
-            <div className="px-5 pt-6 pb-2 sticky top-0 bg-[#EEF2FF] z-20">
+            <ChildHeader />
+
+            <div className="px-5 pt-2 pb-2 sticky top-0 bg-[#EEF2FF] z-20">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-extrabold text-gray-800">My Activity</h1>
-
-                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-                        <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-xs shadow-sm text-white">⭐</div>
-                        <span className="text-sm font-extrabold text-gray-700">{activeProfile.stars?.toLocaleString() || 0}</span>
-                    </div>
                 </div>
 
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">

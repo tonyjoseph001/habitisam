@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Link from 'next/link';
+import ChildHeader from '@/components/child/ChildHeader';
 import { ChevronLeft, Gift, CheckSquare, Clock, Home, Check, Play, Sun, Moon, BookOpen, Utensils, BedDouble, Brush, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isSameDay, parse, addDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -277,19 +278,11 @@ export default function ChildTasksPage() {
     return (
         <div className="min-h-screen bg-[#EEF2FF] text-[#2B2D42] pb-32 select-none relative font-sans">
 
-            <div className="px-5 pt-6 pb-2 bg-white rounded-b-[2.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] sticky top-0 z-20">
+            <ChildHeader />
+
+            <div className="px-5 pt-2 pb-2 bg-white rounded-b-[2.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] sticky top-0 z-20">
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-2xl font-extrabold text-gray-800">My Tasks</h1>
-                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
-                        <div className="w-6 h-6 rounded-full bg-yellow-100 overflow-hidden border border-yellow-200">
-                            <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activeProfile.name}&clothing=graphicShirt`}
-                                className="w-full h-full object-cover"
-                                alt="Avatar"
-                            />
-                        </div>
-                        <span className="text-xs font-bold text-gray-600">Level 2</span>
-                    </div>
                 </div>
 
                 <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 mb-2">

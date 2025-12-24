@@ -10,6 +10,8 @@ import { ChevronLeft, Check } from 'lucide-react';
 import * as Icons from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import ChildHeader from '@/components/child/ChildHeader';
+import { GoalSlider } from '@/components/child/GoalSlider';
 
 export default function ChildGoalsPage() {
     const RenderIcon = ({ name }: { name: string }) => {
@@ -23,12 +25,33 @@ export default function ChildGoalsPage() {
     const [confirmationGoal, setConfirmationGoal] = useState<Goal | null>(null);
 
     // Real Data Query
-    // Real Data Query
     const goals = useLiveQuery(async () => {
         if (!activeProfile) return [];
         return await db.goals
             .where('profileId').equals(activeProfile.id)
             .toArray();
+    }, [activeProfile?.id]);
+
+    // Seed Default Data if Empty
+    useEffect(() => {
+        const seedData = async () => {
+            if (!activeProfile) return;
+            // Check if profile has ANY goals
+            const count = await db.goals.where('profileId').equals(activeProfile.id).count();
+            if (count === 0) {
+                const defaultGoals: Goal[] = [
+                    { id: crypto.randomUUID(), title: 'Science Project', description: 'Multi-step task', type: 'checklist', current: 25, target: 100, stars: 500, icon: '🌋', dueDate: 'Nov 15', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'purple' },
+                    { id: crypto.randomUUID(), title: 'Piano Practice', description: "Master 'Fur Elise'", type: 'slider', current: 50, target: 100, stars: 300, icon: '🎹', dueDate: 'Dec 01', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'blue' },
+                    { id: crypto.randomUUID(), title: 'Read 10 Books', description: 'Summer Reading', type: 'counter', current: 3, target: 10, stars: 1000, icon: '📚', dueDate: 'Aug 20', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'green' },
+                    { id: crypto.randomUUID(), title: 'Lego Castle', description: 'Creative Build', type: 'checklist', current: 0, target: 1, stars: 250, icon: '🏰', dueDate: 'This Weekend', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'pink' },
+                    { id: crypto.randomUUID(), title: 'Math Time', description: 'Goal: 60 Mins', type: 'timer', current: 20, target: 60, stars: 100, icon: '⏱️', dueDate: 'Weekly', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'indigo' },
+                    { id: crypto.randomUUID(), title: 'Save for Bike', description: 'Goal: $50.00', type: 'savings', current: 15, target: 50, stars: 500, icon: '🐷', dueDate: 'Ongoing', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'yellow' },
+                    { id: crypto.randomUUID(), title: 'Clean Garage', description: 'One-time Big Job', type: 'binary', current: 0, target: 1, stars: 800, icon: '🧹', dueDate: 'Sunday', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'orange' },
+                ];
+                await db.goals.bulkAdd(defaultGoals);
+            }
+        };
+        seedData();
     }, [activeProfile?.id]);
 
     // Format Helpers
@@ -75,11 +98,6 @@ export default function ChildGoalsPage() {
             let newStatus = goal.status;
             if (val >= goal.target && goal.status === 'active') {
                 // If goal met, mark pending approval or completed?
-                // Let's say pending approval for child goals.
-                // Or maybe just 'completed' for simple ones?
-                // Per requirement: "I Did It!" -> pending_approval
-                // newStatus = 'pending_approval'; // Actually maybe just let parent approve?
-                // For now keep active but show 100%?
             }
 
             await db.goals.update(goal.id, { current: val });
@@ -98,7 +116,7 @@ export default function ChildGoalsPage() {
     };
 
     const handleBinary = (goal: Goal) => {
-        updateGoalProgress(goal, 1);
+        setConfirmationGoal(goal);
     };
 
     const handleInputUpdate = (goal: Goal) => {
@@ -132,18 +150,8 @@ export default function ChildGoalsPage() {
         }
     };
 
-
-
-    // Fallback if no real data (Mock for demonstration/dev based on screenshot)
-    const displayGoals = (goals && goals.length > 0) ? goals : [
-        { id: '1', title: 'Science Project', description: 'Multi-step task', type: 'checklist', current: 25, target: 100, stars: 500, icon: '🌋', dueDate: 'Nov 15', status: 'active', accountId: '', profileId: '', color: 'purple' },
-        { id: '2', title: 'Piano Practice', description: "Master 'Fur Elise'", type: 'slider', current: 50, target: 100, stars: 300, icon: '🎹', dueDate: 'Dec 01', status: 'active', accountId: '', profileId: '', color: 'blue' },
-        { id: '3', title: 'Read 10 Books', description: 'Summer Reading', type: 'counter', current: 3, target: 10, stars: 1000, icon: '📚', dueDate: 'Aug 20', status: 'active', accountId: '', profileId: '', color: 'green' },
-        { id: '4', title: 'Lego Castle', description: 'Creative Build', type: 'checklist', current: 0, target: 1, stars: 250, icon: '🏰', dueDate: 'This Weekend', status: 'active', accountId: '', profileId: '', color: 'pink' },
-        { id: '5', title: 'Math Time', description: 'Goal: 60 Mins', type: 'timer', current: 20, target: 60, stars: 100, icon: '⏱️', dueDate: 'Weekly', status: 'active', accountId: '', profileId: '', color: 'indigo' },
-        { id: '6', title: 'Save for Bike', description: 'Goal: $50.00', type: 'savings', current: 15, target: 50, stars: 500, icon: '🐷', dueDate: 'Ongoing', status: 'active', accountId: '', profileId: '', color: 'yellow' },
-        { id: '7', title: 'Clean Garage', description: 'One-time Big Job', type: 'binary', current: 0, target: 1, stars: 800, icon: '🧹', dueDate: 'Sunday', status: 'active', accountId: '', profileId: '', color: 'orange' },
-    ];
+    // Fallback? No, we rely on seeded data.
+    const displayGoals = goals || [];
 
     if (!activeProfile) return null;
 
@@ -151,14 +159,11 @@ export default function ChildGoalsPage() {
         <main className="bg-[#EEF2FF] min-h-screen pb-32 select-none relative font-sans">
 
             {/* Header */}
-            <div className="px-5 pt-6 pb-2 sticky top-0 bg-[#EEF2FF] z-20">
+            <ChildHeader />
+
+            <div className="px-5 pt-2 pb-2 sticky top-0 bg-[#EEF2FF] z-20">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-extrabold text-gray-800">My Quests</h1>
-
-                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-                        <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-xs shadow-sm">⭐</div>
-                        <span className="text-sm font-extrabold text-gray-700">{activeProfile.stars?.toLocaleString() || 0}</span>
-                    </div>
                 </div>
             </div>
 
@@ -204,21 +209,11 @@ export default function ChildGoalsPage() {
                                 )}
 
                                 {goal.type === 'slider' && (
-                                    <>
-                                        <div className="flex justify-between items-end mb-1">
-                                            <span className="text-xs font-bold text-gray-400">Confidence</span>
-                                            <span className={`text-xs font-bold ${colors.text}`}>{goal.current}%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-${colors.accent.replace('bg-', '')}`}
-                                            value={goal.current}
-                                            onChange={(e) => handleSliderUpdate(goal, Number(e.target.value))}
-                                            disabled={goal.status !== 'active'}
-                                        />
-                                    </>
+                                    <GoalSlider
+                                        goal={goal}
+                                        colors={colors}
+                                        onUpdate={(val) => handleSliderUpdate(goal, val)}
+                                    />
                                 )}
 
                                 {goal.type === 'counter' && (

@@ -12,6 +12,7 @@ import { db } from '@/lib/db';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 
 export default function ParentDashboard() {
     const router = useRouter();
@@ -20,6 +21,11 @@ export default function ParentDashboard() {
 
     // Directive A: Local State
     const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+
+    // Approval States
+    const [approvingGoal, setApprovingGoal] = useState<any | null>(null);
+    const [rejectingGoal, setRejectingGoal] = useState<any | null>(null);
+    const [awardStars, setAwardStars] = useState<number>(0);
 
     // Directive B: Real Data
     const childProfiles = useLiveQuery(
@@ -71,8 +77,63 @@ export default function ParentDashboard() {
         }
     };
 
-    const handleApprove = async (goalId: string) => {
-        await db.goals.update(goalId, { status: 'active' });
+    // --- Approval Logic ---
+    const handleApproveClick = (goal: any) => {
+        setApprovingGoal(goal);
+        setAwardStars(goal.stars || 0);
+    };
+
+    const handleConfirmApprove = async () => {
+        if (!approvingGoal || !approvingGoal.profileId) return;
+
+        // 1. Mark goal completed
+        await db.goals.update(approvingGoal.id, {
+            status: 'completed',
+            completedAt: new Date()
+        });
+
+        // 2. Add stars to profile (use awardStars state)
+        // Fetch fresh profile to ensure we update correct balance
+        const profile = await db.profiles.get(approvingGoal.profileId);
+
+        if (profile) {
+            const newStars = (profile.stars || 0) + awardStars;
+            await db.profiles.update(profile.id, { stars: newStars });
+
+            // 3. Log Activity for Child Feed
+            await db.activityLogs.add({
+                id: crypto.randomUUID(),
+                accountId: approvingGoal.accountId,
+                profileId: approvingGoal.profileId,
+                activityId: approvingGoal.id, // Link to Goal ID
+                date: new Date().toISOString().split('T')[0],
+                status: 'completed',
+                completedAt: new Date(),
+                starsEarned: awardStars,
+                metadata: {
+                    type: 'goal',
+                    title: approvingGoal.title,
+                    goalType: approvingGoal.type
+                }
+            });
+        }
+
+        setApprovingGoal(null);
+    };
+
+    const handleRejectClick = (goal: any) => {
+        setRejectingGoal(goal);
+    };
+
+    const handleConfirmReject = async () => {
+        if (!rejectingGoal) return;
+
+        await db.goals.update(rejectingGoal.id, {
+            status: 'active',
+            current: rejectingGoal.type === 'binary' ? 0 : rejectingGoal.current,
+            completedAt: undefined
+        });
+        setRejectingGoal(null);
     };
 
     const handleDeny = async (goalId: string) => {
@@ -184,13 +245,13 @@ export default function ParentDashboard() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => handleDeny(goal.id)}
+                                                onClick={() => handleRejectClick(goal)}
                                                 className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-colors"
                                             >
                                                 <X className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={() => handleApprove(goal.id)}
+                                                onClick={() => handleApproveClick(goal)}
                                                 className="w-8 h-8 rounded-full bg-green-100 text-green-600 hover:bg-green-200 hover:scale-110 flex items-center justify-center transition-all shadow-sm"
                                             >
                                                 <CheckCheck className="w-4 h-4" />
@@ -312,6 +373,64 @@ export default function ParentDashboard() {
             </main>
 
             <ParentNavBar />
+
+            {/* APPROVAL MODAL */}
+            {approvingGoal && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center sm:items-center">
+                    <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-10 shadow-2xl animate-in slide-in-from-bottom fade-in duration-300">
+                        <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-1">Approve Completion</h3>
+                        <p className="text-sm text-slate-500 mb-6">Review and award stars for <span className="font-bold text-slate-700">{approvingGoal.title}</span>.</p>
+                        <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{approvingGoal.type} Goal</span>
+                                <span className="text-xs font-bold text-slate-600">{approvingGoal.current} / {approvingGoal.target} {approvingGoal.unit}</span>
+                            </div>
+                            {approvingGoal.type !== 'binary' && (
+                                <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round((approvingGoal.current / approvingGoal.target) * 100))}%` }}></div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-yellow-50 rounded-xl p-4 mb-6 border border-yellow-100">
+                            <label className="block text-xs font-bold text-yellow-700 uppercase tracking-wider mb-2">Stars to Award</label>
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">⭐</span>
+                                <input
+                                    type="number"
+                                    value={awardStars}
+                                    onChange={(e) => setAwardStars(Number(e.target.value))}
+                                    className="flex-1 min-w-0 w-full bg-white border border-yellow-300 rounded-lg px-3 py-2 text-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button variant="outline" className="flex-1" onClick={() => setApprovingGoal(null)}>Cancel</Button>
+                            <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleConfirmApprove}>Confirm</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* REJECT MODAL */}
+            {rejectingGoal && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center sm:items-center">
+                    <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-10 shadow-2xl animate-in slide-in-from-bottom fade-in duration-300">
+                        <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+                        <h3 className="text-lg font-bold text-red-600 mb-1">Reject Completion?</h3>
+                        <p className="text-sm text-slate-500 mb-6">
+                            Are you sure you want to reject <span className="font-bold text-slate-700">{rejectingGoal.title}</span>?
+                            <br />It will be sent back to the child's active list.
+                        </p>
+
+                        <div className="flex gap-3">
+                            <Button variant="outline" className="flex-1" onClick={() => setRejectingGoal(null)}>Cancel</Button>
+                            <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={handleConfirmReject}>Reject</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

@@ -167,6 +167,7 @@ export interface Goal {
 
     // Visuals & Meta
     icon: string; // Emoji
+    color?: string; // UI Color Code (e.g. purple, blue)
     dueDate?: string; // ISO date string YYYY-MM-DD
     status: GoalStatus;
 
