@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Step } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { VoiceRecorder } from './VoiceRecorder';
+import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { Textarea } from '@/components/ui/textarea';
 
 interface StepEditorModalProps {
@@ -37,7 +37,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
     // New Fields
     const [starReward, setStarReward] = useState(5);
     const [description, setDescription] = useState('');
-    const [voiceBlob, setVoiceBlob] = useState<Blob | undefined>(undefined);
+    const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined);
 
     // Initialize state when modal opens
     useEffect(() => {
@@ -49,7 +49,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                 setIsTimerEnabled(!!initialData.timerDuration && initialData.timerDuration > 0);
                 setStarReward(initialData.stars || 5);
                 setDescription(initialData.description || '');
-                setVoiceBlob(initialData.voiceNote);
+                setAudioUrl(initialData.audioUrl);
             } else {
                 setTitle('');
                 setIcon('Smile');
@@ -57,7 +57,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                 setIsTimerEnabled(false);
                 setStarReward(5);
                 setDescription('');
-                setVoiceBlob(undefined);
+                setAudioUrl(undefined);
             }
         }
     }, [isOpen, initialData]);
@@ -73,12 +73,11 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
             icon,
             stars: starReward,
             description: description.trim(),
-            voiceNote: voiceBlob
+            audioUrl: audioUrl
         };
         onSave(finalStep);
     };
 
-    // Helper to render Lucide icon dynamically
     // Helper to render Lucide icon dynamically
     const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
         // @ts-ignore - Dynamic access
@@ -312,10 +311,10 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Voice Instruction</label>
-                                    <VoiceRecorder
-                                        initialBlob={voiceBlob}
-                                        onRecordingComplete={(blob) => setVoiceBlob(blob)}
-                                        onDelete={() => setVoiceBlob(undefined)}
+                                    <AudioRecorder
+                                        initialAudio={audioUrl}
+                                        onRecordingComplete={(base64) => setAudioUrl(base64)}
+                                        onDelete={() => setAudioUrl(undefined)}
                                     />
                                 </div>
                             </div>

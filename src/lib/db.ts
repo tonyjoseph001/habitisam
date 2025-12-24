@@ -61,6 +61,8 @@ export interface Activity {
     profileIds: string[]; // Assigned to which child profile IDs?
     type: ActivityType;
     title: string;
+    description?: string; // New field
+    audioUrl?: string;    // New field
     icon?: string; // e.g. 'Sun', 'Moon', 'Book'
     timeOfDay: string; // "HH:mm"
 
@@ -82,7 +84,7 @@ export interface Step {
     icon: string; // Lucide icon name string or Emoji
     stars: number; // Reward value
     description?: string; // Optional instructions
-    voiceNote?: Blob; // Actual audio file stored in IndexedDB
+    audioUrl?: string; // Base64 audio string
 }
 
 /**
@@ -154,6 +156,7 @@ export interface Goal {
     profileId: string; // FK
     title: string;
     description?: string;
+    audioUrl?: string; // New field
     type: GoalType;
 
     // Progress Tracking

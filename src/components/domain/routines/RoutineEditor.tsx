@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, 
 import { cn } from '@/lib/utils';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
+import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import * as Icons from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -48,10 +49,12 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     // --- State ---
     // Top Toggle state: 'recurring' | 'one-time' | 'goal'
     const [editorType, setEditorType] = useState<'recurring' | 'one-time' | 'goal'>('recurring');
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showIconModal, setShowIconModal] = useState(false);
 
     // Shared
     const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [audioUrl, setAudioUrl] = useState('');
     const [icon, setIcon] = useState('Sun');
     const [assignedChildIds, setAssignedChildIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(isEditMode);
@@ -68,7 +71,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const [unit, setUnit] = useState<string>('Books');
     const [dueDate, setDueDate] = useState<string>('');
     const [goalRewardStars, setGoalRewardStars] = useState<number>(500);
-    const [goalChecklistItems, setGoalChecklistItems] = useState<string[]>([]); // New state for checklist items
+    const [goalChecklistItems, setGoalChecklistItems] = useState<string[]>([]);
 
     // Modal
     const [isStepModalOpen, setIsStepModalOpen] = useState(false);
@@ -81,8 +84,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     // Try Activity
                     const activity = await db.activities.get(initialRoutineId);
                     if (activity) {
-                        setEditorType(activity.type); // 'recurring' or 'one-time'
+                        setEditorType(activity.type);
                         setTitle(activity.title);
+                        if (activity.description) setDescription(activity.description);
+                        if (activity.audioUrl) setAudioUrl(activity.audioUrl);
                         if (activity.icon) setIcon(activity.icon);
                         setTime(activity.timeOfDay);
                         if (activity.date) setDate(activity.date);
@@ -97,6 +102,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     if (goal) {
                         setEditorType('goal');
                         setTitle(goal.title);
+                        if (goal.description) setDescription(goal.description);
+                        if (goal.audioUrl) setAudioUrl(goal.audioUrl);
                         if (goal.icon) setIcon(goal.icon);
                         setGoalType(goal.type);
                         setTarget(goal.target);
@@ -122,6 +129,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     };
 
     const toggleChild = (childId: string) => {
+        // For goals, only one child allowed (usually) - user request didn't specify multi-child goals but schema suggests it.
+        // Existing logic for activities was multi-child. Let's keep it.
         if (assignedChildIds.includes(childId)) setAssignedChildIds(prev => prev.filter(id => id !== childId));
         else setAssignedChildIds(prev => [...prev, childId]);
     };
@@ -139,6 +148,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
         setGoalChecklistItems(prev => prev.filter((_, i) => i !== index));
     };
 
+
     const handleSave = async () => {
         if (!user) return alert("Please log in.");
         if (!title.trim()) return alert("Please enter a title.");
@@ -147,19 +157,17 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
         try {
             if (editorType === 'goal') {
                 for (const pid of assignedChildIds) {
-                    // Logic check for target
                     let finalTarget = target;
-                    if (goalType === 'checklist') {
-                        finalTarget = goalChecklistItems.length; // Target is number of items
-                    } else if (goalType === 'binary') {
-                        finalTarget = 1; // Binary is always 1
-                    }
+                    if (goalType === 'checklist') finalTarget = goalChecklistItems.length;
+                    else if (goalType === 'binary') finalTarget = 1;
 
                     const goalData: Goal = {
                         id: isEditMode ? initialRoutineId! : uuidv4(),
                         accountId: user.uid,
                         profileId: pid,
                         title: title.trim(),
+                        description: description.trim(),
+                        audioUrl: audioUrl,
                         type: goalType,
                         target: finalTarget,
                         current: 0,
@@ -179,14 +187,15 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     }
                 }
             } else {
-                // Save Activity
                 if (steps.length === 0) return alert("Please add at least one step.");
                 const activityData: Activity = {
                     id: initialRoutineId || uuidv4(),
                     accountId: user.uid,
                     profileIds: assignedChildIds,
-                    type: editorType as 'recurring' | 'one-time', // Safe cast
+                    type: editorType as 'recurring' | 'one-time',
                     title: title.trim(),
+                    description: description.trim(),
+                    audioUrl: audioUrl,
                     icon: icon,
                     timeOfDay: time,
                     days: editorType === 'recurring' ? (selectedDays as any) : undefined,
@@ -202,7 +211,6 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
         } catch (e) { console.error(e); alert("Failed to save."); }
     };
 
-    // Use previous step logic
     const openAddStep = () => { setEditingStep(undefined); setIsStepModalOpen(true); };
     const openEditStep = (step: Step) => { setEditingStep(step); setIsStepModalOpen(true); };
     const handleSaveStep = (step: Step) => {
@@ -215,11 +223,11 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
         setIsStepModalOpen(false);
     };
 
-    const RenderIcon = ({ name, size = "w-5 h-5" }: { name: string, size?: string }) => {
+    const RenderIcon = ({ name, size = "w-5 h-5", className }: { name: string, size?: string, className?: string }) => {
         // @ts-ignore
         const LucideIcon = Icons[name];
-        if (LucideIcon) return <LucideIcon className={size} />;
-        return <span className={cn(size?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none")}>{name}</span>;
+        if (LucideIcon) return <LucideIcon className={cn(size, className)} />;
+        return <span className={cn(size?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none", className)}>{name}</span>;
     };
 
     if (isLoading) return <div className="p-8 text-center text-slate-500">Loading Item...</div>;
@@ -227,175 +235,240 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const isGoal = editorType === 'goal';
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-20 font-sans">
+        <div className="min-h-screen bg-[#F8FAFC] pb-28 font-sans">
+            {/* Header */}
             <header className="px-4 py-3 bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between border-b border-slate-200">
-                <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-0 text-slate-500"><ChevronLeft className="w-6 h-6" /></Button>
-                <h1 className="text-lg font-bold text-slate-900">{isEditMode ? 'Edit Item' : 'New Item'}</h1>
-                <Button variant="cosmic" size="sm" onClick={handleSave} className="gap-2 px-4 h-9"><Save className="w-4 h-4" /> Save</Button>
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-0 text-slate-500 hover:bg-transparent">
+                    <ChevronLeft className="w-6 h-6" /> Back
+                </Button>
+                <h1 className="text-lg font-bold text-slate-900">{isEditMode ? 'Edit Routine' : 'Create New Routine'}</h1>
+                <div className="w-6"></div> {/* Spacer */}
             </header>
 
-            <main className="py-4 flex flex-col gap-4 max-w-screen-md mx-auto">
-                {/* 1. TOP TOGGLE (Unified) */}
-                <div className="bg-white rounded-xl mx-4 p-2 shadow-sm border border-slate-200">
-                    <div className="bg-slate-100 p-1 rounded-lg flex relative">
-                        {/* Animated Tab Background could go here but standard buttons for now */}
-                        <button onClick={() => setEditorType('recurring')} className={cn("flex-1 py-2 rounded-md text-xs font-bold transition-all", editorType === 'recurring' ? "bg-white text-violet-600 shadow-sm" : "text-slate-500")}>Recurring</button>
-                        <button onClick={() => setEditorType('one-time')} className={cn("flex-1 py-2 rounded-md text-xs font-bold transition-all", editorType === 'one-time' ? "bg-white text-violet-600 shadow-sm" : "text-slate-500")}>One-Time</button>
-                        <button onClick={() => setEditorType('goal')} className={cn("flex-1 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1", editorType === 'goal' ? "bg-blue-100/50 text-blue-600 shadow-sm border border-blue-200" : "text-slate-500")}>Goal 🏆</button>
-                    </div>
+            <main className="py-4 flex flex-col gap-4 max-w-screen-md mx-auto px-4">
+                {/* 1. TOP TOGGLE (Segmented Control) */}
+                <div className="bg-white rounded-xl p-1 shadow-sm border border-slate-200 flex">
+                    <button onClick={() => setEditorType('recurring')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all", editorType === 'recurring' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>Routine</button>
+                    <button onClick={() => setEditorType('one-time')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all", editorType === 'one-time' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>One-Time</button>
+                    <button onClick={() => setEditorType('goal')} className={cn("flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1", editorType === 'goal' ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50")}>Goal 🏆</button>
                 </div>
 
-                {/* 2. TITLE & ICON (Shared) */}
-                <div className="bg-white rounded-xl mx-4 p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isGoal ? 'Goal Title' : 'Routine Title'}</label>
-                        <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={isGoal ? "e.g. Science Project" : "e.g. Morning Rush"} className="text-sm font-bold h-10 border-0 border-b-2 border-slate-100 rounded-none px-0 focus-visible:ring-0 focus-visible:border-violet-500 placeholder:text-slate-300 text-slate-900" />
-                    </div>
+                {/* 2. MAIN CONFIGURATION CARD */}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
 
-                    {/* Improved Icon Picker Grid */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                className="w-full h-16 rounded-xl border-2 border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50 transition-all flex items-center gap-4 px-4 shadow-sm"
-                            >
-                                <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center text-2xl">
-                                    <RenderIcon name={icon || 'Smile'} size="w-6 h-6" />
+                    {isGoal ? (
+                        <>
+                            {/* GOAL LAYOUT */}
+                            {/* 1. Title (Full Width) */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Goal Title</label>
+                                <Input
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                    placeholder="e.g. Read 5 Books"
+                                    className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-base focus-visible:ring-violet-500"
+                                />
+                            </div>
+
+                            {/* 2. Row: Icon | Due Date */}
+                            <div className="grid grid-cols-[80px_1fr] gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
+                                    <button
+                                        onClick={() => setShowIconModal(true)}
+                                        className="w-full h-12 bg-violet-100 rounded-xl border border-violet-200 flex items-center justify-center text-violet-600 hover:scale-105 transition-transform"
+                                    >
+                                        <RenderIcon name={icon} size="w-6 h-6" />
+                                    </button>
                                 </div>
-                                <span className="font-bold text-slate-600">
-                                    {showEmojiPicker ? 'Close Picker' : 'Choose Icon...'}
-                                </span>
-                                <ChevronLeft className={cn("w-5 h-5 text-slate-400 ml-auto transition-transform -rotate-90", showEmojiPicker && "rotate-90")} />
-                            </button>
+                                <div className="flex flex-col gap-2 relative z-10">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Due Date</label>
+                                    <div className="relative">
+                                        <Input
+                                            type="date"
+                                            value={dueDate}
+                                            onChange={e => setDueDate(e.target.value)}
+                                            onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
+                                            className="h-12 border-slate-200 text-sm font-bold text-slate-900 block w-full bg-slate-50"
+                                        />
+                                        {!dueDate && <div className="absolute right-3 top-3 pointer-events-none text-slate-400"><CalendarIcon className="w-5 h-5" /></div>}
+                                    </div>
+                                </div>
+                            </div>
 
-                            {/* Emoji Picker Popover */}
-                            {showEmojiPicker && (
-                                <div className="absolute top-full left-0 right-0 mt-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="shadow-2xl rounded-xl overflow-hidden border border-slate-200">
-                                        <EmojiPicker
-                                            onEmojiClick={(emojiData) => {
-                                                setIcon(emojiData.emoji);
-                                                setShowEmojiPicker(false);
-                                            }}
-                                            width="100%"
-                                            height={400}
-                                            lazyLoadEmojis={true}
-                                            searchDisabled={false}
-                                            skinTonesDisabled={true}
-                                            previewConfig={{ showPreview: false }}
+                            {/* 3. Description */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Description (Optional)</label>
+                                <textarea
+                                    value={description}
+                                    onChange={e => setDescription(e.target.value)}
+                                    placeholder="Add details..."
+                                    className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-y"
+                                />
+                            </div>
+
+                            {/* 4. Row: Voice Note | Reward */}
+                            <div className="flex flex-col gap-6">
+                                {/* Voice Note */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Note</label>
+                                    <div className="flex items-center gap-2">
+                                        <AudioRecorder
+                                            initialAudio={audioUrl}
+                                            onRecordingComplete={(base64) => setAudioUrl(base64)}
+                                            onDelete={() => setAudioUrl('')}
                                         />
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
+
+                                {/* Reward */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
+                                    <div className="h-10 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-2">
+                                        <Award className="w-4 h-4 text-yellow-500" />
+                                        <span className="font-bold text-yellow-700 text-sm">{goalRewardStars}</span>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, s - 50))} className="w-5 h-5 flex items-center justify-center rounded bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-50 text-xs">-</button>
+                                            <button onClick={() => setGoalRewardStars(s => s + 50)} className="w-5 h-5 flex items-center justify-center rounded bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-50 text-xs">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* ROUTINE / ONE-TIME LAYOUT (Original) */}
+                            {/* Title & Icon Row */}
+                            <div className="flex gap-4">
+                                <div className="flex-1 flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Title</label>
+                                    <Input
+                                        value={title}
+                                        onChange={e => setTitle(e.target.value)}
+                                        placeholder="e.g. Morning Routine"
+                                        className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-base focus-visible:ring-violet-500"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
+                                    <button
+                                        onClick={() => setShowIconModal(true)}
+                                        className="w-12 h-12 bg-violet-100 rounded-xl border border-violet-200 flex items-center justify-center text-violet-600 hover:scale-105 transition-transform"
+                                    >
+                                        <RenderIcon name={icon} size="w-6 h-6" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Description (Optional)</label>
+                                <textarea
+                                    value={description}
+                                    onChange={e => setDescription(e.target.value)}
+                                    placeholder="Add details..."
+                                    className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl p-3 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-y"
+                                />
+                            </div>
+
+                            {/* Voice Note (Full Width) */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Note</label>
+                                <div className="flex items-center gap-3">
+                                    <AudioRecorder
+                                        initialAudio={audioUrl}
+                                        onRecordingComplete={(base64) => setAudioUrl(base64)}
+                                        onDelete={() => setAudioUrl('')}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                 </div>
 
-                {/* 3. CONFIGURATION (Based on Type) */}
+                {/* 3. TYPE-SPECIFIC SETTINGS */}
                 {isGoal ? (
-                    <div className="bg-white rounded-xl mx-4 p-5 shadow-sm border-l-4 border-blue-500 flex flex-col gap-6">
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
+
+                        {/* Goal Type Selection */}
                         <div className="flex flex-col gap-3">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">How to track progress?</label>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Goal Type</label>
                             <div className="grid grid-cols-2 gap-3">
                                 {TRACKING_TYPES.map(t => {
                                     const isSelected = goalType === t.id;
                                     const Icon = t.icon;
                                     return (
-                                        <button key={t.id} onClick={() => setGoalType(t.id as GoalType)} className={cn("relative p-4 rounded-xl border-2 flex flex-col items-start gap-3 transition-all text-left h-28", isSelected ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-300")}>
-                                            {isSelected && <div className="absolute top-3 right-3 text-blue-500"><Check className="w-5 h-5" /></div>}
-                                            <div className={cn("p-2 rounded-lg", isSelected ? "bg-white text-blue-600" : "bg-slate-100 text-slate-400")}><Icon className="w-6 h-6" /></div>
-                                            <div><div className={cn("text-sm font-bold", isSelected ? "text-blue-900" : "text-slate-600")}>{t.label}</div><div className="text-[10px] text-slate-400">{t.desc}</div></div>
+                                        <button key={t.id} onClick={() => setGoalType(t.id as GoalType)} className={cn("relative p-3 rounded-xl border-2 flex flex-col items-start gap-2 transition-all text-left", isSelected ? "border-blue-500 bg-blue-50/50" : "border-slate-100 hover:border-slate-300")}>
+                                            <div className="flex justify-between w-full">
+                                                <div className={cn("p-1.5 rounded-lg", isSelected ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-400")}><Icon className="w-5 h-5" /></div>
+                                                {isSelected && <Check className="w-4 h-4 text-blue-500" />}
+                                            </div>
+                                            <div><div className={cn("text-xs font-bold", isSelected ? "text-blue-900" : "text-slate-600")}>{t.label}</div></div>
                                         </button>
                                     )
                                 })}
                             </div>
                         </div>
 
-                        {/* CHECKLIST SPECIFIC SECTION */}
+                        {/* REWARD & DUE DATE - Moved Up per request */}
+
+
+                        {/* Checklist Section */}
                         {goalType === 'checklist' && (
-                            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Milestones / Steps</label>
-                                    <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold">{goalChecklistItems.length} Steps Added</span>
-                                </div>
+                            <div className="flex flex-col gap-3 pt-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Checklist Steps</label>
                                 <div className="flex flex-col gap-2">
                                     {goalChecklistItems.map((item, idx) => (
                                         <div key={idx} className="flex gap-2">
-                                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-400">{idx + 1}</div>
-                                            <Input value={item} onChange={e => updateChecklistItem(idx, e.target.value)} placeholder={`Step ${idx + 1}`} className="h-10 border-slate-200 text-slate-900" />
-                                            <button onClick={() => removeChecklistItem(idx)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 className="w-5 h-5" /></button>
+                                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-sm">{idx + 1}</div>
+                                            <Input value={item} onChange={e => updateChecklistItem(idx, e.target.value)} placeholder={`Step ${idx + 1}`} className="h-10 border-slate-200 text-sm font-medium" />
+                                            <button onClick={() => removeChecklistItem(idx)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     ))}
-                                    <Button onClick={addChecklistItem} variant="outline" className="h-12 border-dashed border-2 border-blue-200 text-blue-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 bg-blue-50/50"><Plus className="w-5 h-5 mr-2" /> Add Step</Button>
+                                    <Button onClick={addChecklistItem} variant="outline" className="h-10 border-dashed border-2 border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 bg-slate-50">+ Add Step</Button>
                                 </div>
                             </div>
                         )}
 
-                        {/* OTHER TYPES Target */}
+                        {/* Counter/Slider Target Section */}
                         {goalType !== 'checklist' && goalType !== 'binary' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Number</label>
-                                    <Input type="number" value={target} onChange={e => setTarget(Number(e.target.value))} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Amount</label>
+                                    <Input type="number" value={target} onChange={e => setTarget(Number(e.target.value))} className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unit</label>
-                                    <Input value={unit} onChange={e => setUnit(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unit Label</label>
+                                    <Input value={unit} onChange={e => setUnit(e.target.value)} placeholder="e.g. Pages" className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
                                 </div>
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Due Date</label>
-                                <div className="relative">
-                                    <CalendarIcon className="absolute left-3 top-3.5 w-5 h-5 text-slate-400 pointer-events-none" />
-                                    <Input
-                                        type="date"
-                                        value={dueDate}
-                                        onChange={e => setDueDate(e.target.value)}
-                                        onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
-                                        className="pl-10 h-10 border-slate-200 text-sm font-bold text-slate-900 block w-full"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
-                                <div className="h-10 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between px-3">
-                                    <Award className="w-6 h-6 text-yellow-500" />
-                                    <span className="font-bold text-yellow-700">{goalRewardStars}</span>
-                                    <div className="flex flex-col">
-                                        <button onClick={() => setGoalRewardStars(s => s + 50)} className="text-yellow-600 hover:text-yellow-800 text-[10px]">▲</button>
-                                        <button onClick={() => setGoalRewardStars(s => Math.max(0, s - 50))} className="text-yellow-600 hover:text-yellow-800 text-[10px]">▼</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 ) : (
-                    // ROUTINE SCHEDULE (Recurring / One-Time)
-                    <div className="bg-white rounded-xl mx-4 p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
-                        <div className="flex items-center gap-2 mb-1"><Clock className="w-5 h-5 text-violet-500" /><h3 className="font-bold text-slate-800">Schedule</h3></div>
+                    // ROUTINE SCHEDULE
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
+                        <div className="flex items-center gap-2 mb-1"><Clock className="w-5 h-5 text-slate-900" /><h3 className="font-bold text-slate-900">Schedule</h3></div>
 
                         {editorType === 'recurring' ? (
                             <div className="flex flex-col gap-4">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase">Time</label>
-                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase">Repeat On</label>
-                                    <div className="flex justify-between">
-                                        {DAYS.map(day => (
-                                            <button key={day.id} onClick={() => toggleDay(day.id)} className={cn("w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all", selectedDays.includes(day.id) ? "bg-violet-600 text-white shadow-md scale-110" : "bg-slate-100 text-slate-400")}>{day.label}</button>
-                                        ))}
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase">Start Time</label>
+                                        <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase">Repeat On</label>
+                                        <div className="flex justify-between gap-1">
+                                            {DAYS.map(day => (
+                                                <button key={day.id} onClick={() => toggleDay(day.id)} className={cn("w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all", selectedDays.includes(day.id) ? "bg-slate-900 text-white shadow-md scale-105" : "bg-slate-100 text-slate-400")}>{day.label}</button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            // One-Time
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Date</label>
@@ -404,12 +477,12 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         value={date}
                                         onChange={e => setDate(e.target.value)}
                                         onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
-                                        className="h-10 border-slate-200 text-sm font-bold text-slate-900 block w-full"
+                                        className="h-10 border-slate-200 text-sm font-bold text-slate-900 block w-full bg-slate-50"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Time</label>
-                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
+                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
                                 </div>
                             </div>
                         )}
@@ -417,8 +490,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 )}
 
                 {/* 4. ASSIGN TO */}
-                <div className="bg-white rounded-xl mx-4 p-5 shadow-sm border border-slate-200 flex flex-col gap-3">
-                    <h3 className="font-bold text-slate-800">Assign To</h3>
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-3">
+                    <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider text-slate-400">Assign To</h3>
                     <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                         {childProfiles?.map(child => {
                             const isSelected = assignedChildIds.includes(child.id!);
@@ -439,9 +512,11 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                 {/* 5. STEPS (For Routine Only) */}
                 {!isGoal && (
-                    <div className="flex flex-col gap-2">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase px-6">Steps</h3>
-                        <div className="flex flex-col gap-3 mx-4">
+                    <div className="flex flex-col gap-2 mb-8">
+                        <div className="flex items-center justify-between px-1">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Routine Steps</h3>
+                        </div>
+                        <div className="flex flex-col gap-3">
                             {steps.map((step, idx) => (
                                 <div key={step.id} onClick={() => openEditStep(step)} className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform">
                                     <div className="flex items-center gap-3">
@@ -455,13 +530,46 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     <button onClick={e => { e.stopPropagation(); handleDeleteStep(step.id); }} className="p-2 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             ))}
-                            <Button variant="outline" onClick={openAddStep} className="h-12 border-dashed border-2 border-slate-200 text-slate-500 hover:text-violet-600 hover:border-violet-300 hover:bg-violet-50"><Plus className="w-5 h-5 mr-2" /> Add Step</Button>
+                            <Button variant="outline" onClick={openAddStep} className="h-12 border-dashed border-2 border-slate-200 text-slate-500 hover:text-violet-600 hover:border-violet-300 hover:bg-violet-50 bg-slate-50">+ Add Step</Button>
                         </div>
                     </div>
                 )}
-
-                <div className="h-12"></div>
             </main>
+
+            {/* FIXED BOTTOM SAVE BAR */}
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 pb-8 z-40 flex justify-center">
+                <div className="max-w-screen-md w-full flex gap-3">
+                    <Button variant="ghost" onClick={() => router.back()} className="flex-1 text-slate-500 font-bold">Cancel</Button>
+                    <Button onClick={handleSave} className="flex-[2] bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 rounded-xl text-base shadow-lg shadow-slate-200">
+                        Save
+                    </Button>
+                </div>
+            </div>
+
+            {/* ICON PICKER MODAL */}
+            {showIconModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in p-4">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <h3 className="font-bold text-slate-800">Choose Icon</h3>
+                            <button onClick={() => setShowIconModal(false)} className="p-2 bg-slate-200 rounded-full hover:bg-slate-300 transition"><Icons.X className="w-4 h-4" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-0">
+                            <EmojiPicker
+                                onEmojiClick={(emojiData) => {
+                                    setIcon(emojiData.emoji);
+                                    setShowIconModal(false);
+                                }}
+                                width="100%"
+                                height={400}
+                                lazyLoadEmojis={true}
+                                skinTonesDisabled={true}
+                                previewConfig={{ showPreview: false }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <StepEditorModal isOpen={isStepModalOpen} initialData={editingStep} onClose={() => setIsStepModalOpen(false)} onSave={handleSaveStep} onDelete={editingStep ? () => handleDeleteStep(editingStep.id) : undefined} />
         </div>
