@@ -14,10 +14,12 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
+import { ParentHeader } from '@/components/layout/ParentHeader';
+
 export default function ParentDashboard() {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
-    const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+    // Removed local switcher state
 
     // Directive A: Local State
     const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
@@ -27,7 +29,7 @@ export default function ParentDashboard() {
     const [rejectingGoal, setRejectingGoal] = useState<any | null>(null);
     const [awardStars, setAwardStars] = useState<number>(0);
 
-    // Directive B: Real Data
+    // Data Queries
     const childProfiles = useLiveQuery(
         () => db.profiles.where('type').equals('child').toArray()
     );
@@ -48,7 +50,6 @@ export default function ParentDashboard() {
 
     const getChild = (id: string) => childProfiles?.find(p => p.id === id);
 
-    // ... (rest of filtering logic remains the same)
     const filteredRoutines = allRoutines?.filter(routine => {
         if (selectedChildIds.length === 0) return true;
         return routine.profileIds.some(id => selectedChildIds.includes(id));
@@ -69,7 +70,6 @@ export default function ParentDashboard() {
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-30"></div>
 
             <div className="relative z-10 grid grid-cols-2 gap-6">
-
                 <div className="flex flex-col gap-1 border-r border-white/10">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Action Needed</span>
                     <div className="flex items-center gap-2">
@@ -79,7 +79,6 @@ export default function ParentDashboard() {
                         )}
                     </div>
                 </div>
-
                 <div className="flex flex-col gap-1 pl-2">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Weekly Success</span>
                     <div className="flex items-center gap-2">
@@ -89,7 +88,6 @@ export default function ParentDashboard() {
                         </div>
                     </div>
                 </div>
-
                 <div className="col-span-2 pt-4 border-t border-white/10 flex justify-between items-center">
                     <div className="flex flex-col">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Rewards</span>
@@ -123,7 +121,6 @@ export default function ParentDashboard() {
         }
     };
 
-    // --- Approval Logic ---
     const handleApproveClick = (goal: any) => {
         setApprovingGoal(goal);
         setAwardStars(goal.stars || 0);
@@ -131,27 +128,19 @@ export default function ParentDashboard() {
 
     const handleConfirmApprove = async () => {
         if (!approvingGoal || !approvingGoal.profileId) return;
-
-        // 1. Mark goal completed
         await db.goals.update(approvingGoal.id, {
             status: 'completed',
             completedAt: new Date()
         });
-
-        // 2. Add stars to profile (use awardStars state)
-        // Fetch fresh profile to ensure we update correct balance
         const profile = await db.profiles.get(approvingGoal.profileId);
-
         if (profile) {
             const newStars = (profile.stars || 0) + awardStars;
             await db.profiles.update(profile.id, { stars: newStars });
-
-            // 3. Log Activity for Child Feed
             await db.activityLogs.add({
                 id: crypto.randomUUID(),
                 accountId: approvingGoal.accountId,
                 profileId: approvingGoal.profileId,
-                activityId: approvingGoal.id, // Link to Goal ID
+                activityId: approvingGoal.id,
                 date: new Date().toISOString().split('T')[0],
                 status: 'completed',
                 completedAt: new Date(),
@@ -163,7 +152,6 @@ export default function ParentDashboard() {
                 }
             });
         }
-
         setApprovingGoal(null);
     };
 
@@ -173,7 +161,6 @@ export default function ParentDashboard() {
 
     const handleConfirmReject = async () => {
         if (!rejectingGoal) return;
-
         await db.goals.update(rejectingGoal.id, {
             status: 'active',
             current: rejectingGoal.type === 'binary' ? 0 : rejectingGoal.current,
@@ -190,45 +177,20 @@ export default function ParentDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-100 pb-20 font-sans">
-            {/* 1. Header Bar: Compact */}
-            <header className="px-4 py-3 flex items-center justify-between bg-white shadow-sm sticky top-0 z-30 border-b border-slate-200">
-                <button
-                    onClick={() => setIsSwitcherOpen(true)}
-                    className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-50 transition-colors"
-                >
-                    <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 border border-violet-200">
-                        {activeProfile?.avatarId ? (
-                            <span className="text-sm font-bold">{activeProfile.name[0]}</span>
-                        ) : (
-                            <UserIcon className="w-4 h-4" />
-                        )}
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
-                </button>
-
-                {pendingGoals && pendingGoals.length > 0 ? (
-                    <Link href="/parent/routines" className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full animate-pulse">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-xs font-bold">{pendingGoals.length} Approval{pendingGoals.length > 1 ? 's' : ''}</span>
-                    </Link>
-                ) : (
-                    <h1 className="text-lg font-bold text-slate-900">Dashboard</h1>
-                )}
-
-                <Link href="/parent/profiles" className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-full">
-                    <Settings className="w-5 h-5" />
-                </Link>
-            </header>
-
-
-
-
-            <ProfileSwitcherModal
-                isOpen={isSwitcherOpen}
-                onClose={() => setIsSwitcherOpen(false)}
+            {/* 1. Header Bar: Using Standard Component */}
+            <ParentHeader
+                title={
+                    pendingGoals && pendingGoals.length > 0 ? (
+                        <Link href="/parent/routines" className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full animate-pulse">
+                            <Clock className="w-4 h-4" />
+                            <span className="text-xs font-bold">{pendingGoals.length} Approval{pendingGoals.length > 1 ? 's' : ''}</span>
+                        </Link>
+                    ) : "Dashboard"
+                }
             />
 
             <main className="py-4 flex flex-col gap-6 max-w-screen-md mx-auto">
+                {/* ... Main Content ... */}
 
 
 

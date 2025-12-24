@@ -4,25 +4,26 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { useRoutines } from '@/lib/hooks/useRoutines';
+import { ParentHeader } from '@/components/layout/ParentHeader';
 import { Plus, Edit2, Trash2, ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
+import { Modal } from '@/components/ui/modal';
 
 export default function RoutinesPage() {
     const router = useRouter();
     const { routines, deleteRoutine } = useRoutines();
     const [activeTab, setActiveTab] = React.useState<'routines' | 'goals'>('routines');
+    const [deletingItem, setDeletingItem] = React.useState<{ id: string, type: 'routine' | 'goal', title: string } | null>(null);
     const [approvingGoal, setApprovingGoal] = React.useState<any | null>(null);
     const [rejectingGoal, setRejectingGoal] = React.useState<any | null>(null);
     const [awardStars, setAwardStars] = React.useState<number>(0);
 
     const goals = useLiveQuery(() => db.goals.toArray());
     const profiles = useLiveQuery(() => db.profiles.toArray());
-
-
 
     const handleOpenNew = () => {
         router.push('/parent/routines/new');
@@ -32,10 +33,25 @@ export default function RoutinesPage() {
         router.push(`/parent/routines/edit?id=${id}`);
     };
 
-    const handleDeleteGoal = async (id: string) => {
-        if (confirm("Are you sure you want to delete this goal?")) {
-            await db.goals.delete(id);
+    const handleDeleteGoal = (goal: any) => {
+        setDeletingItem({ id: goal.id, type: 'goal', title: goal.title });
+    };
+
+    const handleDeleteRoutine = (routine: any) => {
+        setDeletingItem({ id: routine.id, type: 'routine', title: routine.title });
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingItem) return;
+
+        if (deletingItem.type === 'goal') {
+            await db.goals.delete(deletingItem.id);
+            toast.success("Goal deleted");
+        } else if (deletingItem.type === 'routine') {
+            await deleteRoutine(deletingItem.id);
+            toast.success("Routine deleted");
         }
+        setDeletingItem(null);
     };
 
     // Open Modal
@@ -117,8 +133,6 @@ export default function RoutinesPage() {
     const groupedHistory = completedGoals.reduce((acc, goal) => {
         const date = goal.completedAt ? new Date(goal.completedAt) : new Date();
         const key = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(goal);
         return acc;
     }, {} as Record<string, typeof completedGoals>);
 
@@ -129,23 +143,54 @@ export default function RoutinesPage() {
         return <span className={className?.includes('text-2xl') ? 'text-2xl' : 'text-xl'}>{name}</span>;
     };
 
+    const getAvatarEmoji = (avatarId?: string) => {
+        switch (avatarId) {
+            case 'boy': return '🧑‍🚀';
+            case 'girl': return '👩‍🚀';
+            case 'alien': return '👽';
+            case 'robot': return '🤖';
+            case 'rocket': return '🚀';
+            default: return '👶';
+        }
+    };
+
+    const RenderProfileBadge = ({ profileId }: { profileId: string }) => {
+        const profile = profiles?.find(p => p.id === profileId);
+        if (!profile) return null;
+
+        const colorMap: Record<string, string> = {
+            cyan: 'bg-cyan-100 text-cyan-700',
+            purple: 'bg-violet-100 text-violet-700',
+            green: 'bg-emerald-100 text-emerald-700',
+            orange: 'bg-orange-100 text-orange-700'
+        };
+        const colorClass = colorMap[profile.colorTheme || 'cyan'] || 'bg-slate-100 text-slate-700';
+
+        return (
+            <div className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-full ${colorClass}`}>
+                <span className="text-xs leading-none">{getAvatarEmoji(profile.avatarId)}</span>
+                <span className="text-[10px] font-bold leading-none">{profile.name}</span>
+            </div>
+        );
+    };
+
     const RenderGoalCard = ({ goal }: { goal: any }) => (
-        <div key={goal.id} className={`bg-white rounded-xl p-4 shadow-sm border border-slate-100 group ${goal.status === 'pending_approval' ? 'border-orange-200 bg-orange-50/30' : ''}`}>
+        <div key={goal.id} className={`bg-white rounded-xl p-3 shadow-sm border border-slate-200 group ${goal.status === 'pending_approval' ? 'border-orange-200 bg-orange-50/30' : ''}`}>
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${goal.status === 'completed' ? 'bg-green-100 grayscale' : 'bg-blue-50'}`}>
-                        <RenderIcon name={goal.icon} className="w-6 h-6 text-slate-700" />
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden ${goal.status === 'completed' ? 'bg-green-100 grayscale' : 'bg-blue-50'}`}>
+                        <RenderIcon name={goal.icon} className="w-5 h-5 text-slate-600" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h3 className={`font-bold ${goal.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{goal.title}</h3>
+                            <h3 className={`font-bold text-sm ${goal.status === 'completed' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{goal.title}</h3>
                             {/* Status Badge */}
-                            {goal.status === 'pending_approval' && <span className="bg-orange-100 text-orange-600 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Waiting</span>}
-                            {goal.status === 'active' && <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Active</span>}
-                            {goal.status === 'completed' && <span className="bg-green-100 text-green-600 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Completed</span>}
+                            {goal.status === 'pending_approval' && <span className="bg-orange-100 text-orange-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Waiting</span>}
+                            {goal.status === 'active' && <span className="bg-slate-100 text-slate-500 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Active</span>}
+                            {goal.status === 'completed' && <span className="bg-green-100 text-green-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Completed</span>}
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                            <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold capitalize">{goal.type}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                            {goal.profileId && <RenderProfileBadge profileId={goal.profileId} />}
                             <span className="text-slate-400">Target: {goal.target} {goal.unit}</span>
                         </div>
                     </div>
@@ -153,18 +198,18 @@ export default function RoutinesPage() {
 
                 {/* Edit/Delete Actions (Only for Active) */}
                 {goal.status === 'active' && (
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => handleOpenEdit(goal.id)} className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-5 h-5" /></button>
-                        <button onClick={() => handleDeleteGoal(goal.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleOpenEdit(goal.id)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeleteGoal(goal)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </div>
                 )}
             </div>
 
             {/* Pending Actions Footer */}
             {goal.status === 'pending_approval' && (
-                <div className="flex justify-end gap-3 mt-4 pt-3 border-t border-orange-200/50">
-                    <Button size="sm" variant="ghost" onClick={() => handleRejectClick(goal)} className="text-red-500 hover:text-red-600 hover:bg-red-50 px-4">Reject</Button>
-                    <Button size="sm" onClick={() => handleApproveClick(goal)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 shadow-sm shadow-green-200">Approve</Button>
+                <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-orange-200/50">
+                    <Button size="sm" variant="ghost" onClick={() => handleRejectClick(goal)} className="text-red-500 hover:text-red-600 hover:bg-red-50 px-3 h-8 text-xs">Reject</Button>
+                    <Button size="sm" onClick={() => handleApproveClick(goal)} className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 h-8 text-xs shadow-sm shadow-green-200">Approve</Button>
                 </div>
             )}
         </div>
@@ -173,13 +218,7 @@ export default function RoutinesPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24">
             {/* Header */}
-            <header className="px-4 py-4 bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between">
-                <h1 className="text-xl font-bold text-slate-900">Items</h1>
-                <Button size="sm" variant="cosmic" className="gap-2" onClick={handleOpenNew}>
-                    <Plus className="w-4 h-4" />
-                    New
-                </Button>
-            </header>
+            <ParentHeader title="Tasks" />
 
             {/* Tabs */}
             <div className="px-4 mt-4">
@@ -203,26 +242,44 @@ export default function RoutinesPage() {
                                 <p className="text-sm text-slate-500 max-w-xs">Create routines like "Morning Rush" or "Bedtime".</p>
                             </div>
                         )}
-                        {routines?.map((routine) => (
-                            <div key={routine.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex items-center justify-between group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-lg bg-violet-50 flex items-center justify-center text-2xl">
-                                        <RenderIcon name={routine.icon || 'Star'} className="w-6 h-6 text-slate-700" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-900">{routine.title}</h3>
-                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {routine.timeOfDay}</span>
-                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{routine.steps.length} Steps</span>
+
+                        {routines && routines.length > 0 && (
+                            <div className="mb-8">
+                                <h3 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center justify-between">
+                                    Active Routines
+                                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{routines.length}</span>
+                                </h3>
+                                <div className="space-y-3">
+                                    {routines.map((routine) => (
+                                        <div key={routine.id} className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between group">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500">
+                                                    <RenderIcon name={routine.icon || 'Star'} className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 text-sm">{routine.title}</h3>
+                                                    <div className="flex flex-col gap-1 mt-0.5">
+                                                        <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {routine.timeOfDay}</span>
+                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold">{routine.steps.length} Steps</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 flex-wrap">
+                                                            {routine.profileIds?.map(pid => (
+                                                                <RenderProfileBadge key={pid} profileId={pid} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => handleOpenEdit(routine.id)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeleteRoutine(routine)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => handleOpenEdit(routine.id)} className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-5 h-5" /></button>
-                                    <button onClick={() => deleteRoutine(routine.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-5 h-5" /></button>
+                                    ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </>
                 )}
 
@@ -289,6 +346,17 @@ export default function RoutinesPage() {
 
             </main>
 
+            {/* Floating "Add Routine" Button */}
+            <div className="fixed bottom-24 left-0 w-full px-6 flex justify-center z-40 pointer-events-none">
+                <button
+                    onClick={handleOpenNew}
+                    className="pointer-events-auto bg-slate-900 text-white pl-5 pr-6 py-4 rounded-full font-bold text-sm shadow-xl shadow-slate-300 flex items-center gap-2 hover:scale-105 active:scale-95 transition"
+                >
+                    <Plus className="w-5 h-5" />
+                    Add Routine
+                </button>
+            </div>
+
             <ParentNavBar />
 
             {/* APPROVAL MODAL */}
@@ -348,6 +416,34 @@ export default function RoutinesPage() {
                     </div>
                 </div>
             )}
+
+            {/* DELETE CONFIRMATION MODAL */}
+            <Modal
+                isOpen={!!deletingItem}
+                onClose={() => setDeletingItem(null)}
+                title={`Delete ${deletingItem?.type === 'routine' ? 'Routine' : 'Quest'}`}
+                className="max-w-xs"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 text-sm mb-6">
+                        Are you sure you want to delete <span className="font-bold text-slate-800">"{deletingItem?.title}"</span>? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-3">
+                        <Button
+                            className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            onClick={() => setDeletingItem(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="flex-1 bg-red-500 text-white hover:bg-red-600"
+                            onClick={confirmDelete}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

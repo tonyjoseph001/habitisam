@@ -39,17 +39,8 @@ export function GoalSlider({ goal, colors, onUpdate }: GoalSliderProps) {
                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-${colors.accent.replace('bg-', '')}`}
                 value={localValue}
                 onChange={handleChange}
-                onPointerUp={(e) => {
-                    handleCommit();
-                    // releasePointerCapture can throw if called when not capturing
-                    try {
-                        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-                            e.currentTarget.releasePointerCapture(e.pointerId);
-                        }
-                    } catch (err) {
-                        // ignore
-                    }
-                }}
+                onMouseUp={handleCommit}
+                onTouchEnd={handleCommit}
                 disabled={goal.status !== 'active'}
             />
         </>

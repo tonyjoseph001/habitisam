@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
+import { ParentHeader } from '@/components/layout/ParentHeader';
 import { TrendingUp, Star, AlertTriangle, Clock, Trophy, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -132,21 +133,23 @@ export default function ReportsPage() {
     return (
         <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
             {/* Header */}
-            <header className="bg-white sticky top-0 z-50 pt-6 pb-2 px-6 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+            <ParentHeader title="Reports" />
+
+            <div className="sticky top-[60px] z-40 bg-slate-50/95 backdrop-blur-sm px-6 py-4 border-b border-slate-200 shadow-sm mb-4">
                 <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-xl font-black text-slate-800">{timeRange === 'Week' ? 'Weekly' : 'Monthly'} Report</h1>
-                    <div className="bg-slate-100 p-1 rounded-xl flex text-xs font-bold">
-                        <button onClick={() => setTimeRange('Week')} className={cn("px-3 py-1.5 rounded-lg transition", timeRange === 'Week' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Week</button>
-                        <button onClick={() => setTimeRange('Month')} className={cn("px-3 py-1.5 rounded-lg transition", timeRange === 'Month' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Month</button>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{timeRange === 'Week' ? 'Weekly' : 'Monthly'} View</span>
+                    <div className="bg-white p-1 rounded-xl flex text-xs font-bold border border-slate-200">
+                        <button onClick={() => setTimeRange('Week')} className={cn("px-3 py-1.5 rounded-lg transition", timeRange === 'Week' ? "bg-slate-100 text-slate-900 shadow-inner" : "text-slate-400 hover:text-slate-600")}>Week</button>
+                        <button onClick={() => setTimeRange('Month')} className={cn("px-3 py-1.5 rounded-lg transition", timeRange === 'Month' ? "bg-slate-100 text-slate-900 shadow-inner" : "text-slate-400 hover:text-slate-600")}>Month</button>
                     </div>
                 </div>
-                <div className="flex gap-6 overflow-x-auto no-scrollbar pb-2">
-                    <button onClick={() => setSelectedChildId('all')} className={cn("flex flex-col items-center gap-1 min-w-[3rem] transition", selectedChildId === 'all' ? "opacity-100" : "opacity-40 hover:opacity-100")}><span className={cn("text-sm font-bold pb-1", selectedChildId === 'all' ? "text-slate-900 border-b-2 border-slate-900" : "text-slate-600")}>All</span></button>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar">
+                    <button onClick={() => setSelectedChildId('all')} className={cn("flex flex-col items-center gap-1 min-w-[3rem] transition flex-shrink-0", selectedChildId === 'all' ? "opacity-100" : "opacity-40 hover:opacity-100")}><span className={cn("text-sm font-bold pb-1", selectedChildId === 'all' ? "text-slate-900 border-b-2 border-slate-900" : "text-slate-600")}>All</span></button>
                     {children?.map((child) => (
-                        <button key={child.id} onClick={() => setSelectedChildId(child.id)} className={cn("flex flex-col items-center gap-1 min-w-[3rem] transition", selectedChildId === child.id ? "opacity-100" : "opacity-40 hover:opacity-100")}><span className={cn("text-sm font-bold pb-1", selectedChildId === child.id ? "text-slate-900 border-b-2 border-slate-900" : "text-slate-600")}>{child.name}</span></button>
+                        <button key={child.id} onClick={() => setSelectedChildId(child.id)} className={cn("flex flex-col items-center gap-1 min-w-[3rem] transition flex-shrink-0", selectedChildId === child.id ? "opacity-100" : "opacity-40 hover:opacity-100")}><span className={cn("text-sm font-bold pb-1", selectedChildId === child.id ? "text-slate-900 border-b-2 border-slate-900" : "text-slate-600")}>{child.name}</span></button>
                     ))}
                 </div>
-            </header>
+            </div>
 
             <main className="max-w-md mx-auto p-6 space-y-8">
                 {/* Stats Sections */}

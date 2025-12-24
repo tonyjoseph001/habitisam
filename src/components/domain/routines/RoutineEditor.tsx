@@ -249,7 +249,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 <div className="bg-white rounded-xl mx-4 p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isGoal ? 'Goal Title' : 'Routine Title'}</label>
-                        <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={isGoal ? "e.g. Science Project" : "e.g. Morning Rush"} className="text-xl font-bold h-12 border-0 border-b-2 border-slate-100 rounded-none px-0 focus-visible:ring-0 focus-visible:border-violet-500 placeholder:text-slate-300 text-slate-900" />
+                        <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={isGoal ? "e.g. Science Project" : "e.g. Morning Rush"} className="text-sm font-bold h-10 border-0 border-b-2 border-slate-100 rounded-none px-0 focus-visible:ring-0 focus-visible:border-violet-500 placeholder:text-slate-300 text-slate-900" />
                     </div>
 
                     {/* Improved Icon Picker Grid */}
@@ -337,11 +337,11 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Number</label>
-                                    <Input type="number" value={target} onChange={e => setTarget(Number(e.target.value))} className="h-12 text-lg font-bold border-slate-200 text-slate-900" />
+                                    <Input type="number" value={target} onChange={e => setTarget(Number(e.target.value))} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unit</label>
-                                    <Input value={unit} onChange={e => setUnit(e.target.value)} className="h-12 font-medium border-slate-200 text-slate-900" />
+                                    <Input value={unit} onChange={e => setUnit(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
                                 </div>
                             </div>
                         )}
@@ -356,13 +356,13 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         value={dueDate}
                                         onChange={e => setDueDate(e.target.value)}
                                         onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
-                                        className="pl-10 h-12 border-slate-200 font-medium text-slate-900 block w-full"
+                                        className="pl-10 h-10 border-slate-200 text-sm font-bold text-slate-900 block w-full"
                                     />
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
-                                <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between px-3">
+                                <div className="h-10 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between px-3">
                                     <Award className="w-6 h-6 text-yellow-500" />
                                     <span className="font-bold text-yellow-700">{goalRewardStars}</span>
                                     <div className="flex flex-col">
@@ -383,7 +383,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             <div className="flex flex-col gap-4">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Time</label>
-                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-12 text-lg border-slate-200 text-slate-900" />
+                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Repeat On</label>
@@ -404,12 +404,12 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         value={date}
                                         onChange={e => setDate(e.target.value)}
                                         onClick={(e) => { try { e.currentTarget.showPicker(); } catch (err) { } }}
-                                        className="h-12 border-slate-200 text-slate-900 block w-full"
+                                        className="h-10 border-slate-200 text-sm font-bold text-slate-900 block w-full"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Time</label>
-                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-12 border-slate-200 text-slate-900" />
+                                    <Input type="time" value={time} onChange={e => setTime(e.target.value)} className="h-10 text-sm font-bold border-slate-200 text-slate-900" />
                                 </div>
                             </div>
                         )}

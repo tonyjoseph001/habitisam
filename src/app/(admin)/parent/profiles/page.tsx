@@ -3,12 +3,12 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
-import { Plus, Edit2, User, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
+import { ParentHeader } from '@/components/layout/ParentHeader';
 
 export default function ProfilesPage() {
     const router = useRouter();
@@ -22,7 +22,12 @@ export default function ProfilesPage() {
         router.push('/parent/profile/add');
     };
 
-    // Helper to get avatar icon
+    const handleDelete = async (id: string) => {
+        if (confirm("Are you sure you want to delete this profile?")) {
+            await db.profiles.delete(id);
+        }
+    };
+
     const getAvatarIcon = (avatarId: string) => {
         switch (avatarId) {
             case 'boy': return '🧑‍🚀';
@@ -45,15 +50,9 @@ export default function ProfilesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-20 font-sans">
+        <div className="min-h-screen bg-[#F8FAFC] pb-24 font-sans">
             {/* Header */}
-            <header className="px-4 py-4 bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between border-b border-slate-200">
-                <h1 className="text-xl font-bold text-slate-900">Profiles</h1>
-                <Button size="sm" variant="cosmic" className="gap-2" onClick={handleAddNew}>
-                    <Plus className="w-4 h-4" />
-                    Add New
-                </Button>
-            </header>
+            <ParentHeader title="Profiles" />
 
             <main className="p-4 flex flex-col gap-4 max-w-screen-md mx-auto">
                 {/* Profiles List */}
@@ -61,20 +60,19 @@ export default function ProfilesPage() {
                     {profiles?.map((profile) => (
                         <div
                             key={profile.id}
-                            onClick={() => handleEdit(profile.id)}
-                            className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center justify-between group hover:border-violet-300 transition-all cursor-pointer"
+                            className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between group"
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                                 <div className={cn(
-                                    "w-14 h-14 rounded-full flex items-center justify-center text-2xl border-2",
+                                    "w-10 h-10 rounded-lg flex items-center justify-center text-xl border",
                                     getColorClass(profile.colorTheme || 'cyan')
                                 )}>
                                     {getAvatarIcon(profile.avatarId)}
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900 text-lg">{profile.name}</h3>
+                                    <h3 className="font-bold text-slate-800 text-sm">{profile.name}</h3>
                                     <span className={cn(
-                                        "text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wide",
+                                        "text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide inline-block mt-0.5",
                                         profile.type === 'parent' ? "bg-slate-100 text-slate-500" : "bg-violet-100 text-violet-600"
                                     )}>
                                         {profile.type === 'parent' ? 'Administrator' : 'Child'}
@@ -82,9 +80,9 @@ export default function ProfilesPage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 text-slate-300 group-hover:text-violet-400 transition-colors">
-                                <span className="text-xs font-medium mr-2">Edit</span>
-                                <ChevronRight className="w-5 h-5" />
+                            <div className="flex items-center gap-1">
+                                <button onClick={() => handleEdit(profile.id)} className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-full transition-colors"><Edit2 className="w-4 h-4" /></button>
+                                <button onClick={() => handleDelete(profile.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="w-4 h-4" /></button>
                             </div>
                         </div>
                     ))}
@@ -96,19 +94,29 @@ export default function ProfilesPage() {
                     )}
                 </div>
 
-                <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-700 text-sm">
+                <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-700 text-xs">
                     <div className="bg-blue-100 rounded-full p-1 h-fit">
-                        <User className="w-4 h-4" />
+                        <User className="w-3 h-3" />
                     </div>
                     <div>
                         <p className="font-bold mb-1">Manage Family</p>
                         <p className="opacity-80 leading-relaxed">
-                            Add profiles for each child to track their own habits and rewards.
-                            You can switch between them from the Dashboard.
+                            Add profiles for each child to track their own habits.
                         </p>
                     </div>
                 </div>
             </main>
+
+            {/* Floating Action Button */}
+            <div className="fixed bottom-24 left-0 w-full px-6 flex justify-center z-40 pointer-events-none">
+                <button
+                    onClick={handleAddNew}
+                    className="pointer-events-auto bg-slate-900 text-white pl-5 pr-6 py-4 rounded-full font-bold text-sm shadow-xl shadow-slate-300 flex items-center gap-2 hover:scale-105 active:scale-95 transition"
+                >
+                    <Plus className="w-5 h-5" />
+                    Add Profile
+                </button>
+            </div>
 
             <ParentNavBar />
         </div>
