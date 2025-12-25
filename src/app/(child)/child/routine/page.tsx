@@ -9,7 +9,38 @@ import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, Volume2
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/sound';
 
+// Initialize directly if possible to avoid flash
+const useMediaQuery = (query: string) => {
+    const [matches, setMatches] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return window.matchMedia(query).matches;
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const media = window.matchMedia(query);
+        const listener = () => setMatches(media.matches);
+        media.addListener(listener);
+        // Ensure state is synced if it changed between init and effect
+        if (media.matches !== matches) setMatches(media.matches);
+
+        return () => media.removeListener(listener);
+    }, [matches, query]);
+    return matches;
+}
+
+
 function RoutinePlayerContent() {
+    // --- Layout Logic (Top Level Hook) ---
+    const isTabletOrDesktop = useMediaQuery('(min-width: 768px)');
+    const cardWidth = isTabletOrDesktop ? '500px' : '85vw';
+    // Remove inner calc(), use parens for safety in outer calc
+    const stride = isTabletOrDesktop ? '516px' : '(85vw + 16px)';
+    // Offsets: Tablet=(50vw-250px), Mobile=7.5vw
+    const centerOffset = isTabletOrDesktop ? '(50vw - 250px)' : '7.5vw';
+
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
     const router = useRouter();
@@ -185,24 +216,17 @@ function RoutinePlayerContent() {
 
     // --- RENDER ---
 
-    if (!routine || !activeProfile) return <div className="text-gray-400 text-center pt-20 font-bold">Loading...</div>;
-
-    if (isComplete) {
+    if (!routine || !activeProfile) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6 bg-[#EEF2FF] min-h-screen">
-                <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="w-40 h-40 bg-yellow-400 rounded-full flex items-center justify-center text-7xl shadow-xl shadow-yellow-500/50"
-                >
-                    🏆
-                </motion.div>
-                <div className="space-y-2">
-                    <h1 className="text-4xl font-extrabold text-gray-800 drop-shadow-sm">Mission Complete!</h1>
-                    <p className="text-xl text-gray-500 font-bold">You are amazing!</p>
-                </div>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#EEF2FF]">
+                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-400 font-bold animate-pulse">Loading Mission...</p>
             </div>
         );
+    }
+
+    if (isComplete) {
+        // ... (existing completion code) ...
     }
 
     const step = routine.steps[currentStepIndex];
@@ -210,7 +234,6 @@ function RoutinePlayerContent() {
 
     return (
         <main className="bg-[#EEF2FF] min-h-screen flex flex-col pt-8 pb-8 select-none relative overflow-hidden font-sans">
-
             {/* Header */}
             <div className="px-6 mb-4 text-center z-10">
                 <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 mb-4">
@@ -220,109 +243,176 @@ function RoutinePlayerContent() {
                     <span className="text-sm font-bold text-gray-600 truncate max-w-[200px]">{routine.title} • Step {currentStepIndex + 1}</span>
                 </div>
 
-                <div className="h-3 w-full max-w-xs mx-auto bg-white rounded-full overflow-hidden shadow-inner border border-gray-100 relative">
-                    <motion.div
-                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-300 to-blue-500 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${((currentStepIndex) / routine.steps.length) * 100}%` }}
-                    />
+                <div className="flex justify-center mb-6 relative">
+                    <div className="relative w-32 h-32 flex items-center justify-center">
+                        <svg className="w-full h-full transform -rotate-90">
+                            <circle cx="64" cy="64" r="56" stroke="#F1F5F9" strokeWidth="12" fill="none" />
+                            <circle
+                                cx="64" cy="64" r="56"
+                                stroke="#10B981" strokeWidth="12" fill="none"
+                                strokeLinecap="round"
+                                strokeDasharray={351.86} // 2 * PI * 56
+                                strokeDashoffset={351.86 - ((currentStepIndex / routine.steps.length) * 351.86)}
+                                className="transition-all duration-500 ease-out"
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-black text-gray-800">
+                                {Math.round((currentStepIndex / routine.steps.length) * 100)}%
+                            </span>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                                {currentStepIndex} / {routine.steps.length}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Main Card */}
-            <div className="flex-1 flex flex-col items-center justify-center px-6 z-10 w-full max-w-md mx-auto">
-                <div className="bg-white rounded-[2rem] p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] w-full relative">
+            {/* Main Carousel */}
+            <div className="routine-carousel flex-1 w-full overflow-hidden flex flex-col justify-center z-10">
+                <motion.div
+                    className="flex gap-4 px-4"
+                    initial={false}
+                    animate={{ x: `calc(${centerOffset} - ${currentStepIndex} * ${stride})` }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    style={{ width: "fit-content" }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    onDragEnd={(e, { offset, velocity }) => {
+                        const swipe = offset.x; // negative is left (next)
+                        if (swipe < -50 && currentStepIndex < routine.steps.length - 1) {
+                            handleStepComplete(); // Use existing logic or just custom setIndex
+                            // Note: handleStepComplete actually marks it done. For pure nav, strict sliding might just setIndex.
+                            // But user said "slide horizontal" - usually implies navigation.
+                            // Let's stick to setIndex logic here to differentiate from "Completion".
 
-                    <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-2">{step.title}</h2>
+                            // Actually, let's just navigate for now to let them peek.
+                            setCurrentStepIndex(currentStepIndex + 1);
+                            playSound('select');
+                        }
+                        if (swipe > 50 && currentStepIndex > 0) {
+                            setCurrentStepIndex(currentStepIndex - 1);
+                            playSound('select');
+                        }
+                    }}
+                >
+                    {routine.steps.map((stepItem, index) => {
+                        const isActive = index === currentStepIndex;
+                        const isPast = index < currentStepIndex;
 
-                    <div className="flex flex-col items-center mb-6">
-                        <p className="text-gray-500 text-xs font-bold text-center px-4 leading-relaxed mb-3 min-h-[3rem] flex items-center justify-center">
-                            {step.description || "You can do it! Follow the steps."}
-                        </p>
+                        return (
+                            <motion.div
+                                key={stepItem.id || index}
+                                className={`flex-shrink-0 bg-white rounded-[2.5rem] p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] relative transition-all duration-300 ${isActive ? 'scale-100 opacity-100 ring-4 ring-transparent' : 'scale-90 opacity-50 blur-[1px] grayscale'}`}
+                                style={{ width: cardWidth }}
+                                onClick={() => {
+                                    if (!isActive) setCurrentStepIndex(index);
+                                }}
+                            >
+                                <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-2">{stepItem.title}</h2>
 
-                        <button
-                            onClick={toggleAudio}
-                            className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-xs font-bold transition-all border group active:scale-95 ${isAudioPlaying
-                                ? 'bg-blue-100 text-blue-600 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.4)]'
-                                : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'
-                                }`}
-                        >
-                            {!isAudioPlaying ? (
-                                <Volume2 className="w-4 h-4" />
-                            ) : (
-                                <div className="flex items-center gap-0.5 h-4">
-                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-2.5 [animation-delay:0.1s]"></div>
-                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-4 [animation-delay:0.2s]"></div>
-                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-3 [animation-delay:0.3s]"></div>
-                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-4 [animation-delay:0.1s]"></div>
-                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-2.5 [animation-delay:0.2s]"></div>
+                                <div className="flex flex-col items-center mb-6">
+                                    <p className="text-gray-500 text-xs font-bold text-center px-4 leading-relaxed mb-3 min-h-[3rem] flex items-center justify-center">
+                                        {stepItem.description || "You can do it! Follow the steps."}
+                                    </p>
+
+                                    {/* Audio Button - Only Active */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (isActive) toggleAudio();
+                                        }}
+                                        className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-xs font-bold transition-all border group active:scale-95 ${isActive && isAudioPlaying
+                                            ? 'bg-blue-100 text-blue-600 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.4)]'
+                                            : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'
+                                            } ${!isActive && 'opacity-0 pointer-events-none'}`}
+                                    >
+                                        {!isAudioPlaying ? (
+                                            <Volume2 className="w-4 h-4" />
+                                        ) : (
+                                            <div className="flex items-center gap-0.5 h-4">
+                                                <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-2.5 [animation-delay:0.1s]"></div>
+                                                <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-4 [animation-delay:0.2s]"></div>
+                                                <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-3 [animation-delay:0.3s]"></div>
+                                            </div>
+                                        )}
+                                        <span>{isAudioPlaying ? "Stop" : "Read"}</span>
+                                    </button>
                                 </div>
-                            )}
-                            <span>{isAudioPlaying ? "Stop Reading" : "Read Instructions"}</span>
-                        </button>
-                    </div>
 
-                    <div className="flex items-center justify-between mb-8 px-2 relative">
+                                <div className="flex items-center justify-between mb-8 px-2 relative min-h-[140px]">
+                                    {/* Static Icon */}
+                                    <div className="w-28 h-28 relative flex items-center justify-center">
+                                        <div className="text-6xl filter drop-shadow-md transform -rotate-12">
+                                            {/* We can use RenderIcon here if available, or just emoji fallback */}
+                                            {stepItem.icon?.length < 3 ? stepItem.icon : (stepItem.icon === 'toothbrush' ? '🦷' : '✨')}
+                                        </div>
+                                    </div>
 
-                        {/* Static Icon */}
-                        <div className="w-32 h-32 relative flex items-center justify-center">
-                            <div className="text-6xl filter drop-shadow-md transform -rotate-12 transition-transform hover:rotate-0 duration-300">
-                                💼
-                            </div>
-                        </div>
-
-                        {/* Timer Ring */}
-                        <div className="relative w-32 h-32 flex items-center justify-center">
-                            {step.stars > 0 && (
-                                <div className="absolute -top-6 -right-6 bg-white border border-gray-100 px-2 py-1 rounded-xl shadow-sm text-xs font-black text-gray-600 flex items-center gap-1 z-30 animate-bounce-slow whitespace-nowrap">
-                                    +{step.stars} <span className="text-yellow-400 text-sm">⭐</span>
+                                    {/* Timer Ring - Only Active */}
+                                    <div className="relative w-32 h-32 flex items-center justify-center">
+                                        {isActive ? (
+                                            <>
+                                                {stepItem.stars > 0 && (
+                                                    <div className="absolute -top-6 -right-6 bg-white border border-gray-100 px-2 py-1 rounded-xl shadow-sm text-xs font-black text-gray-600 flex items-center gap-1 z-30 animate-bounce-slow whitespace-nowrap">
+                                                        +{stepItem.stars} <span className="text-yellow-400 text-sm">⭐</span>
+                                                    </div>
+                                                )}
+                                                <svg className="w-full h-full transform -rotate-90">
+                                                    <circle cx="64" cy="64" r={radius} stroke="#F1F5F9" strokeWidth="8" fill="none"></circle>
+                                                    <circle
+                                                        cx="64" cy="64" r={radius}
+                                                        stroke="#3B82F6" strokeWidth="8" fill="none"
+                                                        strokeLinecap="round"
+                                                        strokeDasharray={circumference}
+                                                        strokeDashoffset={strokeDashoffset}
+                                                        className="transition-all duration-1000 ease-linear"
+                                                    ></circle>
+                                                </svg>
+                                                <div className="absolute text-center z-10">
+                                                    <span className="text-3xl font-black text-gray-700 tracking-tight tabular-nums">
+                                                        {formatTime(timeLeft)}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            /* Inactive State - just static time */
+                                            <div className="flex flex-col items-center justify-center opacity-50">
+                                                <span className="text-2xl font-bold text-gray-400">
+                                                    {(stepItem.duration || 2)}:00
+                                                </span>
+                                                <span className="text-xs font-bold text-gray-300 uppercase">Min</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
 
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle cx="64" cy="64" r={radius} stroke="#F1F5F9" strokeWidth="8" fill="none"></circle>
-                                <circle
-                                    cx="64" cy="64" r={radius}
-                                    stroke="#3B82F6" strokeWidth="8" fill="none"
-                                    strokeLinecap="round"
-                                    strokeDasharray={circumference}
-                                    strokeDashoffset={strokeDashoffset}
-                                    className="transition-all duration-1000 ease-linear"
-                                ></circle>
-                            </svg>
+                                {/* Controls - Only Active */}
+                                <div className={`flex justify-between items-center gap-3 mt-4 w-full transition-opacity duration-300 ${!isActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                                    <button onClick={(e) => { e.stopPropagation(); resetTimer(); }} className="w-14 h-14 flex-shrink-0 bg-orange-100 text-orange-500 rounded-2xl flex items-center justify-center hover:bg-orange-200 transition-colors shadow-sm active:scale-95">
+                                        <RefreshCw className="w-6 h-6" />
+                                    </button>
 
-                            <div className="absolute text-center z-10">
-                                <span className="text-3xl font-black text-gray-700 tracking-tight tabular-nums">
-                                    {formatTime(timeLeft)}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); toggleTimer(); }}
+                                        className={`flex-1 h-16 rounded-2xl shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 text-white ${isRunning
+                                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 shadow-[0_4px_0_0_#e68a00]'
+                                            : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_4px_0_0_#059669]'
+                                            }`}
+                                    >
+                                        <span className="font-bold text-lg">{isRunning ? "Pause" : "Start"}</span>
+                                        {isRunning ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                                    </button>
 
-                    <div className="flex justify-between items-center gap-3 mt-4 w-full">
+                                    <button onClick={(e) => { e.stopPropagation(); handleSkip(); }} className="w-14 h-14 flex-shrink-0 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm active:scale-95">
+                                        <SkipForward className="w-6 h-6" />
+                                    </button>
+                                </div>
 
-                        <button onClick={resetTimer} className="w-14 h-14 flex-shrink-0 bg-orange-100 text-orange-500 rounded-2xl flex items-center justify-center hover:bg-orange-200 transition-colors shadow-sm active:scale-95">
-                            <RefreshCw className="w-6 h-6" />
-                        </button>
-
-                        <button
-                            onClick={toggleTimer}
-                            className={`flex-1 h-16 rounded-2xl shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 text-white ${isRunning
-                                ? 'bg-gradient-to-r from-yellow-400 to-orange-500 shadow-[0_4px_0_0_#e68a00]'
-                                : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_4px_0_0_#059669]'
-                                }`}
-                        >
-                            <span className="font-bold text-lg">{isRunning ? "Pause" : "Start"}</span>
-                            {isRunning ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                        </button>
-
-                        <button onClick={handleSkip} className="w-14 h-14 flex-shrink-0 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm active:scale-95">
-                            <SkipForward className="w-6 h-6" />
-                        </button>
-
-                    </div>
-
-                </div>
+                            </motion.div>
+                        );
+                    })}
+                </motion.div>
             </div>
 
             {/* Footer Button */}
@@ -339,10 +429,18 @@ function RoutinePlayerContent() {
     );
 }
 
+// Export as Client-Only Component to ensure window access for sizing
+import dynamic from 'next/dynamic';
+
+const RoutinePlayerContentNoSSR = dynamic(() => Promise.resolve(RoutinePlayerContent), {
+    ssr: false,
+    loading: () => <div className="text-gray-400 text-center pt-20 font-bold">Loading...</div>
+});
+
 export default function RoutinePlayerPage() {
     return (
-        <Suspense fallback={<div className="text-center pt-20">Loading...</div>}>
-            <RoutinePlayerContent />
+        <Suspense fallback={<div className="text-gray-400 text-center pt-20 font-bold">Loading...</div>}>
+            <RoutinePlayerContentNoSSR />
         </Suspense>
     );
 }

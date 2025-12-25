@@ -9,11 +9,16 @@ interface SessionState {
     // Theme might be derived from profile, but we can override locally
     currentTheme: ThemeType;
     setTheme: (theme: ThemeType) => void;
+
+    hasHydrated: boolean;
+    setHasHydrated: (state: boolean) => void;
 }
 
 export const useSessionStore = create<SessionState>()(
     persist(
         (set) => ({
+            hasHydrated: false,
+            setHasHydrated: (state) => set({ hasHydrated: state }),
             activeProfile: null,
             setActiveProfile: (profile) => set({
                 activeProfile: profile,
@@ -28,6 +33,9 @@ export const useSessionStore = create<SessionState>()(
             name: 'habitisim-session-storage', // name of the item in the storage (must be unique)
             storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
             partialize: (state) => ({ activeProfile: state.activeProfile, currentTheme: state.currentTheme }),
+            onRehydrateStorage: () => (state) => {
+                state?.setHasHydrated(true);
+            },
         }
     )
 );
