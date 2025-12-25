@@ -404,24 +404,29 @@ function RoutinePlayerContent() {
         });
 
         // 1. Log Completion
+        // Use full ISO string to match Dashboard filter logic and preserve local time intent
         await db.activityLogs.add({
             id: crypto.randomUUID(),
             accountId: routine.accountId,
             profileId: activeProfile.id,
             activityId: routine.id,
-            date: new Date().toISOString().split('T')[0],
+            date: new Date().toISOString(),
             status: 'completed',
             completedAt: new Date(),
             starsEarned: routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0),
-            earnedXP: 50
+            earnedXP: 50,
+            stepsCompleted: routine.steps.length // Add this explicitly for completeness
         });
 
-        // 2. Award Stars/XP to Profile
-        const totalStars = routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0);
-        await db.profiles.update(activeProfile.id, {
-            stars: (activeProfile.stars || 0) + totalStars,
-            xp: (activeProfile.xp || 0) + 50
-        });
+        // 2. Award Stars/XP to Profile (Fetch fresh to avoid stale state)
+        const freshProfile = await db.profiles.get(activeProfile.id);
+        if (freshProfile) {
+            const totalStars = routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0);
+            await db.profiles.update(activeProfile.id, {
+                stars: (freshProfile.stars || 0) + totalStars,
+                xp: (freshProfile.xp || 0) + 50
+            });
+        }
 
         // Removed auto-redirect. User will click "Okay".
     };
@@ -813,8 +818,8 @@ function RoutinePlayerContent() {
                     onClick={handleStepComplete}
                     disabled={isCompleting}
                     className={`w-full bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-lg font-bold py-4 rounded-3xl transition-all flex items-center justify-center gap-2 ${isCompleting
-                            ? 'opacity-70 cursor-not-allowed scale-[0.98]'
-                            : 'shadow-[0_4px_0_0_#059669] transform active:translate-y-1 active:shadow-none'
+                        ? 'opacity-70 cursor-not-allowed scale-[0.98]'
+                        : 'shadow-[0_4px_0_0_#059669] transform active:translate-y-1 active:shadow-none'
                         }`}
                 >
                     <span>I Did It! Next</span>

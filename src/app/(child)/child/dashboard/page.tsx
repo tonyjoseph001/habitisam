@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import ChildHeader from '@/components/child/ChildHeader';
-import { differenceInMinutes, parse, format, isPast, isToday, addDays, isSameDay } from 'date-fns';
+import { differenceInMinutes, parse, format, isPast, isToday, addDays, isSameDay, addMinutes, endOfDay, startOfDay, isBefore, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -105,6 +105,64 @@ export default function MissionControlPage() {
 
     // Data for processed tasks (completed OR missed)
     const processedTaskIds = new Set(logs.filter(l => l.status === 'completed' || l.status === 'missed').map(l => l.activityId));
+
+    // --- SCHEDULING HELPERS ---
+    const getFlexWindowMinutes = (windowString?: string): number => {
+        if (!windowString) return 15; // Default 15 min
+        if (windowString.includes('Anytime')) return 1440; // All day
+        if (windowString.includes('15 min')) return 15;
+        if (windowString.includes('30 min')) return 30;
+        if (windowString.includes('1 Hour')) return 60;
+        if (windowString.includes('3 Hour')) return 180;
+        return 15;
+    };
+
+    const getExpirationMinutes = (expireString?: string): number | null => {
+        if (!expireString || expireString === 'End of Day' || expireString === 'Never') return null;
+        if (expireString.includes('1 Hour')) return 60;
+        if (expireString.includes('2 Hours')) return 120;
+        return null;
+    };
+
+    // Helper to determine status for list items
+    const getTaskStatus = (task: any): 'completed' | 'locked' | 'active' | 'expired' | 'overdue' => {
+        if (completedTaskIds.has(task.id)) return 'completed';
+
+        try {
+            const now = new Date();
+            const taskTime = parse(task.timeOfDay, 'HH:mm', now);
+            const flexMinutes = getFlexWindowMinutes(task.flexWindow);
+            const expireMinutes = getExpirationMinutes(task.expires);
+
+            // 1. Check Lock (Too Early)
+            // Start Time - Flex Window
+            const unlockTime = addMinutes(taskTime, -flexMinutes);
+            // If "Anytime Today", unlockTime is basically start of day, so it's technically always unlocked if today
+            // But let's respect the specific logic:
+            if (isBefore(now, unlockTime)) return 'locked';
+
+            // 2. Check Expiration (Too Late)
+            if (task.expires === 'End of Day') {
+                if (isAfter(now, endOfDay(taskTime))) return 'expired';
+            } else if (expireMinutes !== null) {
+                const expirationTime = addMinutes(taskTime, expireMinutes);
+                if (isAfter(now, expirationTime)) return 'expired';
+            }
+
+            // 3. Check Overdue (Standard logic, maybe redundant if expires is handled, but good for UI text)
+            // If we are past the start time but not expired yet
+            if (differenceInMinutes(taskTime, now) < 0) return 'overdue'; // It's active but late
+
+        } catch (e) { }
+
+        return 'active';
+    };
+
+    // Filter routines based on Expiration logic (Don't show expired tasks)
+    const visibleRoutines = routines.filter(r => {
+        const s = getTaskStatus(r);
+        return s !== 'expired';
+    });
 
     // Expiration Check Effect
     useEffect(() => {
@@ -218,8 +276,8 @@ export default function MissionControlPage() {
     const today = new Date();
     const tomorrow = addDays(today, 1);
 
-    const todayRoutines = React.useMemo(() => getRoutinesForDate(routines, today), [routines]);
-    const tomorrowRoutines = React.useMemo(() => getRoutinesForDate(routines, tomorrow), [routines]);
+    const todayRoutines = React.useMemo(() => getRoutinesForDate(visibleRoutines, today), [visibleRoutines]);
+    const tomorrowRoutines = React.useMemo(() => getRoutinesForDate(visibleRoutines, tomorrow), [visibleRoutines]);
 
     // "Upcoming Task" logic:
     // 1. Check Today: First uncompleted future task.
@@ -337,19 +395,6 @@ export default function MissionControlPage() {
             return { formatted: upNextRoutine.timeOfDay, diffMins: 0, isLate: false, text: 'Today' };
         }
     }, [upNextRoutine, isTomorrow]);
-
-    // Helper to determine status for list items
-    const getTaskStatus = (task: any) => {
-        if (completedTaskIds.has(task.id)) return 'completed';
-
-        try {
-            const now = new Date();
-            const t = parse(task.timeOfDay, 'HH:mm', now);
-            if (differenceInMinutes(t, now) < 0) return 'overdue';
-        } catch { }
-
-        return 'pending';
-    };
 
     if (!activeProfile) return null;
 
@@ -611,22 +656,36 @@ export default function MissionControlPage() {
                                 })()
                             )}
 
-                            {upNextRoutine.type === 'one-time' ? (
-                                <button
-                                    onClick={() => setConfirmTask(upNextRoutine)}
-                                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Check className="w-5 h-5" strokeWidth={3} />
-                                    Mark Complete
-                                </button>
-                            ) : (
-                                <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
-                                    <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                        <Play className="w-5 h-5 fill-current" />
-                                        START TASK
-                                    </button>
-                                </Link>
-                            )}
+                            {(() => {
+                                const status = getTaskStatus(upNextRoutine);
+                                if (status === 'locked') {
+                                    return (
+                                        <button disabled className="w-full bg-gray-100 text-gray-400 font-bold py-3.5 rounded-2xl cursor-not-allowed flex items-center justify-center gap-2">
+                                            <Lock className="w-5 h-5" />
+                                            Locked until {format(addMinutes(parse(upNextRoutine.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(upNextRoutine.flexWindow)), 'h:mm a')}
+                                        </button>
+                                    );
+                                }
+                                if (upNextRoutine.type === 'one-time') {
+                                    return (
+                                        <button
+                                            onClick={() => setConfirmTask(upNextRoutine)}
+                                            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Check className="w-5 h-5" strokeWidth={3} />
+                                            Mark Complete
+                                        </button>
+                                    );
+                                }
+                                return (
+                                    <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
+                                        <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                            <Play className="w-5 h-5 fill-current" />
+                                            START TASK
+                                        </button>
+                                    </Link>
+                                );
+                            })()}
 
                         </div>
                     ) : (
@@ -685,10 +744,10 @@ export default function MissionControlPage() {
                                                         Completed
                                                     </span>
                                                 )}
-                                                {!status && (
+                                                {!status || status === 'active' || status === 'locked' && (
                                                     <div className="flex items-center gap-1 text-gray-400 font-bold text-xs bg-gray-50 px-2 py-0.5 rounded-md">
                                                         <Clock className="w-3 h-3" />
-                                                        <span>{task.timeOfDay}</span>
+                                                        <span>{format(parse(task.timeOfDay, 'HH:mm', new Date()), 'h:mm a')}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -731,22 +790,27 @@ export default function MissionControlPage() {
 
                                             {/* Actions */}
                                             <div className="flex gap-2">
-                                                {task.type === 'one-time' ? (
+                                                {status === 'locked' ? (
+                                                    <button disabled className="w-full bg-gray-100 text-gray-400 font-bold py-3 rounded-xl cursor-not-allowed flex items-center justify-center gap-2">
+                                                        <Lock className="w-4 h-4" />
+                                                        Locked until {format(addMinutes(parse(task.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(task.flexWindow)), 'h:mm a')}
+                                                    </button>
+                                                ) : task.type === 'one-time' ? (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleQuickComplete(task);
                                                         }}
-                                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                        className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                                                     >
-                                                        <Check className="w-5 h-5" strokeWidth={3} />
-                                                        Done
+                                                        <Check className="w-4 h-4" />
+                                                        Complete
                                                     </button>
                                                 ) : (
                                                     <Link href={`/child/routine?id=${task.id}`} className="flex-1 block">
-                                                        <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                                            <Play className="w-5 h-5 fill-current" />
-                                                            Start Routine
+                                                        <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                                                            <Play className="w-4 h-4 fill-current" />
+                                                            Start
                                                         </button>
                                                     </Link>
                                                 )}
