@@ -52,7 +52,7 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
                     </button>
                 </div>
 
-                {/* Right: Notifications & Stars */}
+                {/* Right: Notifications */}
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => router.push('/child/notifications')}
@@ -61,12 +61,6 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
                         <Bell className="w-6 h-6" />
                         {/* We could allow passing "notificationCount" prop if needed later */}
                     </button>
-
-                    {/* Currency / Stats */}
-                    <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-white/50 flex items-center gap-1.5">
-                        <Star className="w-4 h-4 fill-orange-400 text-orange-400" />
-                        <span className="text-sm font-bold text-gray-700 font-mono">{displayProfile.stars || 0}</span>
-                    </div>
                 </div>
             </div>
 

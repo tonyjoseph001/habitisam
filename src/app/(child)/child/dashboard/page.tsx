@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import { ChevronDown, ChevronUp, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check, Flame } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -472,28 +472,55 @@ export default function MissionControlPage() {
 
 
 
-            {/* Welcome Section */}
-            <div className="px-6 mb-6 flex items-center gap-4">
+            {/* NEW STATS SECTION (Replaces Welcome) */}
+            <div className="px-6 mb-8 space-y-6">
+                {/* 1. Today's Mission Card */}
+                <div className="bg-blue-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
 
-                {/* Stamp Button */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        console.log("OPENING MODAL");
-                        setIsStampModalOpen(true);
-                    }}
-                    className="w-24 h-24 flex-shrink-0 animate-bounce-slow relative z-30 flex items-center justify-center pointer-events-auto"
-                >
-                    <div className="text-[5rem] leading-none select-none drop-shadow-xl filter">
-                        {stampAsset.emoji}
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-sm font-bold text-blue-100 uppercase tracking-widest">Today's Mission</h2>
+                            <div className="bg-blue-500 px-3 py-1 rounded-full text-xs font-bold border border-blue-400">
+                                {todayRoutines.filter(r => processedTaskIds.has(r.id)).length}/{todayRoutines.length} Done
+                            </div>
+                        </div>
+
+                        <div className="flex items-end gap-3 mb-4">
+                            <span className="text-6xl font-black tracking-tight leading-none">
+                                {Math.max(0, todayRoutines.length - todayRoutines.filter(r => processedTaskIds.has(r.id)).length)}
+                            </span>
+                            <span className="text-lg font-bold text-blue-100 mb-1">Tasks Left</span>
+                        </div>
+
+                        <div className="w-full bg-blue-900/30 rounded-full h-3 overflow-hidden">
+                            <div
+                                className="bg-white h-full rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-1000 ease-out"
+                                style={{ width: `${todayRoutines.length > 0 ? (todayRoutines.filter(r => processedTaskIds.has(r.id)).length / todayRoutines.length) * 100 : 0}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-xs font-bold text-blue-200 mt-2 text-right">Finish them to keep your streak! 🔥</p>
                     </div>
-                </button>
+                </div>
 
-                <div>
-                    <h1 className="text-2xl font-extrabold text-gray-800">Hello {activeProfile.name}!</h1>
-                    <div className="flex items-center gap-1 mt-1 text-sm font-bold text-gray-500">
-                        {/* Level Removed */}
-                        <span>Let's have a great day!</span>
+                {/* 2. Grid for Streak & Stars */}
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Streak Card */}
+                    <div className="bg-orange-500 rounded-[2rem] p-4 text-white shadow-lg shadow-orange-200 relative overflow-hidden flex flex-col items-center text-center justify-center min-h-[140px]">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+
+                        <Flame className="w-12 h-12 mb-2 text-orange-100 fill-orange-100 drop-shadow-md" />
+                        <span className="text-4xl font-bold tracking-tight">5</span>
+                        <span className="text-[10px] font-bold text-orange-100 uppercase tracking-widest mt-1">Day Streak</span>
+                    </div>
+
+                    {/* Stars Card */}
+                    <div className="bg-yellow-400 rounded-[2rem] p-4 text-yellow-900 shadow-lg shadow-yellow-200 relative overflow-hidden flex flex-col items-center text-center justify-center min-h-[140px]">
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-20 rounded-full -ml-10 -mb-10"></div>
+
+                        <Star className="w-12 h-12 mb-2 text-yellow-100 fill-yellow-100 drop-shadow-md" />
+                        <span className="text-3xl font-bold tracking-tight">{displayProfile.stars?.toLocaleString() || 0}</span>
+                        <span className="text-[10px] font-bold text-yellow-800/60 uppercase tracking-widest mt-1">Total Stars</span>
                     </div>
                 </div>
             </div>
