@@ -49,6 +49,27 @@ function RoutinePlayerContent() {
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [isComplete, setIsComplete] = useState(false);
 
+    // Animation State
+    const [earnedStars, setEarnedStars] = useState(0);
+    const starTargetRef = useRef<HTMLDivElement>(null);
+    const activeStepStarRef = useRef<HTMLDivElement>(null);
+    const [flyingStars, setFlyingStars] = useState<{ id: string, start: { x: number, y: number }, end: { x: number, y: number } }[]>([]);
+
+    // Progress State (Decoupled from Navigation)
+    const [completedStepIndices, setCompletedStepIndices] = useState<Set<number>>(new Set());
+
+    // UI State
+    const [isSkipModalOpen, setIsSkipModalOpen] = useState(false);
+    const [activeStepRemainingStars, setActiveStepRemainingStars] = useState(0);
+    const [isCompleting, setIsCompleting] = useState(false);
+
+    // Sync remaining stars when step changes
+    useEffect(() => {
+        if (routine && routine.steps[currentStepIndex]) {
+            setActiveStepRemainingStars(routine.steps[currentStepIndex].stars || 0);
+        }
+    }, [routine, currentStepIndex]);
+
     // Timer State
     const [timeLeft, setTimeLeft] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -59,6 +80,7 @@ function RoutinePlayerContent() {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
     const synthRef = useRef<SpeechSynthesis | null>(null);
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const audioInstanceRef = useRef<HTMLAudioElement | null>(null); // New Ref for HTML Audio
 
     // Fetch Routine
     useEffect(() => {
@@ -77,6 +99,16 @@ function RoutinePlayerContent() {
         }
     }, [id]);
 
+    // Cleanup Audio on Unmount
+    useEffect(() => {
+        return () => {
+            if (audioInstanceRef.current) {
+                audioInstanceRef.current.pause();
+                audioInstanceRef.current = null;
+            }
+        };
+    }, []);
+
     // Update Timer when Step Changes
     useEffect(() => {
         if (routine && routine.steps[currentStepIndex]) {
@@ -89,6 +121,10 @@ function RoutinePlayerContent() {
 
             // Cancel any playing audio
             if (synthRef.current) synthRef.current.cancel();
+            if (audioInstanceRef.current) {
+                audioInstanceRef.current.pause();
+                audioInstanceRef.current = null;
+            }
             setIsAudioPlaying(false);
         }
     }, [currentStepIndex, routine]);
@@ -122,21 +158,66 @@ function RoutinePlayerContent() {
         }
     }, []);
 
-    const toggleAudio = () => {
-        if (!synthRef.current || !routine) return;
+    const playAudio = () => {
+        if (!routine) return;
         const step = routine.steps[currentStepIndex];
-        const textToRead = step.description || step.title || "No instructions provided.";
+        if (!step) return; // Safety check
 
-        if (isAudioPlaying) {
-            synthRef.current.cancel();
-            setIsAudioPlaying(false);
-        } else {
-            utteranceRef.current = new SpeechSynthesisUtterance(textToRead);
-            utteranceRef.current.onend = () => setIsAudioPlaying(false);
-            synthRef.current.speak(utteranceRef.current);
+        // Stop existing audio if any
+        if (audioInstanceRef.current) {
+            audioInstanceRef.current.pause();
+            audioInstanceRef.current = null;
+        }
+
+        const audioUrl = step.audioUrl;
+
+        // ONLY play if recorded audio exists
+        if (audioUrl) {
             setIsAudioPlaying(true);
+            const audio = new Audio(audioUrl);
+            audio.onended = () => {
+                setIsAudioPlaying(false);
+                audioInstanceRef.current = null; // Clear ref after playback
+            };
+            audio.play().catch(e => {
+                console.warn("Autoplay blocked or failed", e);
+                setIsAudioPlaying(false);
+                audioInstanceRef.current = null;
+            });
+            audioInstanceRef.current = audio; // Store the audio instance
+        } else {
+            setIsAudioPlaying(false); // No audio to play
         }
     };
+
+    const toggleAudio = () => {
+        // Can only toggle if audio actually exists for the current step
+        if (!routine) return;
+        const step = routine.steps[currentStepIndex];
+        if (!step.audioUrl) return;
+
+        if (isAudioPlaying) {
+            if (audioInstanceRef.current) {
+                audioInstanceRef.current.pause();
+                audioInstanceRef.current = null;
+            }
+            setIsAudioPlaying(false);
+        } else {
+            playAudio(); // Re-trigger playAudio, which will handle setting isAudioPlaying
+        }
+    };
+
+    // Auto-Play on Step Change
+    useEffect(() => {
+        if (routine && !isComplete) {
+            // Small delay to allow transition/interaction
+            const timer = setTimeout(() => {
+                playAudio();
+            }, 600);
+            return () => clearTimeout(timer);
+        }
+    }, [currentStepIndex, routine]);
+
 
     // Timer Controls
     const toggleTimer = () => setIsRunning(!isRunning);
@@ -156,33 +237,166 @@ function RoutinePlayerContent() {
         return `${m}:${sec < 10 ? '0' : ''}${sec}`;
     };
 
-    const handleStepComplete = () => {
+    const handleStepComplete = async () => {
         if (!routine) return;
+        const currentStep = routine.steps[currentStepIndex];
+        if (!currentStep) return; // Safety check
+
+        if (isCompleting) return; // Prevent double clicks
+        setIsCompleting(true);
 
         // Stop audio/timer
         if (synthRef.current) synthRef.current.cancel();
+        if (audioInstanceRef.current) {
+            audioInstanceRef.current.pause();
+            audioInstanceRef.current = null;
+        }
         setIsAudioPlaying(false);
         setIsRunning(false);
 
+        // TRIGGER ANIMATION if step has stars
+        if (currentStep.stars > 0 && activeStepStarRef.current && starTargetRef.current) {
+            const startRect = activeStepStarRef.current.getBoundingClientRect();
+            const endRect = starTargetRef.current.getBoundingClientRect();
+
+            // Target Center - Adjusted for visual accuracy
+            // Determine centers
+            const startCenter = {
+                x: startRect.left + startRect.width / 2,
+                y: startRect.top + startRect.height / 2
+            };
+            const endCenter = {
+                x: endRect.left + endRect.width / 2,
+                y: endRect.top + endRect.height / 2
+            };
+
+            // Create multiple stars
+            // Create multiple stars
+            const visualStarCount = Math.min(currentStep.stars, 30); // Max 30 flying stars
+            const starSize = 32; // 32px (w-8 h-8)
+            let currentSpawnDelay = 0;
+
+            const flightDuration = 400; // 0.4s flight time (Super Fast)
+            const maxSpawnDuration = 600; // Finish spawning by 0.6s
+
+            // Calculate value per flying star to ensure total matches currentStep.stars
+            const baseValue = Math.floor(currentStep.stars / visualStarCount);
+            const remainder = currentStep.stars % visualStarCount;
+
+            // Schedule Spawns
+            for (let i = 0; i < visualStarCount; i++) {
+                // Distribute remainder across first few stars
+                const starValue = baseValue + (i < remainder ? 1 : 0);
+
+                // Distribute spawns evenly or with slight randomness within window
+                const gap = maxSpawnDuration / visualStarCount;
+                // Add slight randomness (+/- 10ms) but keep tight
+                const randomizedGap = gap + (Math.random() * 20 - 10);
+
+                currentSpawnDelay += Math.max(10, randomizedGap);
+
+                setTimeout(() => {
+                    // Add slight random jitter to start position
+                    const jitterX = (Math.random() - 0.5) * 20;
+                    const jitterY = (Math.random() - 0.5) * 20;
+
+                    setFlyingStars(prev => [...prev, {
+                        id: crypto.randomUUID(),
+                        start: {
+                            x: (startCenter.x - starSize / 2) + jitterX,
+                            y: (startCenter.y - starSize / 2) + jitterY
+                        },
+                        end: {
+                            x: endCenter.x - starSize / 2,
+                            y: endCenter.y - starSize / 2
+                        }
+                    }]);
+                    setActiveStepRemainingStars(prev => Math.max(0, prev - starValue)); // Decrement source by weighted value
+                }, currentSpawnDelay);
+
+                // Increment Counter on Arrival
+                setTimeout(() => {
+                    setEarnedStars(prev => prev + starValue); // Increment target by weighted value
+                    playSound('select'); // Tick sound on arrival
+                }, currentSpawnDelay + flightDuration);
+            }
+
+            // Wait for all stars to finish
+            // Total time = Last Spawn Delay + Flight Duration + Buffer
+            const totalDuration = currentSpawnDelay + flightDuration + 200;
+
+            await new Promise(r => setTimeout(r, totalDuration));
+
+            setFlyingStars([]);
+            // setEarnedStars handled incrementally above
+            setCompletedStepIndices(prev => new Set(prev).add(currentStepIndex)); // Mark as done
+            playSound('complete'); // Ding sound when it hits
+        } else {
+            setCompletedStepIndices(prev => new Set(prev).add(currentStepIndex)); // Mark as done even if no stars
+            playSound('select');
+        }
+
+        // Calculate Next Step or Finish
+        const isLastStep = currentStepIndex >= routine.steps.length - 1;
+
+        // Navigation
+        if (isLastStep) {
+            // Buffer before showing Mission Accomplished
+            await new Promise(r => setTimeout(r, 1000));
+            finishRoutine();
+            // Don't enable button, we are navigating
+        } else {
+            setCurrentStepIndex(currentStepIndex + 1);
+            setIsCompleting(false); // Re-enable for next step
+        }
+    };
+
+    const handleSkip = () => {
+        setIsSkipModalOpen(true);
+    };
+
+    const confirmSkip = () => {
+        if (!routine) return;
+        setIsSkipModalOpen(false); // Close Modal
+
+        // Stop audio/timer
+        if (synthRef.current) synthRef.current.cancel();
+        if (audioInstanceRef.current) {
+            audioInstanceRef.current.pause();
+            audioInstanceRef.current = null;
+        }
+        setIsAudioPlaying(false);
+        setIsRunning(false);
+
+        // Move Next WITHOUT awarding stars or marking complete
+        playSound('select');
+
         if (currentStepIndex < routine.steps.length - 1) {
             setCurrentStepIndex(prev => prev + 1);
-            playSound('select');
         } else {
             finishRoutine();
         }
     };
 
-    const handleSkip = () => {
-        if (confirm("Skip this task?")) {
-            handleStepComplete();
-        }
-    };
+    const startTimeRef = useRef(Date.now());
+
+    // ... (keep usage of id, db, etc)
+
+    // ... (skip down to finishRoutine)
 
     const finishRoutine = async () => {
         if (!routine || !activeProfile) return;
 
         setIsComplete(true);
         playSound('complete');
+        // Stop any audio
+        if (synthRef.current) synthRef.current.cancel();
+        if (audioInstanceRef.current) {
+            audioInstanceRef.current.pause();
+            audioInstanceRef.current = null;
+        }
+        setIsAudioPlaying(false);
+
         confetti({
             particleCount: 150,
             spread: 100,
@@ -209,9 +423,7 @@ function RoutinePlayerContent() {
             xp: (activeProfile.xp || 0) + 50
         });
 
-        setTimeout(() => {
-            router.push('/child/dashboard');
-        }, 3000);
+        // Removed auto-redirect. User will click "Okay".
     };
 
     // --- RENDER ---
@@ -226,44 +438,187 @@ function RoutinePlayerContent() {
     }
 
     if (isComplete) {
-        // ... (existing completion code) ...
+        // Calculate Stats
+        const timeTakenMs = Date.now() - startTimeRef.current;
+        const minutes = Math.floor(timeTakenMs / 60000);
+        const seconds = Math.floor((timeTakenMs % 60000) / 1000);
+        const timeString = `${minutes}m ${seconds}s`;
+
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 bg-[#EEF2FF] min-h-screen animate-in fade-in zoom-in duration-500">
+                <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="w-32 h-32 bg-yellow-400 rounded-full flex items-center justify-center text-6xl shadow-xl shadow-yellow-500/50 mb-4"
+                >
+                    🏆
+                </motion.div>
+
+                <div className="space-y-2 text-center">
+                    <h1 className="text-4xl font-extrabold text-gray-800 drop-shadow-sm">Mission Accomplished!</h1>
+                    <p className="text-lg text-gray-500 font-bold">You are a superstar!</p>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
+                    {/* Stars */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                        <Star className="w-8 h-8 text-yellow-400 fill-yellow-400 mb-2" />
+                        <span className="text-2xl font-black text-gray-800">{earnedStars}</span>
+                        <span className="text-xs font-bold text-gray-400 uppercase">Stars Earned</span>
+                    </div>
+                    {/* Steps */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                        <span className="text-3xl mb-1">👣</span>
+                        <span className="text-2xl font-black text-gray-800">{completedStepIndices.size} / {routine.steps.length}</span>
+                        <span className="text-xs font-bold text-gray-400 uppercase">Steps Done</span>
+                    </div>
+                    {/* Time */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                        <span className="text-3xl mb-1">⏱️</span>
+                        <span className="text-2xl font-black text-gray-800">{timeString}</span>
+                        <span className="text-xs font-bold text-gray-400 uppercase">Time Taken</span>
+                    </div>
+                    {/* Percentage */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                        <span className="text-3xl mb-1">💯</span>
+                        <span className="text-2xl font-black text-gray-800">{Math.round((completedStepIndices.size / routine.steps.length) * 100)}%</span>
+                        <span className="text-xs font-bold text-gray-400 uppercase">Complete</span>
+                    </div>
+                </div>
+
+                {/* Okay Button */}
+                <button
+                    onClick={() => router.push('/child/dashboard')}
+                    className="w-full max-w-xs py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-green-500/30 transform active:scale-95 transition-all mt-8"
+                >
+                    Okay! 👍
+                </button>
+            </div>
+        );
     }
 
     const step = routine.steps[currentStepIndex];
     const avatarSrc = `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeProfile.name}&clothing=graphicShirt`;
+    // const totalRoutineStars = routine.steps.reduce((acc, s) => acc + (s.stars || 0), 0); // Replaced with earnedStars state
+
+    // Orbital Badge Calculation
+    const progressFraction = routine.steps.length > 0 ? completedStepIndices.size / routine.steps.length : 0;
+    const orbitalRadius = 84;
+    const center = 96; // 192px / 2 (w-48 h-48 container is 192px)
+    // Start at -90deg (Top)
+    const angle = (progressFraction * 2 * Math.PI) - (Math.PI / 2);
+    const badgeX = center + orbitalRadius * Math.cos(angle);
+    const badgeY = center + orbitalRadius * Math.sin(angle);
 
     return (
         <main className="bg-[#EEF2FF] min-h-screen flex flex-col pt-8 pb-8 select-none relative overflow-hidden font-sans">
-            {/* Header */}
-            <div className="px-6 mb-4 text-center z-10">
-                <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 mb-4">
+
+            {/* Skip Confirmation Modal */}
+            <AnimatePresence>
+                {isSkipModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        onClick={() => setIsSkipModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <SkipForward className="w-8 h-8 text-orange-500" />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-800 mb-2">Skip this task?</h2>
+                            <p className="text-gray-500 font-medium mb-8">
+                                Are you sure? You won't earn stars for this step if you skip it.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => setIsSkipModalOpen(false)}
+                                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmSkip}
+                                    className="py-3 px-4 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold rounded-xl transition-colors border border-orange-200"
+                                >
+                                    Yes, Skip
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Header / Progress */}
+            <div className="px-6 mb-8 text-center z-10 pt-8 flex flex-col items-center">
+                {/* Avatar Badge */}
+                <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 mb-6">
                     <div className="w-6 h-6 rounded-full bg-yellow-100 overflow-hidden">
                         <img src={avatarSrc} className="w-full h-full object-cover" alt="Avatar" />
                     </div>
-                    <span className="text-sm font-bold text-gray-600 truncate max-w-[200px]">{routine.title} • Step {currentStepIndex + 1}</span>
+                    <span className="text-sm font-bold text-gray-600 truncate max-w-[200px]">{routine.title}</span>
                 </div>
 
-                <div className="flex justify-center mb-6 relative">
-                    <div className="relative w-32 h-32 flex items-center justify-center">
+                {/* Progress Circle Container */}
+                <div className="relative w-48 h-48 flex items-center justify-center bg-white rounded-full shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)]">
+                    {/* SVG Ring */}
+                    <div className="absolute inset-0 p-1">
                         <svg className="w-full h-full transform -rotate-90">
-                            <circle cx="64" cy="64" r="56" stroke="#F1F5F9" strokeWidth="12" fill="none" />
+                            {/* Background Track */}
                             <circle
-                                cx="64" cy="64" r="56"
-                                stroke="#10B981" strokeWidth="12" fill="none"
+                                cx="50%" cy="50%" r="84"
+                                stroke="#F3F4F6" strokeWidth="12" fill="none"
+                            />
+                            {/* Progress Arc */}
+                            <circle
+                                cx="50%" cy="50%" r="84"
+                                stroke="#3B82F6" strokeWidth="12" fill="none"
                                 strokeLinecap="round"
-                                strokeDasharray={351.86} // 2 * PI * 56
-                                strokeDashoffset={351.86 - ((currentStepIndex / routine.steps.length) * 351.86)}
-                                className="transition-all duration-500 ease-out"
+                                strokeDasharray={527.79} // 2 * PI * 84
+                                strokeDashoffset={527.79 - (progressFraction * 527.79)}
+                                className="transition-all duration-700 ease-out"
                             />
                         </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-2xl font-black text-gray-800">
-                                {Math.round((currentStepIndex / routine.steps.length) * 100)}%
-                            </span>
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-                                {currentStepIndex} / {routine.steps.length}
-                            </span>
+                    </div>
+
+                    {/* Center Text */}
+                    <div className="flex flex-col items-center z-10">
+                        <span className="text-5xl font-black text-gray-800 tracking-tight">
+                            {Math.round(progressFraction * 100)}%
+                        </span>
+                        <span className="text-lg font-bold text-gray-400 mt-1">
+                            Complete
+                        </span>
+                        <span className="text-sm font-medium text-gray-400 mt-1">
+                            {completedStepIndices.size + 1 > routine.steps.length ? routine.steps.length : completedStepIndices.size + 1} of {routine.steps.length} steps
+                        </span>
+                    </div>
+
+                    {/* Integrated Orbital Star Badge */}
+                    <div
+                        className="absolute bg-white border-4 border-yellow-50 rounded-full w-20 h-20 flex flex-col items-center justify-center shadow-lg z-20"
+                        style={{
+                            left: badgeX,
+                            top: badgeY,
+                            transform: 'translate(-50%, -50%)',
+                            transition: 'left 0.7s ease-out, top 0.7s ease-out'
+                        }}
+                    >
+                        <div ref={starTargetRef} className="relative mb-[-2px]">
+                            <Star className="w-8 h-8 fill-yellow-400 text-yellow-400" />
+                            <div className="absolute inset-0 animate-ping opacity-20 bg-yellow-400 rounded-full"></div>
                         </div>
+                        <span className="font-black text-gray-800 text-lg leading-none">
+                            +{earnedStars}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -278,15 +633,10 @@ function RoutinePlayerContent() {
                     style={{ width: "fit-content" }}
                     drag="x"
                     dragConstraints={{ left: 0, right: 0 }}
-                    onDragEnd={(e, { offset, velocity }) => {
+                    onDragEnd={(e, { offset }) => {
                         const swipe = offset.x; // negative is left (next)
                         if (swipe < -50 && currentStepIndex < routine.steps.length - 1) {
-                            handleStepComplete(); // Use existing logic or just custom setIndex
-                            // Note: handleStepComplete actually marks it done. For pure nav, strict sliding might just setIndex.
-                            // But user said "slide horizontal" - usually implies navigation.
-                            // Let's stick to setIndex logic here to differentiate from "Completion".
-
-                            // Actually, let's just navigate for now to let them peek.
+                            // Swipe = Navigation ONLY. Do not trigger rewards/completion.
                             setCurrentStepIndex(currentStepIndex + 1);
                             playSound('select');
                         }
@@ -299,6 +649,7 @@ function RoutinePlayerContent() {
                     {routine.steps.map((stepItem, index) => {
                         const isActive = index === currentStepIndex;
                         const isPast = index < currentStepIndex;
+                        const displayStars = isActive ? activeStepRemainingStars : stepItem.stars;
 
                         return (
                             <motion.div
@@ -309,55 +660,66 @@ function RoutinePlayerContent() {
                                     if (!isActive) setCurrentStepIndex(index);
                                 }}
                             >
-                                <h2 className="text-2xl font-extrabold text-gray-800 text-center mb-2">{stepItem.title}</h2>
+                                {/* Step Stars Badge (Bigger, Top Right) */}
+                                {displayStars > 0 && (
+                                    <div
+                                        ref={isActive ? activeStepStarRef : null}
+                                        className="absolute -top-4 -right-4 w-16 h-16 bg-white border-4 border-yellow-100 rounded-full shadow-lg flex flex-col items-center justify-center transform rotate-12 z-20"
+                                    >
+                                        <Star className="w-6 h-6 fill-yellow-400 text-yellow-400 mb-[-2px]" />
+                                        <span className="text-lg font-black text-gray-800 leading-none">+{displayStars}</span>
+                                    </div>
+                                )}
+
+                                <h2 className="text-3xl font-extrabold text-gray-800 text-center mb-4 mt-2">{stepItem.title}</h2>
 
                                 <div className="flex flex-col items-center mb-6">
-                                    <p className="text-gray-500 text-xs font-bold text-center px-4 leading-relaxed mb-3 min-h-[3rem] flex items-center justify-center">
-                                        {stepItem.description || "You can do it! Follow the steps."}
-                                    </p>
+                                    {/* Description Text */}
+                                    <div className="bg-blue-50/50 rounded-2xl p-4 mb-4 w-full">
+                                        <p className="text-gray-600 text-base font-medium text-center leading-relaxed">
+                                            {stepItem.description || "You can do it! Follow the steps."}
+                                        </p>
+                                    </div>
 
-                                    {/* Audio Button - Only Active */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (isActive) toggleAudio();
-                                        }}
-                                        className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-xs font-bold transition-all border group active:scale-95 ${isActive && isAudioPlaying
-                                            ? 'bg-blue-100 text-blue-600 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.4)]'
-                                            : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'
-                                            } ${!isActive && 'opacity-0 pointer-events-none'}`}
-                                    >
-                                        {!isAudioPlaying ? (
-                                            <Volume2 className="w-4 h-4" />
-                                        ) : (
-                                            <div className="flex items-center gap-0.5 h-4">
-                                                <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-2.5 [animation-delay:0.1s]"></div>
-                                                <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-4 [animation-delay:0.2s]"></div>
-                                                <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-3 [animation-delay:0.3s]"></div>
-                                            </div>
-                                        )}
-                                        <span>{isAudioPlaying ? "Stop" : "Read"}</span>
-                                    </button>
+                                    {/* Audio Button - Only Active IF Audio Exists */}
+                                    {stepItem.audioUrl && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isActive) toggleAudio();
+                                            }}
+                                            className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-xs font-bold transition-all border group active:scale-95 ${isActive && isAudioPlaying
+                                                ? 'bg-blue-100 text-blue-600 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.4)]'
+                                                : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'
+                                                } ${!isActive && 'opacity-0 pointer-events-none'}`}
+                                        >
+                                            {!isAudioPlaying ? (
+                                                <Volume2 className="w-4 h-4" />
+                                            ) : (
+                                                <div className="flex items-center gap-0.5 h-4">
+                                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-2.5 [animation-delay:0.1s]"></div>
+                                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-4 [animation-delay:0.2s]"></div>
+                                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-3 [animation-delay:0.3s]"></div>
+                                                </div>
+                                            )}
+                                            <span>{isAudioPlaying ? "Stop" : "Listen"}</span>
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center justify-between mb-8 px-2 relative min-h-[140px]">
                                     {/* Static Icon */}
                                     <div className="w-28 h-28 relative flex items-center justify-center">
-                                        <div className="text-6xl filter drop-shadow-md transform -rotate-12">
+                                        <div className="text-7xl filter drop-shadow-md transform -rotate-12">
                                             {/* We can use RenderIcon here if available, or just emoji fallback */}
                                             {stepItem.icon?.length < 3 ? stepItem.icon : (stepItem.icon === 'toothbrush' ? '🦷' : '✨')}
                                         </div>
                                     </div>
 
-                                    {/* Timer Ring - Only Active */}
+                                    {/* Timer Ring */}
                                     <div className="relative w-32 h-32 flex items-center justify-center">
                                         {isActive ? (
                                             <>
-                                                {stepItem.stars > 0 && (
-                                                    <div className="absolute -top-6 -right-6 bg-white border border-gray-100 px-2 py-1 rounded-xl shadow-sm text-xs font-black text-gray-600 flex items-center gap-1 z-30 animate-bounce-slow whitespace-nowrap">
-                                                        +{stepItem.stars} <span className="text-yellow-400 text-sm">⭐</span>
-                                                    </div>
-                                                )}
                                                 <svg className="w-full h-full transform -rotate-90">
                                                     <circle cx="64" cy="64" r={radius} stroke="#F1F5F9" strokeWidth="8" fill="none"></circle>
                                                     <circle
@@ -376,7 +738,7 @@ function RoutinePlayerContent() {
                                                 </div>
                                             </>
                                         ) : (
-                                            /* Inactive State - just static time */
+                                            /* Inactive Timer */
                                             <div className="flex flex-col items-center justify-center opacity-50">
                                                 <span className="text-2xl font-bold text-gray-400">
                                                     {(stepItem.duration || 2)}:00
@@ -415,11 +777,45 @@ function RoutinePlayerContent() {
                 </motion.div>
             </div>
 
+            {/* FLYING STAR ANIMATION LAYER */}
+            <AnimatePresence>
+                {flyingStars.map((star) => (
+                    <motion.div
+                        key={star.id}
+                        initial={{
+                            x: star.start.x,
+                            y: star.start.y,
+                            scale: 1,
+                            opacity: 1
+                        }}
+                        animate={{
+                            x: star.end.x,
+                            y: star.end.y,
+                            scale: 0.5,
+                            rotate: 360
+                        }}
+                        exit={{ opacity: 0, scale: 0 }}
+                        transition={{
+                            duration: 0.4, // Super Fast flight
+                            ease: "backIn" // "backIn" pulls back slightly then shoots, or "easeInOut"
+                            // No delay (handled by spawn time)
+                        }}
+                        className="fixed top-0 left-0 z-[100] w-8 h-8 text-yellow-400 pointer-events-none drop-shadow-xl"
+                    >
+                        <Star className="w-full h-full fill-yellow-400 stroke-yellow-600" />
+                    </motion.div>
+                ))}
+            </AnimatePresence>
+
             {/* Footer Button */}
             <div className="px-6 w-full max-w-md mx-auto z-10">
                 <button
                     onClick={handleStepComplete}
-                    className="w-full bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-lg font-bold py-4 rounded-3xl shadow-[0_4px_0_0_#059669] transform active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2"
+                    disabled={isCompleting}
+                    className={`w-full bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-lg font-bold py-4 rounded-3xl transition-all flex items-center justify-center gap-2 ${isCompleting
+                            ? 'opacity-70 cursor-not-allowed scale-[0.98]'
+                            : 'shadow-[0_4px_0_0_#059669] transform active:translate-y-1 active:shadow-none'
+                        }`}
                 >
                     <span>I Did It! Next</span>
                     <ChevronRight className="w-6 h-6" />
@@ -428,6 +824,7 @@ function RoutinePlayerContent() {
         </main>
     );
 }
+
 
 // Export as Client-Only Component to ensure window access for sizing
 import dynamic from 'next/dynamic';
