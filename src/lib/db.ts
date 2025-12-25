@@ -70,6 +70,11 @@ export interface Activity {
     days?: DayOfWeek[]; // Used if type === 'recurring'
     date?: string; // Used if type === 'one-time' (ISO YYYY-MM-DD)
 
+    // Advanced Scheduling (Added)
+    remindMe?: string; // "At start time", "5 min before", etc.
+    flexWindow?: string; // "Anytime today", etc.
+    expires?: string; // "End of Day", etc.
+
     steps: Step[]; // Embedded JSON Array
     isActive: boolean;
     createdAt: Date;

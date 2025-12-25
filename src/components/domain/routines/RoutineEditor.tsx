@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { db, Activity, Step, Goal, GoalType } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2, Bell, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
@@ -63,6 +63,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const [time, setTime] = useState('07:30');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
+    // Advanced Scheduling
+    const [remindMe, setRemindMe] = useState('No reminder');
+    const [flexWindow, setFlexWindow] = useState('15 min before');
+    const [expires, setExpires] = useState('End of Day');
     const [steps, setSteps] = useState<Step[]>([]);
 
     // Goal Defaults
@@ -94,6 +98,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                         if (activity.days) setSelectedDays(activity.days);
                         if (activity.profileIds) setAssignedChildIds(activity.profileIds);
                         if (activity.steps) setSteps(activity.steps);
+                        // Advanced
+                        if (activity.remindMe) setRemindMe(activity.remindMe);
+                        if (activity.flexWindow) setFlexWindow(activity.flexWindow);
+                        if (activity.expires) setExpires(activity.expires);
                         setIsLoading(false);
                         return;
                     }
@@ -200,6 +208,9 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     timeOfDay: time,
                     days: editorType === 'recurring' ? (selectedDays as any) : undefined,
                     date: editorType === 'one-time' ? date : undefined,
+                    remindMe,
+                    flexWindow,
+                    expires,
                     steps: steps,
                     isActive: true,
                     createdAt: new Date()
@@ -486,6 +497,81 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                 </div>
                             </div>
                         )}
+
+                        {/* ADVANCED SCHEDULING FIELDS (Remind, Flex, Expire) */}
+                        <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+
+                            {/* Remind Me */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+                                        <Bell className="w-5 h-5 fill-current" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-700">Remind Me</p>
+                                        <p className="text-[10px] font-bold text-slate-400">Push alert</p>
+                                    </div>
+                                </div>
+                                <select
+                                    value={remindMe}
+                                    onChange={e => setRemindMe(e.target.value)}
+                                    className="text-right font-bold text-sm text-blue-600 bg-transparent outline-none cursor-pointer w-32 appearance-none active:scale-95 transition-transform"
+                                >
+                                    <option>At start time</option>
+                                    <option>5 min before</option>
+                                    <option>15 min before</option>
+                                    <option>No reminder</option>
+                                </select>
+                            </div>
+
+                            {/* Flex Window */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shadow-sm">
+                                        <Clock className="w-5 h-5 fill-current" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-700">Flex Window</p>
+                                        <p className="text-[10px] font-bold text-slate-400">Time to start</p>
+                                    </div>
+                                </div>
+                                <select
+                                    value={flexWindow}
+                                    onChange={e => setFlexWindow(e.target.value)}
+                                    className="text-right font-bold text-sm text-green-600 bg-transparent outline-none cursor-pointer w-32 appearance-none active:scale-95 transition-transform"
+                                >
+                                    <option>Anytime Today</option>
+                                    <option>15 min before</option>
+                                    <option>30 min before</option>
+                                    <option>1 Hour before</option>
+                                    <option>3 Hour before</option>
+                                </select>
+                            </div>
+
+                            {/* Expires */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shadow-sm">
+                                        <XCircle className="w-5 h-5 fill-current" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-700">Expires</p>
+                                        <p className="text-[10px] font-bold text-slate-400">Remove task</p>
+                                    </div>
+                                </div>
+                                <select
+                                    value={expires}
+                                    onChange={e => setExpires(e.target.value)}
+                                    className="text-right font-bold text-sm text-red-500 bg-transparent outline-none cursor-pointer w-32 appearance-none active:scale-95 transition-transform"
+                                >
+                                    <option>End of Day</option>
+                                    <option>1 Hour later</option>
+                                    <option>2 Hours later</option>
+                                    <option>Never</option>
+                                </select>
+                            </div>
+
+                        </div>
                     </div>
                 )}
 
