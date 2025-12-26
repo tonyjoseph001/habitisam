@@ -693,7 +693,7 @@ export default function MissionControlPage() {
                         <div className="p-1.5 bg-purple-100 rounded-full text-purple-500">
                             <Clock className="w-4 h-4" />
                         </div>
-                        <h2 className="text-lg font-bold text-gray-800">Today's Task ({assignedTasks.length})</h2>
+                        <h2 className="text-lg font-bold text-gray-800">Today's Tasks ({assignedTasks.length})</h2>
                     </div>
 
                     <div className="space-y-6">
