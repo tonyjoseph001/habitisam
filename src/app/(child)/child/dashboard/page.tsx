@@ -672,7 +672,7 @@ export default function MissionControlPage() {
                                     <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
                                         <button className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-orange-200 active:scale-95 transition-all flex items-center justify-center gap-2">
                                             <Play className="w-5 h-5 fill-current" />
-                                            START TASK
+                                            Start
                                         </button>
                                     </Link>
                                 );
