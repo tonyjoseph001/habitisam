@@ -55,9 +55,16 @@ export default function GiveStarsPage() {
         }
 
         try {
-            // Atomic Update using modify to ensure we don't overwrite with stale data
-            await db.profiles.where('id').equals(selectedChildId).modify(profile => {
-                profile.stars = (profile.stars || 0) + amount;
+            // Create Inbox Reward (Pending Claim)
+            await db.inboxRewards.add({
+                id: crypto.randomUUID(),
+                accountId: selectedChild?.accountId || 'unknown',
+                profileId: selectedChildId,
+                amount: amount,
+                message: customReason || selectedReason || "Great job!",
+                senderName: "Parent",
+                status: 'pending',
+                createdAt: new Date()
             });
 
             // Log Activity (Optional but good for history)
@@ -282,12 +289,12 @@ export default function GiveStarsPage() {
                             <div className="text-8xl mb-4 animate-bounce">⭐</div>
                             <h2 className="text-4xl font-black text-white mb-2">Sent!</h2>
                             <p className="text-slate-300 font-bold text-xl">
-                                {selectedChild?.name} received {amount} Stars
+                                {selectedChild?.name} has a gift waiting!
                             </p>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }

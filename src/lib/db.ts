@@ -150,6 +150,21 @@ export interface PurchaseLog {
 }
 
 // ==========================================
+// NEW: Inbox Rewards (Pending Gifts)
+// ==========================================
+export interface InboxReward {
+    id: string; // UUID
+    accountId: string; // FK
+    profileId: string; // FK: Recipient
+    amount: number; // Star amount
+    message?: string; // "Great job on math!"
+    senderName?: string; // "Dad" or "Mom"
+    status: 'pending' | 'claimed';
+    createdAt: Date;
+    claimedAt?: Date;
+}
+
+// ==========================================
 // NEW: Goals / Quests
 // ==========================================
 export type GoalType = 'checklist' | 'slider' | 'counter' | 'timer' | 'savings' | 'binary';
@@ -192,6 +207,7 @@ interface HabitisimDB extends Dexie {
     activityLogs: EntityTable<ActivityLog, 'id'>;
     rewards: EntityTable<Reward, 'id'>;
     purchaseLogs: EntityTable<PurchaseLog, 'id'>;
+    inboxRewards: EntityTable<InboxReward, 'id'>; // <-- NEW TABLE
     goals: EntityTable<Goal, 'id'>;
 }
 
@@ -209,6 +225,7 @@ db.version(1).stores({
     activityLogs: 'id, accountId, [profileId+date], activityId',
     rewards: 'id, accountId',
     purchaseLogs: 'id, accountId, profileId, purchasedAt',
+    inboxRewards: 'id, accountId, profileId, status', // <-- NEW INDEX
     goals: 'id, accountId, profileId, type, status'
 });
 
@@ -230,6 +247,10 @@ db.goals.hook('creating', function (primKey, obj, trans) {
     obj.createdAt = new Date();
     if (!obj.status) obj.status = 'active';
     if (!obj.current) obj.current = 0;
+});
+db.inboxRewards.hook('creating', function (primKey, obj, trans) {
+    obj.createdAt = new Date();
+    if (!obj.status) obj.status = 'pending';
 });
 
 export { db };

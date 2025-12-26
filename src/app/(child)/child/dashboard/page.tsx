@@ -77,12 +77,20 @@ export default function MissionControlPage() {
             })
             .toArray();
 
-        return { routines: myRoutines, logs: myLogs, rewards };
+        // Fetch Pending Inbox Rewards
+        const inboxRewards = await db.inboxRewards
+            .where('profileId')
+            .equals(activeProfile.id)
+            .filter(r => r.status === 'pending')
+            .toArray();
+
+        return { routines: myRoutines, logs: myLogs, rewards, inboxRewards };
     }, [activeProfile?.id]);
 
     const routines = data?.routines || [];
     const logs = data?.logs || [];
     const rewards = data?.rewards || [];
+    const inboxRewards = data?.inboxRewards || [];
     const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
     const completedLogMap = new Map(logs.filter(l => l.status === 'completed').map(l => [l.activityId, l]));
 
@@ -250,6 +258,32 @@ export default function MissionControlPage() {
         if (!activeProfile) return;
         await db.profiles.update(activeProfile.id, { activeStamp: stampId });
         setIsStampModalOpen(false);
+    };
+
+    // Claim Reward Handler
+    const handleClaimReward = async (reward: any) => {
+        if (!activeProfile) return;
+        try {
+            // 1. Mark as Claimed
+            await db.inboxRewards.update(reward.id, {
+                status: 'claimed',
+                claimedAt: new Date()
+            });
+
+            // 2. Add Stars
+            await db.profiles.update(activeProfile.id, {
+                stars: (activeProfile.stars || 0) + reward.amount
+            });
+
+            // 3. Animation/Toast
+            toast.success("Reward Claimed!", {
+                description: `You got ${reward.amount} Stars!`,
+                icon: '🎁',
+                duration: 4000
+            });
+        } catch (e) {
+            console.error("Claim error", e);
+        }
     };
 
     const toggleExpand = (id: string) => {
@@ -526,6 +560,60 @@ export default function MissionControlPage() {
                         </div>
                         <h2 className="text-lg font-bold text-gray-800">Upcoming Task</h2>
                     </div>
+
+                    {/* PENDING REWARDS STACK (New) */}
+                    {inboxRewards.length > 0 && (
+                        <div className="mb-8 relative h-[200px] w-full">
+                            <AnimatePresence>
+                                {inboxRewards.map((reward: any, index: number) => {
+                                    // Show max 3 cards visually
+                                    if (index > 2) return null;
+
+                                    return (
+                                        <motion.div
+                                            key={reward.id}
+                                            initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                                            animate={{
+                                                scale: 1 - (index * 0.05),
+                                                y: index * 10,
+                                                zIndex: 30 - index,
+                                                opacity: 1
+                                            }}
+                                            exit={{ scale: 1.1, opacity: 0, rotate: 10 }}
+                                            className="absolute inset-x-0 bg-gradient-to-br from-pink-400 to-rose-400 rounded-[2rem] p-5 shadow-lg shadow-pink-200 text-white flex flex-col items-center text-center border-2 border-white/20"
+                                            style={{ top: 0 }}
+                                        >
+                                            <div className="bg-white/20 p-3 rounded-full mb-2 backdrop-blur-sm border border-white/10">
+                                                <Gift className="w-8 h-8 text-white fill-white/20" />
+                                            </div>
+
+                                            <h3 className="font-extrabold text-xl mb-1">A Gift for You!</h3>
+                                            <p className="text-pink-100 text-sm font-medium mb-4 line-clamp-2">
+                                                {reward.message || "Great work keeping up with your tasks!"}
+                                            </p>
+
+                                            <div className="mt-auto w-full">
+                                                <button
+                                                    onClick={() => handleClaimReward(reward)}
+                                                    className="w-full bg-white text-pink-500 font-extrabold py-3 rounded-xl shadow-lg shadow-pink-900/10 hover:bg-pink-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <Star className="w-4 h-4 fill-pink-500" />
+                                                    Claim {reward.amount} Stars
+                                                </button>
+                                            </div>
+
+                                            {/* Stack Indicator */}
+                                            {inboxRewards.length > 1 && index === 0 && (
+                                                <div className="absolute top-4 right-4 bg-black/20 px-2 py-0.5 rounded-lg text-[10px] font-bold">
+                                                    +{inboxRewards.length - 1} more
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    );
+                                })}
+                            </AnimatePresence>
+                        </div>
+                    )}
 
                     {upNextRoutine ? (
                         <div className="bg-[#FFF8E7] rounded-[2rem] p-5 border-2 border-[#FFE4BC] shadow-sm relative overflow-hidden group">
