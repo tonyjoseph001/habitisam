@@ -159,11 +159,8 @@ export default function MissionControlPage() {
         return 'active';
     };
 
-    // Filter routines based on Expiration logic (Don't show expired tasks)
-    const visibleRoutines = routines.filter(r => {
-        const s = getTaskStatus(r);
-        return s !== 'expired';
-    });
+    // Expose all routines so "Missed/Expired" tasks can be shown
+    const visibleRoutines = routines;
 
     // Expiration Check Effect
     useEffect(() => {
@@ -753,6 +750,13 @@ export default function MissionControlPage() {
                                                             }
                                                         </div>
                                                         <div className="flex-1 min-w-0">
+                                                            <div className="mb-1 flex items-center gap-2">
+                                                                {status === 'active' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Active</span>}
+                                                                {status === 'overdue' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">Overdue</span>}
+                                                                {status === 'locked' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">Locked</span>}
+                                                                {status === 'expired' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-500 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">Missed</span>}
+                                                                {status === 'completed' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">Completed</span>}
+                                                            </div>
                                                             <h4 className={`font-bold text-lg truncate ${status === 'completed' ? 'text-green-800 line-through' : 'text-slate-800'}`}>{task.title}</h4>
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 {status === 'completed' ? (
