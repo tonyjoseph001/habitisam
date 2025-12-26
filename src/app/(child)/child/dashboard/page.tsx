@@ -736,6 +736,12 @@ export default function MissionControlPage() {
                                                     className={`block relative group rounded-3xl border-2 border-black/5 transition-all overflow-hidden shadow-sm ${theme.opacity}`}
                                                     style={{ backgroundColor: theme.hexBg }}
                                                 >
+                                                    {/* Status Badge */}
+                                                    {status === 'active' && <div className="absolute top-0 right-0 bg-blue-100 text-blue-600 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">ACTIVE</div>}
+                                                    {status === 'overdue' && <div className="absolute top-0 right-0 bg-orange-100 text-orange-600 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">OVERDUE</div>}
+                                                    {status === 'locked' && <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">LOCKED</div>}
+                                                    {status === 'expired' && <div className="absolute top-0 right-0 bg-red-100 text-red-600 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">MISSED</div>}
+                                                    {status === 'completed' && <div className="absolute top-0 right-0 bg-green-100 text-green-600 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">COMPLETED</div>}
                                                     <div
                                                         onClick={() => toggleExpand(task.id)}
                                                         className="relative z-10 p-4 flex items-center gap-4 cursor-pointer"
@@ -750,13 +756,6 @@ export default function MissionControlPage() {
                                                             }
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="mb-1 flex items-center gap-2">
-                                                                {status === 'active' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Active</span>}
-                                                                {status === 'overdue' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">Overdue</span>}
-                                                                {status === 'locked' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">Locked</span>}
-                                                                {status === 'expired' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-500 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">Missed</span>}
-                                                                {status === 'completed' && <span className="text-[10px] font-extrabold uppercase tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-md border border-green-100">Completed</span>}
-                                                            </div>
                                                             <h4 className={`font-bold text-lg truncate ${status === 'completed' ? 'text-green-800 line-through' : 'text-slate-800'}`}>{task.title}</h4>
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 {status === 'completed' ? (
@@ -779,16 +778,15 @@ export default function MissionControlPage() {
                                                                                 <span>{totalDuration}m</span>
                                                                             </div>
                                                                         )}
+                                                                        <div className="flex items-center gap-1.5 text-yellow-600 font-bold text-xs bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                                                                            <span>⭐ +{task.steps?.reduce((a: number, b: any) => a + (b.stars || 0), 0) || 0}</span>
+                                                                        </div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1">
-                                                            {status !== 'completed' && (
-                                                                <div className="flex items-center gap-1 text-yellow-600 font-bold text-xs bg-yellow-50 px-2 py-1 rounded-md mb-1">
-                                                                    <span>⭐ +{task.steps?.reduce((a: number, b: any) => a + (b.stars || 0), 0) || 0}</span>
-                                                                </div>
-                                                            )}
+
 
                                                             {status !== 'completed' && (
                                                                 <div className="text-gray-300">
