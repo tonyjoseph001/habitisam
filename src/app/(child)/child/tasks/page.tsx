@@ -13,10 +13,8 @@ import { cn } from '@/lib/utils';
 
 // Simple Icon Mapper
 const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
-    // Default fallback
     if (!name) return <Sparkles className={className} />;
 
-    // Check if it's one of our known icons
     const icons: Record<string, React.FC<any>> = {
         'Sun': Sun,
         'Moon': Moon,
@@ -33,12 +31,18 @@ const DynamicIcon = ({ name, className }: { name?: string; className?: string })
 
     const IconComponent = icons[name] || icons[Object.keys(icons).find(k => k.toLowerCase() === name.toLowerCase()) || ''] || Sparkles;
 
-    // If name is an emoji (simple length check or regex), render text
     if (/\p{Emoji}/u.test(name)) {
         return <span className={cn("text-2xl", className)}>{name}</span>;
     }
 
     return <IconComponent className={className} />;
+};
+
+const TIME_PALETTES = {
+    morning: { bg: '#ff9f1c', light: '#fff4e6', dark: '#e68a00' },
+    afternoon: { bg: '#1982c4', light: '#d6eaf8', dark: '#1668a0' },
+    evening: { bg: '#6a4c93', light: '#e8dff5', dark: '#563d7c' },
+    any_time: { bg: '#8ac926', light: '#e8f5d6', dark: '#7ab51d' }
 };
 
 export default function ChildTasksPage() {
@@ -52,10 +56,9 @@ export default function ChildTasksPage() {
         setMounted(true);
     }, []);
 
-    // Calculate calendar days centered around TODAY
     const calendarDays = useMemo(() => {
         const today = new Date();
-        const start = addDays(today, -2); // Start 2 days ago
+        const start = addDays(today, -2);
         return Array.from({ length: 5 }, (_, i) => {
             const d = addDays(start, i);
             return {
@@ -82,10 +85,7 @@ export default function ChildTasksPage() {
             .where('profileId').equals(activeProfile.id)
             .toArray();
 
-        // Filter logs for the SELECTED date
         const dateLogs = allLogs.filter(log => isSameDay(new Date(log.date), selectedDate));
-
-        // Separate rewards from task logs for cleaner counting
         const rewards = dateLogs.filter(l => l.activityId === 'manual_reward');
         const taskLogs = dateLogs.filter(l => l.activityId !== 'manual_reward');
 
@@ -97,7 +97,6 @@ export default function ChildTasksPage() {
     const { routines, logs, rewards } = data;
 
     const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
-    // Count real tasks + rewards as 'completed' items? Or just keep tasks.
     const completedCount = completedTaskIds.size + (rewards?.length || 0);
 
     const getTimeCategory = (timeStr?: string) => {
@@ -125,7 +124,6 @@ export default function ChildTasksPage() {
 
     const currentDayOfWeek = selectedDate.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-    // Filter routines for the SELECTED date
     const todaysRoutines = routines.filter(r => {
         if (r.type === 'recurring') {
             return r.days?.includes(currentDayOfWeek);
@@ -148,16 +146,21 @@ export default function ChildTasksPage() {
         setExpandedTaskId(prev => prev === taskId ? null : taskId);
     };
 
-    const renderTaskList = (tasks: typeof routines, sectionTitle: string, icon: string) => {
+    const renderTaskList = (tasks: typeof routines, sectionTitle: string, icon: string, timeKey: keyof typeof TIME_PALETTES) => {
         if (tasks.length === 0) return null;
 
+        const palette = TIME_PALETTES[timeKey];
+
         return (
-            <div>
-                <h3 className="text-sm font-extrabold text-gray-400 flex items-center gap-2 mb-3">
-                    <span className="text-lg">{icon}</span> {sectionTitle}
-                </h3>
-                <div className="space-y-3">
-                    {tasks.map(task => {
+            <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4 ml-1">
+                    <div className="p-1.5 rounded-full" style={{ backgroundColor: palette.light, color: palette.dark }}>
+                        <span className="text-lg">{icon}</span>
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-800">{sectionTitle} ({tasks.length})</h2>
+                </div>
+                <div className="space-y-4">
+                    {tasks.map((task, index) => {
                         const isCompleted = completedTaskIds.has(task.id);
                         const totalStars = task.steps?.reduce((acc, step) => acc + (step.stars || 0), 0) || 0;
                         const formattedTime = formatTimeById(task.timeOfDay);
@@ -166,107 +169,86 @@ export default function ChildTasksPage() {
                         return (
                             <div
                                 key={task.id}
-                                className={cn(
-                                    "bg-white rounded-3xl shadow-soft border-2 transition-all overflow-hidden relative",
-                                    isCompleted
-                                        ? "border-gray-100 opacity-60 grayscale-[0.3]"
-                                        : sectionTitle === 'Morning' ? "border-green-100 hover:border-green-200"
-                                            : sectionTitle === 'Afternoon' ? "border-blue-100 hover:border-blue-200"
-                                                : "border-purple-100 hover:border-purple-200",
-                                    isExpanded
-                                        ? sectionTitle === 'Morning' ? "ring-2 ring-green-100 ring-offset-2"
-                                            : sectionTitle === 'Afternoon' ? "ring-2 ring-blue-100 ring-offset-2"
-                                                : "ring-2 ring-purple-100 ring-offset-2"
-                                        : ""
-                                )}
+                                className="rounded-[2rem] p-4 shadow-lg relative group overflow-hidden transition-all"
+                                style={{ background: palette.bg }}
                             >
-                                {/* Main Task Card Header */}
-                                <div
-                                    onClick={() => !isCompleted && toggleExpand(task.id)}
-                                    className={cn(
-                                        "p-3 flex items-center gap-3 cursor-pointer",
-                                        isCompleted && "cursor-default"
-                                    )}
-                                >
-                                    {/* Color Stripe based on Category/Time */}
-                                    <div className={cn(
-                                        "absolute left-0 top-0 bottom-0 w-1.5",
-                                        sectionTitle === 'Morning' ? "bg-green-400" :
-                                            sectionTitle === 'Afternoon' ? "bg-blue-400" :
-                                                "bg-purple-400"
-                                    )}></div>
+                                {/* Glossy Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
 
-                                    <div className={cn(
-                                        "w-14 h-14 rounded-2xl flex items-center justify-center text-2xl pl-1 shrink-0 active:scale-95 transition-transform cursor-pointer",
-                                        sectionTitle === 'Morning' ? "bg-green-50 text-green-500" :
-                                            sectionTitle === 'Afternoon' ? "bg-blue-50 text-blue-500" :
-                                                "bg-purple-50 text-purple-500"
-                                    )}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            router.push(`/child/routine/${task.id}`);
-                                        }}
+                                {/* Completed Overlay */}
+                                {isCompleted && (
+                                    <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]"></div>
+                                )}
+
+                                <div className="relative z-10">
+                                    <div
+                                        onClick={() => !isCompleted && toggleExpand(task.id)}
+                                        className={cn("flex items-center gap-3", !isCompleted && "cursor-pointer")}
                                     >
-                                        <DynamicIcon name={task.icon} className="w-8 h-8" />
-                                    </div>
+                                        {/* Icon */}
+                                        <div
+                                            className="w-16 h-16 bg-white/30 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shrink-0 active:scale-95 transition-transform cursor-pointer"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                router.push(`/child/routine/${task.id}`);
+                                            }}
+                                        >
+                                            <DynamicIcon name={task.icon} className="w-8 h-8 text-white drop-shadow-md" />
+                                        </div>
 
-                                    <div className="flex-1 pl-1 min-w-0">
-                                        <h4 className={cn(
-                                            "font-bold text-gray-800 truncate",
-                                            isCompleted && "line-through decoration-2 decoration-green-500"
-                                        )}>
-                                            {task.title}
-                                        </h4>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className={cn(
-                                                "text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-500"
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={cn(
+                                                "font-black text-white text-base leading-tight drop-shadow-md",
+                                                isCompleted && "line-through opacity-70"
                                             )}>
-                                                {formattedTime || sectionTitle}
-                                            </span>
-                                            {totalStars > 0 && !isCompleted && (
-                                                <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded flex items-center gap-1">
-                                                    ⭐ +{totalStars}
-                                                </span>
-                                            )}
+                                                {task.title}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                {formattedTime && (
+                                                    <span className="text-xs font-bold px-2 py-1 rounded-lg bg-white/20 text-white backdrop-blur-sm border border-white/10">
+                                                        🕐 {formattedTime}
+                                                    </span>
+                                                )}
+                                                {totalStars > 0 && !isCompleted && (
+                                                    <span className="text-xs font-bold px-2 py-1 rounded-lg bg-white/30 text-white backdrop-blur-sm border border-white/10">
+                                                        ⭐ +{totalStars}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
+
+                                        {/* Status */}
+                                        {isCompleted ? (
+                                            <div className="bg-white/90 text-green-600 w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg">
+                                                <Check className="w-7 h-7" strokeWidth={3} />
+                                            </div>
+                                        ) : (
+                                            <div className="w-10 h-10 flex items-center justify-center text-white/60">
+                                                {isExpanded ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {/* Status Icon - Replaces Play Button */}
-                                    {isCompleted ? (
-                                        <div className="bg-green-100 text-green-600 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-green-200">
-                                            <Check className="w-6 h-6" strokeWidth={3} />
-                                        </div>
-                                    ) : (
-                                        <div className="w-8 h-8 flex items-center justify-center text-gray-300">
-                                            {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                                    {/* Expanded Steps */}
+                                    {!isCompleted && isExpanded && task.steps && task.steps.length > 0 && (
+                                        <div className="mt-4 space-y-2 pt-4 border-t border-white/20">
+                                            {task.steps.map((step, idx) => (
+                                                <div key={idx} className="flex items-center gap-3 bg-white/20 backdrop-blur-md p-3 rounded-xl border border-white/10">
+                                                    <div className="w-7 h-7 flex items-center justify-center bg-white/30 rounded-full text-xs font-black text-white">
+                                                        {idx + 1}
+                                                    </div>
+                                                    <span className="flex-1 text-sm font-bold text-white truncate">{step.title}</span>
+                                                    {step.stars > 0 && (
+                                                        <span className="text-xs font-bold text-white bg-white/20 px-2 py-1 rounded-lg">
+                                                            ⭐ {step.stars}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Expanded Content (Steps) */}
-                                {!isCompleted && isExpanded && (
-                                    <div className="px-4 pb-4 pt-1 bg-gray-50/50 border-t border-gray-100">
-                                        {task.steps?.length > 0 ? (
-                                            <div className="space-y-2 mt-2">
-                                                {task.steps.map((step, idx) => (
-                                                    <div key={idx} className="flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-100 text-sm">
-                                                        <div className="w-6 h-6 flex items-center justify-center bg-gray-100 rounded-full text-[10px] font-bold text-gray-500">
-                                                            {idx + 1}
-                                                        </div>
-                                                        <span className="flex-1 text-gray-700 font-medium truncate">{step.title}</span>
-                                                        {step.stars > 0 && (
-                                                            <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
-                                                                ⭐ {step.stars}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-gray-400 italic text-center py-2">No specific steps defined.</p>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
@@ -280,48 +262,73 @@ export default function ChildTasksPage() {
 
             <ChildHeader />
 
-            <div className="px-5 pt-2 pb-2 bg-white rounded-b-[2.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] sticky top-0 z-20">
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-2xl font-extrabold text-gray-800">My Tasks</h1>
+            <div className="px-5 pt-2 pb-4">
+                {/* Premium Progress Card */}
+                <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
+                    {/* Dark Gradient Background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-600 via-red-600 to-pink-700"></div>
+
+                    {/* Shimmer Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-[shimmer_3s_infinite]"></div>
+
+                    {/* Floating Decorations */}
+                    <div className="absolute top-4 right-4 text-3xl animate-[float_3s_ease-in-out_infinite]">🎯</div>
+                    <div className="absolute bottom-6 right-8 text-2xl animate-[float_3.5s_ease-in-out_infinite] opacity-70">✨</div>
+
+                    <style jsx>{`
+                        @keyframes shimmer {
+                            0% { transform: translateX(-150%) skewX(-12deg); }
+                            100% { transform: translateX(150%) skewX(-12deg); }
+                        }
+                        @keyframes float {
+                            0%, 100% { transform: translateY(0px); }
+                            50% { transform: translateY(-10px); }
+                        }
+                    `}</style>
+
+                    <div className="relative z-10 p-6 text-white">
+                        <p className="text-xs font-bold text-white/80 uppercase tracking-widest mb-2">
+                            {isSameDay(selectedDate, new Date()) ? 'Today\'s Progress' : `${format(selectedDate, 'MMM d')} Progress`}
+                        </p>
+                        <div className="flex items-baseline gap-2 mb-4">
+                            <h1 className="text-5xl font-black tracking-tight drop-shadow-lg">{completedCount}</h1>
+                            <span className="text-2xl font-bold text-white/80">/ {totalTasks}</span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="bg-black/20 backdrop-blur-md rounded-full h-4 overflow-hidden border border-white/10">
+                            <div
+                                className="h-full bg-gradient-to-r from-yellow-300 to-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.6)] transition-all duration-1000"
+                                style={{ width: `${progressPercent}%` }}
+                            ></div>
+                        </div>
+
+                        {totalTasks > 0 && completedCount === totalTasks && (
+                            <div className="mt-3 flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-xl px-3 py-2 border border-white/10">
+                                <span className="text-lg">🎁</span>
+                                <span className="text-sm font-bold">Bonus +50 Stars!</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 mb-2">
-                    <div className="flex justify-between items-end mb-2">
-                        <div>
-                            <p className="text-xs font-bold text-orange-400 uppercase tracking-wide">
-                                {isSameDay(selectedDate, new Date()) ? 'Daily Goal' : `Goal for ${format(selectedDate, 'MMM d')}`}
-                            </p>
-                            <h2 className="text-lg font-extrabold text-gray-800">{completedCount} of {totalTasks} Completed</h2>
-                        </div>
-                        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg shadow-sm border border-orange-100">
-                            <span className="text-sm">🎁</span>
-                            <span className="text-xs font-bold text-gray-500">Bonus +50</span>
-                        </div>
-                    </div>
-                    <div className="h-3 w-full bg-white rounded-full overflow-hidden shadow-inner">
-                        <div
-                            className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full shadow-[0_0_15px_rgba(255,159,28,0.3)] transition-all duration-1000 ease-out"
-                            style={{ width: `${progressPercent}%` }}
-                        ></div>
-                    </div>
-                </div>
-
-                <div className="flex justify-between items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-none">
+                {/* Calendar Selector */}
+                <div className="flex justify-between items-center gap-2 mb-6">
                     {calendarDays.map((d, i) => (
                         <button
                             key={i}
                             onClick={() => setSelectedDate(d.dayObj)}
                             className={cn(
-                                "flex flex-col items-center justify-center min-w-[50px] h-16 rounded-2xl transition-all cursor-pointer",
+                                "flex-1 flex flex-col items-center justify-center h-20 rounded-2xl transition-all font-bold shadow-md",
                                 d.isSelected
-                                    ? "bg-[#FF9F1C] text-white shadow-lg transform scale-105"
-                                    : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+                                    ? "bg-gradient-to-br from-orange-500 to-pink-500 text-white scale-105 shadow-lg"
+                                    : "bg-white text-gray-600 hover:bg-gray-50"
                             )}
                         >
-                            <span className={cn("text-[10px] font-bold", d.isSelected ? "opacity-80" : "text-gray-400")}>
+                            <span className={cn("text-[10px] uppercase tracking-wider", d.isSelected ? "text-white/80" : "text-gray-400")}>
                                 {d.isToday ? 'TODAY' : d.dayLabel}
                             </span>
-                            <span className="text-lg font-bold">{d.dateLabel}</span>
+                            <span className="text-2xl font-black mt-1">{d.dateLabel}</span>
                         </button>
                     ))}
                 </div>
@@ -329,31 +336,28 @@ export default function ChildTasksPage() {
 
             {/* Rewards Section */}
             {rewards && rewards.length > 0 && (
-                <div className="px-5 mt-6 mb-8">
-                    <h3 className="text-sm font-black text-yellow-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        Rewards & Achievements
-                    </h3>
+                <div className="px-5 mb-8">
+                    <div className="flex items-center gap-2 mb-4 ml-1">
+                        <div className="p-1.5 bg-yellow-100 rounded-full text-yellow-600">
+                            <Sparkles className="w-4 h-4" />
+                        </div>
+                        <h2 className="text-lg font-bold text-gray-800">Rewards & Achievements ({rewards.length})</h2>
+                    </div>
                     <div className="space-y-3">
                         {rewards.map(reward => (
-                            <div key={reward.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-2xl shadow-sm">
+                            <div key={reward.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 shadow-md border border-yellow-100 flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-3xl shadow-sm">
                                     ⭐
                                 </div>
                                 <div className="flex-1">
-                                    <div className="flex justify-between items-start">
-                                        <h4 className="font-bold text-slate-800">
-                                            {(reward.metadata as any)?.reason || "Reward Received"}
-                                        </h4>
-                                        <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full">
-                                            {format(new Date(reward.date), 'h:mm a')}
-                                        </span>
-                                    </div>
+                                    <h4 className="font-bold text-slate-800">
+                                        {(reward.metadata as any)?.reason || "Reward Received"}
+                                    </h4>
                                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                        Great job!
+                                        {format(new Date(reward.date), 'h:mm a')}
                                     </p>
                                 </div>
-                                <div className="font-black text-xl text-yellow-500">
+                                <div className="font-black text-2xl text-yellow-500">
                                     +{reward.starsEarned}
                                 </div>
                             </div>
@@ -362,28 +366,23 @@ export default function ChildTasksPage() {
                 </div>
             )}
 
-            <div className="px-5 space-y-8 pb-24">
-                {morningTasks.length === 0 && afternoonTasks.length === 0 && eveningTasks.length === 0 && anyTimeTasks.length === 0 && (
-                    <div className="text-center py-10 opacity-50">
-                        <p className="font-bold text-gray-400">No tasks assigned for {isSameDay(selectedDate, new Date()) ? 'today' : format(selectedDate, 'EEE, MMM d')}!</p>
+            {/* Task Lists */}
+            <div className="px-5">
+                {totalTasks === 0 ? (
+                    <div className="text-center py-16">
+                        <div className="text-6xl mb-4">📋</div>
+                        <p className="font-bold text-gray-400">No tasks for {isSameDay(selectedDate, new Date()) ? 'today' : format(selectedDate, 'EEE, MMM d')}!</p>
+                        <p className="text-sm text-gray-400 mt-2">Enjoy your free time! ✨</p>
                     </div>
+                ) : (
+                    <>
+                        {renderTaskList(morningTasks, 'Morning', '🌅', 'morning')}
+                        {renderTaskList(afternoonTasks, 'Afternoon', '☀️', 'afternoon')}
+                        {renderTaskList(eveningTasks, 'Evening', '🌙', 'evening')}
+                        {renderTaskList(anyTimeTasks, 'Any Time', '✨', 'any_time')}
+                    </>
                 )}
-
-                {renderTaskList(morningTasks, 'Morning', '🌅')}
-                {renderTaskList(afternoonTasks, 'Afternoon', '☀️')}
-                {renderTaskList(eveningTasks, 'Evening', '🌙')}
-                {renderTaskList(anyTimeTasks, 'Any Time', '✨')}
             </div>
-
-            <style jsx global>{`
-                .scrollbar-none::-webkit-scrollbar {
-                    display: none;
-                }
-                .scrollbar-none {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-            `}</style>
         </div>
     );
 }

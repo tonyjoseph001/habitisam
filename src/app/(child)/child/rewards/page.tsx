@@ -129,29 +129,33 @@ export default function ChildShopPage() {
                 <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl mb-6 group">
                     {/* Animated Gradient Background - Darker Colors */}
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-700 via-indigo-800 to-slate-900"></div>
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBfiWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
 
                     {/* Shimmer Effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-[shimmer_3s_infinite]"></div>
+
+                    {/* Floating Stars Decoration */}
+                    <div className="absolute top-4 right-4 text-4xl animate-[float_3s_ease-in-out_infinite]">⭐</div>
+                    <div className="absolute top-12 right-16 text-2xl animate-[float_4s_ease-in-out_infinite] opacity-60">✨</div>
+                    <div className="absolute bottom-6 right-8 text-3xl animate-[float_3.5s_ease-in-out_infinite] opacity-80">💎</div>
 
                     <style jsx>{`
                         @keyframes shimmer {
                             0% { transform: translateX(-150%) skewX(-12deg); }
                             100% { transform: translateX(150%) skewX(-12deg); }
                         }
+                        @keyframes float {
+                            0%, 100% { transform: translateY(0px); }
+                            50% { transform: translateY(-10px); }
+                        }
                     `}</style>
 
                     <div className="relative z-10 p-8 text-white">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm font-bold text-white/80 uppercase tracking-widest mb-3">Star Wallet</p>
-                                <div className="flex items-baseline gap-3">
-                                    <h1 className="text-7xl font-black tracking-tight drop-shadow-lg">{balance.toLocaleString()}</h1>
-                                    <span className="text-4xl">⭐</span>
-                                </div>
-                            </div>
-                            <div className="w-20 h-20 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/30 shadow-xl">
-                                <ShoppingBag className="w-10 h-10 text-white" />
+                        <div>
+                            <p className="text-sm font-bold text-white/80 uppercase tracking-widest mb-3">Star Wallet</p>
+                            <div className="flex items-baseline gap-2">
+                                <h1 className="text-5xl font-black tracking-tight drop-shadow-lg">{balance.toLocaleString()}</h1>
+                                <span className="text-2xl">⭐</span>
                             </div>
                         </div>
                     </div>
