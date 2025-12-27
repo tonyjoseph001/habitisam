@@ -116,7 +116,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                         setGoalType(goal.type);
                         setTarget(goal.target);
                         if (goal.unit) setUnit(goal.unit);
-                        if (goal.checklist) setGoalChecklistItems(goal.checklist);
+                        if (goal.checklist) setGoalChecklistItems(goal.checklist.map(item => typeof item === 'string' ? item : item.text));
                         if (goal.dueDate) setDueDate(goal.dueDate);
                         setGoalRewardStars(goal.stars);
                         setAssignedChildIds([goal.profileId]);
@@ -183,7 +183,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                         stars: goalRewardStars,
                         icon: icon,
                         dueDate: dueDate || undefined,
-                        checklist: goalType === 'checklist' ? goalChecklistItems : undefined,
+                        checklist: goalType === 'checklist' ? goalChecklistItems.map(text => ({ text, completed: false })) : undefined,
                         status: 'active',
                         createdAt: new Date()
                     };

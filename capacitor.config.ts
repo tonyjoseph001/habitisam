@@ -1,9 +1,12 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.habitisim.app',
-  appName: 'Habitisim',
-  webDir: 'out'
+  appId: 'com.bigdatabytes.habitisam',
+  appName: 'Habitisam',
+  webDir: 'out',
+  server: {
+    androidScheme: 'https'
+  }
 };
 
 export default config;
