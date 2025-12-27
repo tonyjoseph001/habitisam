@@ -6,6 +6,9 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface ParentHeaderProps {
     title: string | React.ReactNode;
@@ -14,8 +17,26 @@ interface ParentHeaderProps {
 
 export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
     const router = useRouter();
+    const { user } = useAuth();
     const { activeProfile } = useSessionStore();
     const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+
+    const accountId = user?.uid || activeProfile?.accountId;
+
+    // Count pending notifications
+    const notificationCount = useLiveQuery(async () => {
+        if (!accountId) return 0;
+
+        const pendingGoals = await db.goals.where('status').equals('pending_approval').count();
+        const pendingPurchases = await db.purchaseLogs.where({ accountId, status: 'pending' }).count();
+        const unseenCompletions = await db.activityLogs
+            .where('accountId')
+            .equals(accountId)
+            .filter(log => log.status === 'completed' && !log.seenByParent)
+            .count();
+
+        return pendingGoals + pendingPurchases + unseenCompletions;
+    }, [accountId]);
 
     return (
         <>
@@ -46,11 +67,17 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2">
-                    {/* Notification Bell (Visual Only for now) */}
-                    <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-full relative">
+                    {/* Notification Bell */}
+                    <Link href="/parent/notifications" className="p-2 text-slate-400 hover:bg-slate-50 rounded-full relative">
                         <Bell className="w-5 h-5" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                    </button>
+                        {notificationCount && notificationCount > 0 ? (
+                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                {notificationCount > 9 ? '9+' : notificationCount}
+                            </span>
+                        ) : (
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                        )}
+                    </Link>
 
                     {/* Custom Right Action or Default Settings */}
                     {rightAction ? (

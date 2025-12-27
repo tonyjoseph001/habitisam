@@ -184,8 +184,17 @@ export default function ParentDashboard() {
         switch (avatarId) {
             case 'boy': return '🧑‍🚀';
             case 'girl': return '👩‍🚀';
+            case 'superhero': return '🦸';
+            case 'superhero_girl': return '🦸‍♀️';
+            case 'ninja': return '🥷';
+            case 'wizard': return '🧙';
+            case 'princess': return '👸';
+            case 'pirate': return '🏴‍☠️';
             case 'alien': return '👽';
             case 'robot': return '🤖';
+            case 'dinosaur': return '🦖';
+            case 'unicorn': return '🦄';
+            case 'dragon': return '🐉';
             case 'rocket': return '🚀';
             default: return '👶';
         }
@@ -248,16 +257,7 @@ export default function ParentDashboard() {
     return (
         <div className="min-h-screen bg-slate-100 pb-20 font-sans">
             {/* 1. Header Bar: Using Standard Component */}
-            <ParentHeader
-                title={
-                    pendingGoals && pendingGoals.length > 0 ? (
-                        <Link href="/parent/routines" className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full animate-pulse">
-                            <Clock className="w-4 h-4" />
-                            <span className="text-xs font-bold">{pendingGoals.length} Approval{pendingGoals.length > 1 ? 's' : ''}</span>
-                        </Link>
-                    ) : "Dashboard"
-                }
-            />
+            <ParentHeader title="Dashboard" />
 
             <main className="py-4 flex flex-col gap-6 max-w-screen-md mx-auto">
                 {/* ... Main Content ... */}

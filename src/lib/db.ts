@@ -107,6 +107,7 @@ export interface ActivityLog {
     earnedXP?: number;
     stepsCompleted?: number;
     metadata?: any;
+    seenByParent?: boolean; // Track if parent has viewed this notification
 }
 
 /**

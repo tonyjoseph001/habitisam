@@ -146,8 +146,8 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                             key={profile.id}
                             onClick={() => handleSelect(profile)}
                             className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${selectedProfileId === profile.id
-                                    ? 'border-violet-500 bg-violet-50 shadow-sm'
-                                    : 'border-slate-100 bg-white hover:border-violet-200 hover:shadow-sm'
+                                ? 'border-violet-500 bg-violet-50 shadow-sm'
+                                : 'border-slate-100 bg-white hover:border-violet-200 hover:shadow-sm'
                                 }`}
                         >
                             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl shadow-inner">
@@ -165,14 +165,6 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                             No profiles found.
                         </div>
                     )}
-
-                    {/* Placeholder for Add Child - only visual or link to setup if we wanted */}
-                    <button className="flex flex-col items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:border-violet-200 hover:shadow-sm opacity-50 cursor-not-allowed">
-                        <div className="w-16 h-16 rounded-full flex items-center justify-center">
-                            <Plus className="w-6 h-6 text-slate-400" />
-                        </div>
-                        <span className="text-xs font-medium text-slate-500">Manage in Dashboard</span>
-                    </button>
                 </div>
             )}
         </Modal>

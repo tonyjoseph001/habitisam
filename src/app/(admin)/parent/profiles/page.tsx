@@ -38,8 +38,17 @@ export default function ProfilesPage() {
         switch (avatarId) {
             case 'boy': return '🧑‍🚀';
             case 'girl': return '👩‍🚀';
+            case 'superhero': return '🦸';
+            case 'superhero_girl': return '🦸‍♀️';
+            case 'ninja': return '🥷';
+            case 'wizard': return '🧙';
+            case 'princess': return '👸';
+            case 'pirate': return '🏴‍☠️';
             case 'alien': return '👽';
             case 'robot': return '🤖';
+            case 'dinosaur': return '🦖';
+            case 'unicorn': return '🦄';
+            case 'dragon': return '🐉';
             case 'rocket': return '🚀';
             default: return '👶';
         }

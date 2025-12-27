@@ -16,8 +16,17 @@ import { motion } from 'framer-motion';
 const AVATARS = [
     { id: 'boy', label: 'Boy', icon: '🧑‍🚀' },
     { id: 'girl', label: 'Girl', icon: '👩‍🚀' },
+    { id: 'superhero', label: 'Superhero', icon: '🦸' },
+    { id: 'superhero_girl', label: 'Superhero Girl', icon: '🦸‍♀️' },
+    { id: 'ninja', label: 'Ninja', icon: '🥷' },
+    { id: 'wizard', label: 'Wizard', icon: '🧙' },
+    { id: 'princess', label: 'Princess', icon: '👸' },
+    { id: 'pirate', label: 'Pirate', icon: '🏴‍☠️' },
     { id: 'alien', label: 'Alien', icon: '👽' },
     { id: 'robot', label: 'Robot', icon: '🤖' },
+    { id: 'dinosaur', label: 'Dinosaur', icon: '🦖' },
+    { id: 'unicorn', label: 'Unicorn', icon: '🦄' },
+    { id: 'dragon', label: 'Dragon', icon: '🐉' },
     { id: 'rocket', label: 'Rocket', icon: '🚀' },
 ];
 
