@@ -168,7 +168,7 @@ export interface InboxReward {
 // NEW: Goals / Quests
 // ==========================================
 export type GoalType = 'checklist' | 'slider' | 'counter' | 'timer' | 'savings' | 'binary';
-export type GoalStatus = 'active' | 'pending_approval' | 'completed';
+export type GoalStatus = 'active' | 'pending_approval' | 'completed' | 'cancelled';
 
 export interface Goal {
     id: string; // UUID
@@ -183,7 +183,7 @@ export interface Goal {
     target: number; // e.g. 10 (books), 100 (%), 50 (dollars)
     current: number; // e.g. 3
     unit?: string; // e.g. "Books", "Laps", "Dollars"
-    checklist?: string[]; // For 'checklist' type goals
+    checklist?: { text: string; completed: boolean }[]; // For 'checklist' type goals
 
     // Rewards
     stars: number;

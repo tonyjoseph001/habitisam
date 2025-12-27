@@ -26,22 +26,40 @@ export function GoalSlider({ goal, colors, onUpdate }: GoalSliderProps) {
         }
     };
 
+    // Determine Logic/Display based on Type
+    const isPercentage = goal.type === 'checklist' || goal.type === 'slider' || goal.unit === '%';
+    const max = goal.target > 0 ? goal.target : 100;
+    const label = goal.type === 'checklist' ? 'Progress' :
+        goal.type === 'slider' ? 'Confidence' :
+            goal.type === 'timer' ? 'Time Logged' :
+                goal.type === 'savings' ? 'Saved' : 'Count';
+
+    // Display Value Formatting
+    const displayValue = isPercentage
+        ? `${Math.round((localValue / max) * 100)}%`
+        : goal.type === 'savings' ? `$${localValue}`
+            : `${localValue} / ${max} ${goal.unit || (goal.type === 'timer' ? 'm' : '')}`;
+
     return (
         <>
-            <div className="flex justify-between items-end mb-1">
-                <span className="text-xs font-bold text-gray-400">Confidence</span>
-                <span className={`text-xs font-bold ${colors.text}`}>{localValue}%</span>
+            <div className="flex justify-between items-end mb-2">
+                <span className="text-xs font-bold text-white/80 uppercase tracking-wide">{label}</span>
+                <span className={`text-xs font-bold ${colors.text}`}>{displayValue}</span>
             </div>
             <input
                 type="range"
                 min="0"
-                max="100"
-                className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-${colors.accent.replace('bg-', '')}`}
+                max={max}
+                className={`w-full h-3 rounded-full appearance-none cursor-pointer bg-black/20 accent-white border border-white/10 relative z-10`}
+                style={{
+                    background: `linear-gradient(to right, white 0%, white ${(localValue / max) * 100}%, rgba(0,0,0,0.2) ${(localValue / max) * 100}%, rgba(0,0,0,0.2) 100%)`
+                }}
                 value={localValue}
                 onChange={handleChange}
                 onMouseUp={handleCommit}
                 onTouchEnd={handleCommit}
                 disabled={goal.status !== 'active'}
+                step={goal.type === 'savings' ? 0.01 : 1}
             />
         </>
     );

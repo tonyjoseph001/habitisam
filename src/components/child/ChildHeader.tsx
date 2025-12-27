@@ -46,7 +46,7 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
                             <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
                         </div>
                         <div>
-                            <div className="text-[10px] font-bold text-gray-400 leading-none">Playing as</div>
+
                             <div className="text-sm font-bold text-gray-800 leading-none">{displayProfile.name}</div>
                         </div>
                     </button>
