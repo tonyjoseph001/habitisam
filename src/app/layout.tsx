@@ -16,6 +16,12 @@ const fredoka = Fredoka({
 export const metadata: Metadata = {
   title: "Habitisim",
   description: "Gamified chores and routines for kids",
+  themeColor: "#ffffff",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Habitisim",
+  },
 };
 
 export const viewport: Viewport = {
@@ -23,6 +29,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#ffffff",
 };
 
 import { ThemeProvider } from '@/components/providers/ThemeContext';

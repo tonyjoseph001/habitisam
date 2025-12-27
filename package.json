@@ -12,6 +12,7 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@types/uuid": "^10.0.0",
     "canvas-confetti": "^1.9.4",

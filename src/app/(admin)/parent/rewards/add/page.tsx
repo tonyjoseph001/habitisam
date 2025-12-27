@@ -42,13 +42,14 @@ export default function AddRewardPage() {
         if (!title.trim()) return alert('Please enter a reward name');
 
         await db.rewards.add({
-            isActive: true, // Required by Reward interface (was boolean in interface definition?) - actually interface says `isActive: boolean`
+            id: crypto.randomUUID(),
+            isActive: true,
             title: title.trim(),
             cost: Number(cost),
             icon,
             accountId: activeProfile.accountId,
             assignedProfileIds: assignedIds,
-            requiresApproval: true, // Default
+            requiresApproval: true,
             createdAt: new Date()
         });
 

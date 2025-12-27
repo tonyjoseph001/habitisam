@@ -70,12 +70,10 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
                     {/* Notification Bell */}
                     <Link href="/parent/notifications" className="p-2 text-slate-400 hover:bg-slate-50 rounded-full relative">
                         <Bell className="w-5 h-5" />
-                        {notificationCount && notificationCount > 0 ? (
+                        {notificationCount && notificationCount > 0 && (
                             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                                 {notificationCount > 9 ? '9+' : notificationCount}
                             </span>
-                        ) : (
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                         )}
                     </Link>
 
