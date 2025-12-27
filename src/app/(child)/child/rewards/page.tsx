@@ -3,22 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Home, Gift, CheckSquare, List, AlertCircle, ArrowRight, X, Clock } from 'lucide-react';
+import { ChevronLeft, Home, Gift, CheckSquare, List, AlertCircle, ArrowRight, X, Clock, ShoppingBag, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { createPortal } from 'react-dom';
 import { type Reward } from '@/lib/db';
 import ChildHeader from '@/components/child/ChildHeader';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const REWARD_COLORS = [
-    'bg-orange-50',
-    'bg-red-50',
-    'bg-green-50',
-    'bg-blue-50',
-    'bg-purple-50',
-    'bg-yellow-50',
-];
+const REWARD_PALETTE = ['#ff595e', '#ffca3a', '#8ac926', '#1982c4', '#6a4c93', '#ff9f1c'];
 
 export default function ChildShopPage() {
     const { activeProfile } = useSessionStore();
@@ -27,6 +21,7 @@ export default function ChildShopPage() {
     const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [activeTab, setActiveTab] = useState<'shop' | 'inventory'>('shop');
 
     useEffect(() => {
         setMounted(true);
@@ -41,11 +36,18 @@ export default function ChildShopPage() {
         if (!activeProfile) return [];
         const allRewards = await db.rewards.toArray();
         return allRewards.filter(r => {
-            // Include if no assignment (all) OR assigned to this profile
             return !r.assignedProfileIds ||
                 r.assignedProfileIds.length === 0 ||
                 r.assignedProfileIds.includes(activeProfile.id);
         });
+    }, [activeProfile?.id]);
+
+    const purchaseHistory = useLiveQuery(async () => {
+        if (!activeProfile) return [];
+        return await db.purchaseLogs
+            .where({ profileId: activeProfile.id })
+            .reverse()
+            .sortBy('purchasedAt');
     }, [activeProfile?.id]);
 
     const pendingRequests = useLiveQuery(async () => {
@@ -57,17 +59,16 @@ export default function ChildShopPage() {
 
     const handleClaimClick = (reward: Reward) => {
         setSelectedReward(reward);
-        setIsSuccess(false); // Reset success state
+        setIsSuccess(false);
         setIsConfirmOpen(true);
     };
 
     const confirmClaim = async () => {
         if (!activeProfile || !selectedReward) return;
 
-        const requiresApproval = selectedReward.requiresApproval !== false; // Default true
+        const requiresApproval = selectedReward.requiresApproval !== false;
 
         if (requiresApproval) {
-            // 1. Request Flow (Pending)
             await db.purchaseLogs.add({
                 id: crypto.randomUUID(),
                 accountId: activeProfile.accountId,
@@ -82,13 +83,10 @@ export default function ChildShopPage() {
                 purchasedAt: new Date(),
             });
         } else {
-            // 2. Instant Buy Flow (Approved)
             await db.transaction('rw', db.profiles, db.purchaseLogs, async () => {
-                // Deduct stars
                 const newBalance = Math.max(0, (activeProfile.stars || 0) - selectedReward.cost);
                 await db.profiles.update(activeProfile.id, { stars: newBalance });
 
-                // Log purchase
                 await db.purchaseLogs.add({
                     id: crypto.randomUUID(),
                     accountId: activeProfile.accountId,
@@ -110,229 +108,300 @@ export default function ChildShopPage() {
 
     const handleCloseModal = () => {
         setIsConfirmOpen(false);
-        setTimeout(() => setIsSuccess(false), 300); // Reset after close animation
+        setTimeout(() => setIsSuccess(false), 300);
     };
 
     if (!activeProfile) return null;
 
-    // Use live data if available
     const displayProfile = liveProfile || activeProfile;
     const balance = displayProfile.stars || 0;
     const items = rewards || [];
+    const history = purchaseHistory || [];
     const pendingIds = new Set(pendingRequests?.map(r => r.rewardSnapshot.id) || []);
-
-    const avatarSrc = `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayProfile.name || 'Adam'}&clothing=graphicShirt`;
 
     return (
         <div className="min-h-screen bg-[#EEF2FF] pb-32 select-none relative font-sans text-[#2B2D42]">
-            {/* Inject custom animations */}
-            <style jsx global>{`
-                @keyframes shine {
-                    0% { transform: translateX(-150%) skewX(-15deg); }
-                    50%, 100% { transform: translateX(150%) skewX(-15deg); }
-                }
-                .animate-shine {
-                    animation: shine 3s infinite;
-                }
-            `}</style>
 
-            <div className="pt-2 pb-2">
+            <ChildHeader showBack={true} />
 
-                {/* Header */}
-                <ChildHeader showBack={true} />
+            <div className="px-5 pt-2 pb-4">
+                {/* Premium Wallet Card */}
+                <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl mb-6 group">
+                    {/* Animated Gradient Background - Darker Colors */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-700 via-indigo-800 to-slate-900"></div>
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
 
-                {/* Hero Card */}
-                <div className="relative w-full h-44 rounded-[2rem] overflow-hidden shadow-[0_15px_30px_-5px_rgba(255,159,28,0.4)] group transform transition-transform hover:scale-[1.02]">
+                    {/* Shimmer Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-[shimmer_3s_infinite]"></div>
 
-                    {/* Backgrounds */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500"></div>
-                    <div className="absolute -top-10 -right-10 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl mix-blend-overlay"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-yellow-300 opacity-20 rounded-full blur-2xl mix-blend-overlay"></div>
+                    <style jsx>{`
+                        @keyframes shimmer {
+                            0% { transform: translateX(-150%) skewX(-12deg); }
+                            100% { transform: translateX(150%) skewX(-12deg); }
+                        }
+                    `}</style>
 
-                    {/* Shine Effect */}
-                    <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 animate-shine"></div>
-
-                    <div className="relative z-10 p-6 h-full flex flex-col justify-between text-white">
-
+                    <div className="relative z-10 p-8 text-white">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-xs font-bold text-yellow-100 uppercase tracking-widest mb-1">Balance</p>
-                                <div className="flex items-baseline gap-1">
-                                    <h1 className="text-5xl font-black tracking-tighter drop-shadow-sm">{balance.toLocaleString()}</h1>
-                                    <span className="text-xl font-bold text-yellow-200">⭐</span>
+                                <p className="text-sm font-bold text-white/80 uppercase tracking-widest mb-3">Star Wallet</p>
+                                <div className="flex items-baseline gap-3">
+                                    <h1 className="text-7xl font-black tracking-tight drop-shadow-lg">{balance.toLocaleString()}</h1>
+                                    <span className="text-4xl">⭐</span>
                                 </div>
                             </div>
-                            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
-                                <img src="https://cdn-icons-png.flaticon.com/512/3112/3112946.png" className="w-8 h-8 object-contain drop-shadow-sm" alt="Trophy" />
+                            <div className="w-20 h-20 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/30 shadow-xl">
+                                <ShoppingBag className="w-10 h-10 text-white" />
                             </div>
                         </div>
-
-                        <div>
-                            <div className="flex justify-between text-[10px] font-bold text-white/90 mb-2 px-1">
-                                <span>Level 2 Champion</span>
-                                <span>Next: Level 3</span>
-                            </div>
-                            <div className="w-full bg-black/20 h-2.5 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
-                                <div className="bg-white h-full w-[60%] rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
 
-            </div>
-
-            {/* Catalog */}
-            <div className="px-5 mt-4">
-                <div className="flex justify-between items-end mb-4">
-                    <h2 className="text-base font-extrabold text-gray-800 flex items-center gap-2">
-                        <span className="text-lg">🎁</span> Catalog
-                    </h2>
-                    <button className="text-xs font-bold text-gray-400 hover:text-[#FF9F1C] transition-colors">Sort by Price</button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pb-4">
-                    {items.length === 0 ? (
-                        <div className="col-span-2 text-center py-10 text-gray-400 text-sm">
-                            No rewards available yet! Ask a parent to add some.
+                {/* Tabs */}
+                <div className="flex gap-2 mb-4">
+                    <button
+                        onClick={() => setActiveTab('shop')}
+                        className={`flex-1 py-3 px-4 rounded-2xl font-bold text-sm transition-all ${activeTab === 'shop'
+                            ? 'bg-white text-purple-600 shadow-lg'
+                            : 'bg-white/50 text-gray-600 hover:bg-white/80'
+                            }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            <ShoppingBag className="w-4 h-4" />
+                            <span>Shop ({items.length})</span>
                         </div>
-                    ) : (
-                        items.map((item, index) => {
-                            // Cycle through background colors
-                            const bgColor = REWARD_COLORS[index % REWARD_COLORS.length];
-                            const canAfford = balance >= item.cost;
-                            const isPending = pendingIds.has(item.id);
-
-                            return (
-                                <div key={item.id} className="bg-white p-3 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col items-center relative group">
-
-                                    <div className={`h-20 w-full ${bgColor} rounded-xl mb-2 flex items-center justify-center p-2`}>
-                                        <span className="text-4xl filter drop-shadow-sm transform group-hover:scale-110 transition-transform duration-300">
-                                            {item.icon}
-                                        </span>
-                                    </div>
-                                    <h3 className="font-bold text-gray-800 text-sm mb-1 text-center leading-tight">{item.title}</h3>
-                                    <div className="flex items-center gap-1 mb-2">
-                                        <span className="text-yellow-500 text-xs">⭐</span>
-                                        <span className="font-extrabold text-gray-600 text-sm">{item.cost.toLocaleString()}</span>
-                                    </div>
-                                    <button
-                                        onClick={() => handleClaimClick(item)}
-                                        disabled={!canAfford || (isPending && (item.requiresApproval !== false))}
-                                        className={`w-full font-bold py-1.5 rounded-lg text-xs transition-colors ${isPending && (item.requiresApproval !== false)
-                                            ? 'bg-yellow-100 text-yellow-700 cursor-not-allowed border border-yellow-200'
-                                            : canAfford
-                                                ? 'bg-orange-100 text-orange-600 hover:bg-orange-500 hover:text-white'
-                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                            }`}
-                                    >
-                                        {isPending && (item.requiresApproval !== false) ? 'Pending... 🕒' : (canAfford ? 'Claim' : 'Need more ⭐')}
-                                    </button>
-                                </div>
-                            );
-                        })
-                    )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('inventory')}
+                        className={`flex-1 py-3 px-4 rounded-2xl font-bold text-sm transition-all ${activeTab === 'inventory'
+                            ? 'bg-white text-purple-600 shadow-lg'
+                            : 'bg-white/50 text-gray-600 hover:bg-white/80'
+                            }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            <Package className="w-4 h-4" />
+                            <span>My Stuff ({history.length})</span>
+                        </div>
+                    </button>
                 </div>
+
+                {/* Content */}
+                <AnimatePresence mode="wait">
+                    {activeTab === 'shop' ? (
+                        <motion.div
+                            key="shop"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-4">
+                                {items.length === 0 ? (
+                                    <div className="col-span-2 text-center py-16 text-gray-400 text-sm">
+                                        <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                        <p className="font-bold">No rewards available yet!</p>
+                                        <p className="text-xs mt-1">Ask a parent to add some.</p>
+                                    </div>
+                                ) : (
+                                    items.map((item, index) => {
+                                        const paletteColor = REWARD_PALETTE[index % REWARD_PALETTE.length];
+                                        const canAfford = balance >= item.cost;
+                                        const isPending = pendingIds.has(item.id);
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                className="rounded-[2rem] p-4 shadow-lg relative group overflow-hidden transition-all hover:scale-105"
+                                                style={{ background: paletteColor }}
+                                            >
+                                                {/* Glossy Overlay */}
+                                                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
+
+                                                <div className="relative z-10">
+                                                    {/* Icon */}
+                                                    <div className="w-full aspect-square bg-white/20 backdrop-blur-sm rounded-2xl mb-3 flex items-center justify-center border border-white/10">
+                                                        <span className="text-8xl drop-shadow-lg transform group-hover:scale-110 transition-transform">
+                                                            {item.icon}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Title */}
+                                                    <h3 className="font-black text-white text-sm mb-2 text-center leading-tight drop-shadow-md">
+                                                        {item.title}
+                                                    </h3>
+
+                                                    {/* Price Badge */}
+                                                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-3 py-2 mb-3 border border-white/10 flex items-center justify-center gap-1">
+                                                        <span className="text-lg">⭐</span>
+                                                        <span className="font-black text-white text-base">{item.cost.toLocaleString()}</span>
+                                                    </div>
+
+                                                    {/* Action Button */}
+                                                    <button
+                                                        onClick={() => handleClaimClick(item)}
+                                                        disabled={!canAfford || (isPending && (item.requiresApproval !== false))}
+                                                        className={`w-full font-bold py-3 rounded-xl text-xs transition-all shadow-lg ${isPending && (item.requiresApproval !== false)
+                                                            ? 'bg-yellow-500 text-white cursor-not-allowed'
+                                                            : canAfford
+                                                                ? 'bg-white text-gray-800 hover:scale-105 active:scale-95'
+                                                                : 'bg-white/30 text-white/50 cursor-not-allowed'
+                                                            }`}
+                                                    >
+                                                        {isPending && (item.requiresApproval !== false) ? '⏳ Pending' : (canAfford ? '🎁 Claim' : '🔒 Locked')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="inventory"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.2 }}
+                        >
+                            <div className="space-y-3 pb-4">
+                                {history.length === 0 ? (
+                                    <div className="text-center py-16 text-gray-400 text-sm">
+                                        <Gift className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                        <p className="font-bold">No purchases yet!</p>
+                                        <p className="text-xs mt-1">Start shopping to see your items here.</p>
+                                    </div>
+                                ) : (
+                                    history.map((purchase) => (
+                                        <div key={purchase.id} className="bg-white rounded-2xl p-4 shadow-md border border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-2xl">
+                                                    {purchase.rewardSnapshot.icon}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-bold text-gray-800 text-sm truncate">{purchase.rewardSnapshot.title}</h4>
+                                                    <p className="text-xs text-gray-500">
+                                                        {new Date(purchase.purchasedAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1">
+                                                    <span className="text-xs font-bold text-gray-600">⭐ {purchase.rewardSnapshot.cost}</span>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${purchase.status === 'approved'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : purchase.status === 'pending'
+                                                            ? 'bg-yellow-100 text-yellow-700'
+                                                            : 'bg-red-100 text-red-700'
+                                                        }`}>
+                                                        {purchase.status === 'approved' ? '✓ Approved' :
+                                                            purchase.status === 'pending' ? '⏳ Pending' : '✗ Denied'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
-
-
 
             {/* Confirmation Modal */}
             {mounted && isConfirmOpen && selectedReward && createPortal(
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center px-4">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+                <>
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                         onClick={handleCloseModal}
                     />
-
-                    {/* Modal Content */}
-                    <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative z-10 animate-in zoom-in-95 duration-200">
-                        <button
-                            onClick={handleCloseModal}
-                            className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-white rounded-3xl p-6 z-50 shadow-2xl max-w-sm mx-auto overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-pink-500"></div>
 
                         {!isSuccess ? (
-                            // CONFIRMATION VIEW
-                            <>
-                                <div className="text-center mb-6">
-                                    <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-6xl shadow-inner">
-                                        {selectedReward.icon}
-                                    </div>
-                                    <h2 className="text-2xl font-black text-gray-800 mb-1">{selectedReward.title}</h2>
-
-                                    {selectedReward.requiresApproval !== false ? (
-                                        <div className="inline-flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
-                                            <AlertCircle className="w-4 h-4 text-yellow-700" />
-                                            <span className="text-xs font-bold text-yellow-800">Parent Approval Required</span>
-                                        </div>
-                                    ) : (
-                                        <div className="inline-flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                                            <Gift className="w-4 h-4 text-green-600" />
-                                            <span className="text-xs font-bold text-green-700">Instant Claim</span>
-                                        </div>
-                                    )}
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-24 h-24 bg-purple-50 rounded-full flex items-center justify-center mb-4 text-6xl border border-purple-100 shadow-sm">
+                                    {selectedReward.icon}
                                 </div>
+                                <h3 className="text-2xl font-black text-slate-800 mb-2">{selectedReward.title}</h3>
 
-                                <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
+                                {selectedReward.requiresApproval !== false ? (
+                                    <div className="inline-flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200 mb-6">
+                                        <AlertCircle className="w-4 h-4 text-yellow-700" />
+                                        <span className="text-xs font-bold text-yellow-800">Parent Approval Required</span>
+                                    </div>
+                                ) : (
+                                    <div className="inline-flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-200 mb-6">
+                                        <Gift className="w-4 h-4 text-green-600" />
+                                        <span className="text-xs font-bold text-green-700">Instant Claim</span>
+                                    </div>
+                                )}
+
+                                <div className="bg-slate-50 rounded-2xl p-4 mb-6 w-full border border-slate-100">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-sm font-bold text-gray-500">Current Balance</span>
-                                        <span className="text-sm font-bold text-gray-800">{balance.toLocaleString()} ⭐</span>
+                                        <span className="text-sm font-bold text-slate-500">Current Balance</span>
+                                        <span className="text-sm font-bold text-slate-800">{balance.toLocaleString()} ⭐</span>
                                     </div>
                                     <div className="flex justify-between items-center mb-2 text-red-500">
                                         <span className="text-sm font-bold">Cost</span>
                                         <span className="text-sm font-bold">-{selectedReward.cost.toLocaleString()} ⭐</span>
                                     </div>
-                                    <div className="w-full h-px bg-gray-200 my-2"></div>
+                                    <div className="w-full h-px bg-slate-200 my-2"></div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm font-bold text-gray-800">New Balance</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-base font-black text-[#FF9F1C]">{Math.max(0, balance - selectedReward.cost).toLocaleString()} ⭐</span>
-                                        </div>
+                                        <span className="text-sm font-bold text-slate-800">New Balance</span>
+                                        <span className="text-base font-black text-purple-600">{Math.max(0, balance - selectedReward.cost).toLocaleString()} ⭐</span>
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={confirmClaim}
-                                    className="w-full bg-[#FF9F1C] hover:bg-orange-500 text-white font-bold py-4 rounded-xl shadow-[0_4px_0_0_#e68a00] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <span>{selectedReward.requiresApproval !== false ? 'Send Request' : 'Claim Now'}</span>
-                                    <ArrowRight className="w-5 h-5" />
-                                </button>
-                            </>
+                                <div className="grid grid-cols-2 gap-3 w-full">
+                                    <button
+                                        onClick={handleCloseModal}
+                                        className="py-3.5 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={confirmClaim}
+                                        className="py-3.5 rounded-2xl font-black text-white bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center gap-2"
+                                    >
+                                        <Gift className="w-5 h-5" />
+                                        {selectedReward.requiresApproval !== false ? 'Request' : 'Claim'}
+                                    </button>
+                                </div>
+                            </div>
                         ) : (
-                            // SUCCESS VIEW
-                            <div className="flex flex-col items-center py-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 text-green-500">
+                            <div className="flex flex-col items-center py-6">
+                                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-4 text-green-500 border border-green-100">
                                     <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                     </svg>
                                 </div>
-                                <h2 className="text-2xl font-black text-gray-800 mb-2">
-                                    {selectedReward.requiresApproval !== false ? 'Request Sent!' : 'Reward Claimed!'}
+                                <h2 className="text-2xl font-black text-slate-800 mb-2">
+                                    {selectedReward.requiresApproval !== false ? 'Request Sent!' : 'Claimed!'}
                                 </h2>
-                                <p className="text-gray-500 text-center text-sm font-bold mb-6">
+                                <p className="text-slate-500 text-center text-sm font-bold mb-6">
                                     {selectedReward.requiresApproval !== false
-                                        ? 'Your parent will see your request on their dashboard.'
+                                        ? 'Your parent will review your request.'
                                         : 'Enjoy your reward!'}
                                 </p>
                                 <button
                                     onClick={handleCloseModal}
-                                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-[0_4px_0_0_#15803d] active:shadow-none active:translate-y-1 transition-all"
+                                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"
                                 >
-                                    OK
+                                    Awesome!
                                 </button>
                             </div>
                         )}
-
-                    </div>
-                </div>,
+                    </motion.div>
+                </>,
                 document.body
             )}
-
         </div>
     );
 }
