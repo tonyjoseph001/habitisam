@@ -3,22 +3,23 @@ General App
 - We need to add premission for recording audio
 - Need to change current login page desingn
 - Need to add some splash screen to show the tutotila about neurodeviverget kids and how this app can help them,
-- When open this app, mobile topic icon lime time,battery icon and other icons are not visible. need to fix it. Probably we can add some dark design in the background to the top of the app
+- When open this app, mobile topic icon lime time,battery icon and other icons are not visible. need to fix it. Probably we can add some dark design in the background 
+to the top of the app
 
 Startup Screen
 - Google Sign In is not working
 
 Parent Dashboard
-- alert bell icon has red dot even when there are no alerts
+- alert bell icon has red dot even when there are no alerts- Fixed
 - There should be an option to recover or reset the pin number if user forgets it.
 - weekly success rate is hardcoded, it should be dynamic
 
 Profile Page
-- icon card is not big enough to show the icon
-- remove interface color, we are not using it
-- There is no way to create another parent account
-- profile heading is changed to "New Profile"
-- the profile creation page need to rewrite to accept parent information and change all the fields accordingly. date of birth is not needed for parent account. 
+- icon card is not big enough to show the icon - Fixed
+- remove interface color, we are not using it - Fixed
+- There is no way to create another parent account - Fixed
+- profile heading is changed to "New Profile" - Fixed
+- the profile creation page need to rewrite to accept parent information and change all the fields accordingly. date of birth is not needed for parent account. - Fixed
 
 Routine Page
 -  Quests/Goals table changed to Goals
