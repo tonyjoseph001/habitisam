@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
+import { Modal } from '@/components/ui/modal';
 
 export default function EditRewardPage() {
     const router = useRouter();
@@ -23,6 +24,7 @@ export default function EditRewardPage() {
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [assignedIds, setAssignedIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     // Fetch existing reward
     useEffect(() => {
@@ -66,12 +68,14 @@ export default function EditRewardPage() {
         router.back();
     };
 
-    const handleDelete = async () => {
+    const handleDeleteClick = () => {
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
         if (!id) return;
-        if (confirm('Are you sure you want to delete this reward?')) {
-            await db.rewards.delete(id);
-            router.back();
-        }
+        await db.rewards.delete(id);
+        router.back();
     };
 
     if (loading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">Loading...</div>;
@@ -90,7 +94,7 @@ export default function EditRewardPage() {
                     <h1 className="text-xl font-black text-slate-800">Edit Reward</h1>
                 </div>
                 <button
-                    onClick={handleDelete}
+                    onClick={handleDeleteClick}
                     className="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition"
                 >
                     <Trash size={18} />
@@ -196,6 +200,34 @@ export default function EditRewardPage() {
                 </Button>
 
             </main>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                title="Delete Reward"
+                className="max-w-sm"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 text-sm mb-6">
+                        Are you sure you want to permanently delete this reward? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-3">
+                        <Button
+                            className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                            onClick={() => setShowDeleteModal(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="flex-1 bg-red-600 text-white hover:bg-red-700 shadow-sm"
+                            onClick={confirmDelete}
+                        >
+                            Delete Reward
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
