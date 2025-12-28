@@ -2,13 +2,22 @@
 
 import { useTheme } from '@/components/providers/ThemeContext';
 import { ThemeType } from '@/lib/db';
-import { ArrowLeft, Bell, ChevronDown, Palette } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronDown, Palette, Key } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useSessionStore } from '@/lib/store/useSessionStore';
+import { db } from '@/lib/db';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
+    const { activeProfile } = useSessionStore();
+    const [showPinModal, setShowPinModal] = useState(false);
+    const [newPin, setNewPin] = useState('');
 
     const themes: { value: ThemeType; label: string }[] = [
         { value: 'default', label: 'Default Indigo' },
@@ -18,6 +27,17 @@ export default function SettingsPage() {
         { value: 'candy', label: 'Cotton Candy' },
         { value: 'midnight', label: 'Midnight Dark' },
     ];
+
+    const handleResetPin = async () => {
+        if (!activeProfile?.id) return;
+        if (!newPin.trim()) return alert('Please enter a new PIN');
+        if (newPin.length < 4) return alert('PIN must be at least 4 digits');
+
+        await db.profiles.update(activeProfile.id, { pin: newPin });
+        setShowPinModal(false);
+        setNewPin('');
+        alert('PIN updated successfully!');
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
@@ -64,6 +84,30 @@ export default function SettingsPage() {
                     </p>
                 </div>
 
+                {/* Security Card - PIN Recovery */}
+                {activeProfile?.type === 'parent' && (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-3 mb-4 text-amber-600">
+                            <Key className="w-6 h-6" />
+                            <h2 className="text-lg font-bold text-slate-800">Security</h2>
+                        </div>
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-sm font-medium text-slate-700 mb-1">Parent PIN</p>
+                                <p className="text-xs text-slate-500 mb-3">
+                                    Reset your PIN if you've forgotten it or want to change it for security.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowPinModal(true)}
+                                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors"
+                            >
+                                Reset PIN
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Notifications Card */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3 mb-4 text-slate-400">
@@ -80,6 +124,52 @@ export default function SettingsPage() {
                 </div>
 
             </div>
+
+            {/* PIN Reset Modal */}
+            <Modal
+                isOpen={showPinModal}
+                onClose={() => {
+                    setShowPinModal(false);
+                    setNewPin('');
+                }}
+                title="Reset PIN"
+                className="max-w-sm"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 text-sm mb-4">
+                        Enter a new PIN to secure your parent account. This PIN will be required to access the parent dashboard.
+                    </p>
+                    <div className="mb-6">
+                        <label className="block text-sm font-bold text-slate-600 mb-2">New PIN</label>
+                        <Input
+                            type="password"
+                            value={newPin}
+                            onChange={e => setNewPin(e.target.value)}
+                            placeholder="Enter 4-digit PIN"
+                            maxLength={6}
+                            className="h-12 bg-white border-slate-200"
+                        />
+                        <p className="text-xs text-slate-500 mt-2">Minimum 4 digits</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <Button
+                            className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                            onClick={() => {
+                                setShowPinModal(false);
+                                setNewPin('');
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="flex-1 bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+                            onClick={handleResetPin}
+                        >
+                            Update PIN
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

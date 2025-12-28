@@ -63,6 +63,22 @@ export default function ParentDashboard() {
         }
     };
 
+    // Calculate weekly success rate
+    const weeklySuccessRate = useLiveQuery(async () => {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        // Get all activity logs and filter by date (YYYY-MM-DD format)
+        const allLogs = await db.activityLogs.toArray();
+        const logs = allLogs.filter(log => log.date >= sevenDaysAgoStr);
+
+        if (logs.length === 0) return 0;
+
+        const completedLogs = logs.filter(log => log.status === 'completed');
+        return Math.round((completedLogs.length / logs.length) * 100);
+    }, []);
+
     // --- NEW STATS CARD ---
     // --- NEW STATS CARD ---
     const StatsCard = () => {
@@ -97,7 +113,7 @@ export default function ParentDashboard() {
                             </div>
 
                             <div className="text-right">
-                                <span className="text-4xl font-black tracking-tight">85%</span>
+                                <span className="text-4xl font-black tracking-tight">{weeklySuccessRate ?? 0}%</span>
                                 <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider flex items-center justify-end gap-1">
                                     Weekly Success
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7 7m0 0l7-7m-7 7V3"></path></svg>
