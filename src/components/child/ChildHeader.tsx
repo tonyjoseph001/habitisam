@@ -22,7 +22,28 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
     if (!activeProfile) return null;
 
     const displayProfile = liveProfile || activeProfile;
-    const avatarSrc = `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayProfile.name}&clothing=graphicShirt`;
+
+    const getAvatarEmoji = (avatarId?: string) => {
+        switch (avatarId) {
+            case 'boy': return '🧑‍🚀';
+            case 'girl': return '👩‍🚀';
+            case 'superhero': return '🦸';
+            case 'superhero_girl': return '🦸‍♀️';
+            case 'ninja': return '🥷';
+            case 'wizard': return '🧙';
+            case 'princess': return '👸';
+            case 'pirate': return '🏴‍☠️';
+            case 'alien': return '👽';
+            case 'robot': return '🤖';
+            case 'dinosaur': return '🦖';
+            case 'unicorn': return '🦄';
+            case 'dragon': return '🐉';
+            case 'rocket': return '🚀';
+            default: return '👶';
+        }
+    };
+
+    const avatarEmoji = getAvatarEmoji(displayProfile.avatarId);
 
     return (
         <>
@@ -42,8 +63,8 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
                         onClick={() => setIsProfileSwitcherOpen(true)}
                         className="flex items-center gap-3 bg-white pl-1 pr-4 py-1 rounded-full shadow-sm active:scale-95 transition-transform"
                     >
-                        <div className="w-10 h-10 rounded-full bg-yellow-100 overflow-hidden border-2 border-white shadow-sm ring-1 ring-inset ring-black/5">
-                            <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
+                        <div className="w-10 h-10 rounded-full bg-yellow-100 overflow-hidden border-2 border-white shadow-sm ring-1 ring-inset ring-black/5 flex items-center justify-center text-xl">
+                            {avatarEmoji}
                         </div>
                         <div>
 

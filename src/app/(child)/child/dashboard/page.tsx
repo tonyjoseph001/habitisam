@@ -84,13 +84,58 @@ export default function MissionControlPage() {
             .filter(r => r.status === 'pending')
             .toArray();
 
-        return { routines: myRoutines, logs: myLogs, rewards, inboxRewards };
+        // Fetch All Completed Logs for Streak Calculation (optimized: just get dates if possible, but for now fetch all)
+        const streakLogs = await db.activityLogs
+            .where('profileId')
+            .equals(activeProfile.id)
+            .filter(l => l.status === 'completed')
+            .toArray();
+
+        return { routines: myRoutines, logs: myLogs, rewards, inboxRewards, streakLogs };
     }, [activeProfile?.id]);
 
     const routines = data?.routines || [];
     const logs = data?.logs || [];
+
     const rewards = data?.rewards || [];
     const inboxRewards = data?.inboxRewards || [];
+    const streakLogs = data?.streakLogs || [];
+
+    // Calulate Streak
+    const currentStreak = React.useMemo(() => {
+        if (!streakLogs.length) return 0;
+
+        const uniqueDates = Array.from(new Set(streakLogs.map(l => format(new Date(l.date), 'yyyy-MM-dd')))).sort();
+        if (uniqueDates.length === 0) return 0;
+
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const yesterdayStr = format(addDays(new Date(), -1), 'yyyy-MM-dd');
+
+        // If today or yesterday is not in the list, streak might be broken locally, but let's check consecutive days backwards.
+        // Actually, we check backwards from Today (or Yesterday).
+
+        let streak = 0;
+        let checkDate = new Date();
+        let checkStr = format(checkDate, 'yyyy-MM-dd');
+
+        // Note: uniqueDates is sorted Ascending (oldest first). We want to check descending or just check lookup.
+        const dateSet = new Set(uniqueDates);
+
+        // If today is not done, check if yesterday was done to keep streak alive
+        if (!dateSet.has(todayStr)) {
+            checkDate = addDays(checkDate, -1);
+            checkStr = format(checkDate, 'yyyy-MM-dd');
+            if (!dateSet.has(checkStr)) return 0; // neither today nor yesterday -> 0 streak
+        }
+
+        while (dateSet.has(checkStr)) {
+            streak++;
+            checkDate = addDays(checkDate, -1);
+            checkStr = format(checkDate, 'yyyy-MM-dd');
+        }
+
+        return streak;
+    }, [streakLogs]);
     const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
     const completedLogMap = new Map(logs.filter(l => l.status === 'completed').map(l => [l.activityId, l]));
 
@@ -529,7 +574,7 @@ export default function MissionControlPage() {
                         <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/20 rounded-full blur-md"></div>
 
                         <Flame className="w-12 h-12 mb-2 text-orange-50 fill-orange-50 drop-shadow-sm" />
-                        <span className="text-4xl font-black tracking-tight">5</span>
+                        <span className="text-4xl font-black tracking-tight">{currentStreak}</span>
                         <span className="text-[10px] font-bold text-orange-100 uppercase tracking-widest mt-1">Days</span>
                     </div>
 
