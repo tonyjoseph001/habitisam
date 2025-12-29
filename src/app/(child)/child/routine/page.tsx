@@ -62,9 +62,11 @@ function RoutinePlayerContent() {
     const [isSkipModalOpen, setIsSkipModalOpen] = useState(false);
     const [activeStepRemainingStars, setActiveStepRemainingStars] = useState(0);
     const [isCompleting, setIsCompleting] = useState(false);
+    const [isTitleExpanded, setIsTitleExpanded] = useState(false);
 
     // Sync remaining stars when step changes
     useEffect(() => {
+        setIsTitleExpanded(false); // Reset expansion
         if (routine && routine.steps[currentStepIndex]) {
             setActiveStepRemainingStars(routine.steps[currentStepIndex].stars || 0);
         }
@@ -700,7 +702,16 @@ function RoutinePlayerContent() {
                                     </div>
                                 )}
 
-                                <h2 className="text-3xl font-extrabold text-gray-800 text-center mb-4 mt-2">{stepItem.title}</h2>
+                                <h2
+                                    className={`text-3xl font-extrabold text-gray-800 text-center mb-4 mt-2 cursor-pointer transition-all active:scale-[98%] ${isTitleExpanded ? '' : 'line-clamp-2'}`}
+                                    onClick={(e) => {
+                                        if (!isActive) return;
+                                        e.stopPropagation();
+                                        setIsTitleExpanded(!isTitleExpanded);
+                                    }}
+                                >
+                                    {stepItem.title}
+                                </h2>
 
                                 <div className="flex flex-col items-center mb-6">
                                     {/* Description Text */}
