@@ -137,6 +137,25 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                         <Button variant="ghost" className="flex-1" onClick={() => setShowPinPad(false)}>Cancel</Button>
                         <Button variant="cosmic" className="flex-1" onClick={handleUnlock} disabled={pin.length !== 4}>Unlock</Button>
                     </div>
+
+                    {/* Forgot PIN Link */}
+                    <div className="text-center mt-4">
+                        <button
+                            onClick={async () => {
+                                if (confirm('Reset PIN for ' + targetProfile?.name + '? This will set a new temporary PIN: 0000\n\nYou can change it in Settings after logging in.')) {
+                                    if (targetProfile?.id) {
+                                        await db.profiles.update(targetProfile.id, { pin: '0000' });
+                                        setError('');
+                                        setPin('');
+                                        alert('PIN has been reset to: 0000\n\nPlease enter 0000 to continue, then change it in Settings.');
+                                    }
+                                }
+                            }}
+                            className="text-xs text-violet-600 hover:text-violet-700 font-medium underline"
+                        >
+                            Forgot PIN?
+                        </button>
+                    </div>
                 </div>
             ) : (
                 // PROFILE LIST VIEW
