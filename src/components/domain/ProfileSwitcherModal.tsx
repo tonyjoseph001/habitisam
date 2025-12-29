@@ -79,6 +79,10 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
 
         if (targetProfile.pin === pin) {
             setError("");
+            // Set session flag to indicate PIN was verified
+            if (targetProfile.type === 'parent') {
+                sessionStorage.setItem('parentPinVerified_' + targetProfile.id, 'true');
+            }
             handlePinSuccess();
         } else {
             setError("Incorrect PIN");
@@ -151,12 +155,18 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                                     localStorage.setItem('resetPinForProfile', targetProfile.id);
                                 }
 
-                                // Sign out user
+                                // Close modal first
+                                onClose();
+
+                                // Sign out user and wait for completion
                                 const { getAuth, signOut } = await import('firebase/auth');
                                 await signOut(getAuth());
 
-                                // Redirect to login with forgot_pin flag
-                                window.location.href = '/login?reason=forgot_pin';
+                                // Wait to ensure session is cleared
+                                await new Promise(resolve => setTimeout(resolve, 500));
+
+                                // Force redirect to login
+                                window.location.replace('/login?reason=forgot_pin');
                             }}
                             className="text-xs text-violet-600 hover:text-violet-700 font-medium underline"
                         >

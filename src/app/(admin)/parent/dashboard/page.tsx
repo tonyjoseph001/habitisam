@@ -91,6 +91,21 @@ export default function ParentDashboard() {
         }
     }, [activeProfile]);
 
+    // Require PIN verification on page load for parent profiles
+    useEffect(() => {
+        // Check if we have a parent profile active
+        if (activeProfile?.type === 'parent') {
+            // Check if PIN was verified in this session
+            const pinVerified = sessionStorage.getItem('parentPinVerified_' + activeProfile.id);
+
+            if (!pinVerified) {
+                // Not verified - need to show profile switcher to enter PIN
+                // Redirect to a page that will show the profile switcher
+                router.push('/');
+            }
+        }
+    }, [activeProfile, router]);
+
     const handleSetPin = async () => {
         if (!newPin.trim()) return alert('Please enter a PIN');
         if (newPin.length < 4) return alert('PIN must be at least 4 digits');
