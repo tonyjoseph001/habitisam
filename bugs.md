@@ -62,9 +62,9 @@ Child Dashboard
 Child Goal Page
 
 -  There are lots hardcoded goals created by defaule , need to remove them
-- change "View Steps" text to "Steps"
+- change "View Steps" text to "Steps" - Fixed
 - When click on the done button, the confirmation model window button is behind the navigation bar. So the confgiration model window button should be centered.
-- Wehn Done on goal its not showing any notification on top of the screen, we can probably add some sound also
+- Wehn Done on goal its not showing any notification on top of the screen, we can probably add some sound also - Fixed
 
 Child Task player
 - Page is cluttered with buttons, especially  "I Did it" button

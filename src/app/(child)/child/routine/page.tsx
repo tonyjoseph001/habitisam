@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { db, Activity } from '@/lib/db';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, Volume2 } from 'lucide-react';
+import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, Volume2, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/sound';
 
@@ -509,8 +509,8 @@ function RoutinePlayerContent() {
 
     // Orbital Badge Calculation
     const progressFraction = routine.steps.length > 0 ? completedStepIndices.size / routine.steps.length : 0;
-    const orbitalRadius = 84;
-    const center = 96; // 192px / 2 (w-48 h-48 container is 192px)
+    const orbitalRadius = 56;
+    const center = 64; // 128px / 2 (w-32 h-32 container is 128px)
     // Start at -90deg (Top)
     const angle = (progressFraction * 2 * Math.PI) - (Math.PI / 2);
     const badgeX = center + orbitalRadius * Math.cos(angle);
@@ -563,32 +563,42 @@ function RoutinePlayerContent() {
             </AnimatePresence>
 
             {/* Header / Progress */}
-            <div className="px-6 mb-8 text-center z-10 pt-8 flex flex-col items-center">
-                {/* Avatar Badge */}
-                <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 mb-6">
-                    <div className="w-6 h-6 rounded-full bg-yellow-100 overflow-hidden">
+            <div className="px-6 mb-4 text-center z-10 pt-4 flex flex-col items-center relative w-full">
+
+                {/* Back Button - Absolute */}
+                <button
+                    onClick={() => router.back()}
+                    className="absolute left-6 top-6 w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 active:scale-95"
+                >
+                    <ArrowLeft className="w-6 h-6" />
+                </button>
+
+                {/* Avatar Badge (Hidden to save space or made smaller?) - Keep for context but simplified */}
+                <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 mb-4 mt-2">
+                    <div className="w-5 h-5 rounded-full bg-yellow-100 overflow-hidden">
                         <img src={avatarSrc} className="w-full h-full object-cover" alt="Avatar" />
                     </div>
-                    <span className="text-sm font-bold text-gray-600 truncate max-w-[200px]">{routine.title}</span>
+                    <span className="text-xs font-bold text-gray-600 truncate max-w-[150px]">{routine.title}</span>
                 </div>
 
-                {/* Progress Circle Container */}
-                <div className="relative w-48 h-48 flex items-center justify-center bg-white rounded-full shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)]">
+                {/* Progress Circle Container (Smaller) */}
+                <div className="relative w-32 h-32 flex items-center justify-center bg-white rounded-full shadow-sm">
                     {/* SVG Ring */}
                     <div className="absolute inset-0 p-1">
                         <svg className="w-full h-full transform -rotate-90">
                             {/* Background Track */}
                             <circle
-                                cx="50%" cy="50%" r="84"
-                                stroke="#F3F4F6" strokeWidth="12" fill="none"
+                                cx="50%" cy="50%" r="56"
+                                stroke="#F3F4F6" strokeWidth="8" fill="none"
                             />
                             {/* Progress Arc */}
                             <circle
-                                cx="50%" cy="50%" r="84"
-                                stroke="#3B82F6" strokeWidth="12" fill="none"
+                                cx="50%" cy="50%" r="56"
+                                stroke="#3B82F6" strokeWidth="8" fill="none"
+
                                 strokeLinecap="round"
-                                strokeDasharray={527.79} // 2 * PI * 84
-                                strokeDashoffset={527.79 - (progressFraction * 527.79)}
+                                strokeDasharray={351.86} // 2 * PI * 56
+                                strokeDashoffset={351.86 - (progressFraction * 351.86)}
                                 className="transition-all duration-700 ease-out"
                             />
                         </svg>
@@ -596,20 +606,14 @@ function RoutinePlayerContent() {
 
                     {/* Center Text */}
                     <div className="flex flex-col items-center z-10">
-                        <span className="text-5xl font-black text-gray-800 tracking-tight">
+                        <span className="text-3xl font-black text-gray-800 tracking-tight">
                             {Math.round(progressFraction * 100)}%
-                        </span>
-                        <span className="text-lg font-bold text-gray-400 mt-1">
-                            Complete
-                        </span>
-                        <span className="text-sm font-medium text-gray-400 mt-1">
-                            {completedStepIndices.size + 1 > routine.steps.length ? routine.steps.length : completedStepIndices.size + 1} of {routine.steps.length} steps
                         </span>
                     </div>
 
-                    {/* Integrated Orbital Star Badge */}
+                    {/* Integrated Orbital Star Badge (Smaller) */}
                     <div
-                        className="absolute bg-white border-4 border-yellow-50 rounded-full w-20 h-20 flex flex-col items-center justify-center shadow-lg z-20"
+                        className="absolute bg-white border-4 border-yellow-50 rounded-full w-14 h-14 flex flex-col items-center justify-center shadow-lg z-20"
                         style={{
                             left: badgeX,
                             top: badgeY,
@@ -618,10 +622,10 @@ function RoutinePlayerContent() {
                         }}
                     >
                         <div ref={starTargetRef} className="relative mb-[-2px]">
-                            <Star className="w-8 h-8 fill-yellow-400 text-yellow-400" />
+                            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                             <div className="absolute inset-0 animate-ping opacity-20 bg-yellow-400 rounded-full"></div>
                         </div>
-                        <span className="font-black text-gray-800 text-lg leading-none">
+                        <span className="font-black text-gray-800 text-sm leading-none">
                             +{earnedStars}
                         </span>
                     </div>
@@ -754,25 +758,25 @@ function RoutinePlayerContent() {
                                     </div>
                                 </div>
 
-                                {/* Controls - Only Active */}
-                                <div className={`flex justify-between items-center gap-3 mt-4 w-full transition-opacity duration-300 ${!isActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                                    <button onClick={(e) => { e.stopPropagation(); resetTimer(); }} className="w-14 h-14 flex-shrink-0 bg-orange-100 text-orange-500 rounded-2xl flex items-center justify-center hover:bg-orange-200 transition-colors shadow-sm active:scale-95">
-                                        <RefreshCw className="w-6 h-6" />
+                                {/* Controls - Compact Controls */}
+                                <div className={`flex justify-between items-center gap-2 mt-2 w-full transition-opacity duration-300 ${!isActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                                    <button onClick={(e) => { e.stopPropagation(); resetTimer(); }} className="w-12 h-12 flex-shrink-0 bg-orange-100 text-orange-500 rounded-xl flex items-center justify-center hover:bg-orange-200 transition-colors shadow-sm active:scale-95">
+                                        <RefreshCw className="w-5 h-5" />
                                     </button>
 
                                     <button
                                         onClick={(e) => { e.stopPropagation(); toggleTimer(); }}
-                                        className={`flex-1 h-16 rounded-2xl shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 text-white ${isRunning
-                                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 shadow-[0_4px_0_0_#e68a00]'
-                                            : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_4px_0_0_#059669]'
+                                        className={`flex-1 h-14 rounded-xl shadow-[0_3px_0_0_rgba(0,0,0,0.1)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 text-white ${isRunning
+                                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 shadow-[0_3px_0_0_#e68a00]'
+                                            : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_3px_0_0_#059669]'
                                             }`}
                                     >
-                                        <span className="font-bold text-lg">{isRunning ? "Pause" : "Start"}</span>
-                                        {isRunning ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                                        <span className="font-bold text-base">{isRunning ? "Pause" : "Start"}</span>
+                                        {isRunning ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
                                     </button>
 
-                                    <button onClick={(e) => { e.stopPropagation(); handleSkip(); }} className="w-14 h-14 flex-shrink-0 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm active:scale-95">
-                                        <SkipForward className="w-6 h-6" />
+                                    <button onClick={(e) => { e.stopPropagation(); handleSkip(); }} className="w-12 h-12 flex-shrink-0 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm active:scale-95">
+                                        <SkipForward className="w-5 h-5" />
                                     </button>
                                 </div>
 
@@ -817,13 +821,13 @@ function RoutinePlayerContent() {
                 <button
                     onClick={handleStepComplete}
                     disabled={isCompleting}
-                    className={`w-full bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-lg font-bold py-4 rounded-3xl transition-all flex items-center justify-center gap-2 ${isCompleting
+                    className={`w-full bg-slate-900 text-white text-lg font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 ${isCompleting
                         ? 'opacity-70 cursor-not-allowed scale-[0.98]'
-                        : 'shadow-[0_4px_0_0_#059669] transform active:translate-y-1 active:shadow-none'
+                        : 'shadow-lg shadow-slate-300 active:scale-95'
                         }`}
                 >
-                    <span>I Did It! Next</span>
-                    <ChevronRight className="w-6 h-6" />
+                    <span>I'm Done!</span>
+                    <Check className="w-6 h-6" />
                 </button>
             </div>
         </main>
