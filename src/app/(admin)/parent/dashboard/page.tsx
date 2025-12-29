@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
@@ -13,6 +13,8 @@ import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 
 import { ParentHeader } from '@/components/layout/ParentHeader';
 
@@ -28,6 +30,8 @@ export default function ParentDashboard() {
     const [approvingGoal, setApprovingGoal] = useState<any | null>(null);
     const [rejectingGoal, setRejectingGoal] = useState<any | null>(null);
     const [awardStars, setAwardStars] = useState<number>(0);
+    const [showSetPinModal, setShowSetPinModal] = useState(false);
+    const [newPin, setNewPin] = useState('');
 
     // Data Queries
     const childProfiles = useLiveQuery(
@@ -78,6 +82,36 @@ export default function ParentDashboard() {
         const completedLogs = logs.filter(log => log.status === 'completed');
         return Math.round((completedLogs.length / logs.length) * 100);
     }, []);
+
+    // Check for forgot PIN flow
+    useEffect(() => {
+        const profileId = localStorage.getItem('resetPinForProfile');
+        if (profileId && activeProfile?.id === profileId) {
+            setShowSetPinModal(true);
+        }
+    }, [activeProfile]);
+
+    const handleSetPin = async () => {
+        if (!newPin.trim()) return alert('Please enter a PIN');
+        if (newPin.length < 4) return alert('PIN must be at least 4 digits');
+
+        const profileId = localStorage.getItem('resetPinForProfile');
+        if (!profileId || !activeProfile?.id) {
+            alert('Error: Profile not found.');
+            return;
+        }
+
+        // Update the PIN
+        await db.profiles.update(profileId, { pin: newPin });
+
+        // Clear the stored profile ID
+        localStorage.removeItem('resetPinForProfile');
+
+        // Close modal
+        setShowSetPinModal(false);
+        setNewPin('');
+    };
+
 
     // --- NEW STATS CARD ---
     // --- NEW STATS CARD ---
@@ -498,6 +532,39 @@ export default function ParentDashboard() {
                     </div>
                 </div>
             )}
+
+            {/* Set PIN Modal */}
+            <Modal
+                isOpen={showSetPinModal}
+                onClose={() => { }}
+                title="Set New PIN"
+                className="max-w-sm"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 text-sm mb-4">
+                        Create a new PIN to secure your parent account.
+                    </p>
+                    <div className="mb-6">
+                        <label className="block text-sm font-bold text-slate-600 mb-2">New PIN</label>
+                        <Input
+                            type="password"
+                            value={newPin}
+                            onChange={e => setNewPin(e.target.value)}
+                            placeholder="Enter 4-digit PIN"
+                            maxLength={6}
+                            className="h-12 bg-white border-slate-200"
+                            autoFocus
+                        />
+                        <p className="text-xs text-slate-500 mt-2">Minimum 4 digits</p>
+                    </div>
+                    <Button
+                        className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+                        onClick={handleSetPin}
+                    >
+                        Set PIN & Continue
+                    </Button>
+                </div>
+            </Modal>
         </div >
     );
 }
