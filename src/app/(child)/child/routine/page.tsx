@@ -567,21 +567,13 @@ function RoutinePlayerContent() {
             {/* Header / Progress */}
             <div className="px-6 mb-4 text-center z-10 pt-4 flex flex-col items-center relative w-full">
 
-                {/* Top Left Navigation & Timer */}
-                <div className="absolute left-6 top-6 flex items-center gap-3 z-50">
-                    <button
-                        onClick={() => router.back()}
-                        className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-500 shadow-sm border border-gray-100 active:scale-95"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-
-                    {/* Timer Badge */}
-                    <div className={`h-12 px-4 rounded-full font-black font-mono text-xl shadow-sm border flex items-center gap-2 transition-colors ${isRunning ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-white text-gray-400 border-gray-100'}`}>
-                        <Clock className={`w-5 h-5 ${isRunning ? 'animate-pulse' : ''}`} />
-                        <span>{formatTime(timeLeft)}</span>
-                    </div>
-                </div>
+                {/* Back Button - Absolute */}
+                <button
+                    onClick={() => router.back()}
+                    className="absolute left-6 top-6 w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-500 shadow-sm border border-gray-100 active:scale-95"
+                >
+                    <ArrowLeft className="w-6 h-6" />
+                </button>
 
                 {/* Avatar Badge */}
                 <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 mb-4 mt-2 max-w-[80%]">
@@ -699,6 +691,14 @@ function RoutinePlayerContent() {
                                     if (!isActive) setCurrentStepIndex(index);
                                 }}
                             >
+                                {/* Timer Badge (Top Left) */}
+                                <div className={`absolute -top-4 -left-4 h-14 pl-4 pr-5 bg-white border-4 rounded-full shadow-lg flex items-center gap-2 z-20 ${isActive && isRunning ? 'border-orange-100' : 'border-gray-50'}`}>
+                                    <Clock className={`w-5 h-5 ${isActive && isRunning ? 'text-orange-500 animate-pulse' : 'text-gray-400'}`} />
+                                    <span className={`font-black font-mono text-xl ${isActive && isRunning ? 'text-orange-600' : 'text-gray-600'}`}>
+                                        {isActive ? formatTime(timeLeft) : `${stepItem.duration || 2}:00`}
+                                    </span>
+                                </div>
+
                                 {/* Step Stars Badge (Bigger, Top Right) */}
                                 {displayStars > 0 && (
                                     <div
