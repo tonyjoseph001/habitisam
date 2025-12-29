@@ -5,31 +5,19 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { db } from "@/lib/db";
 
 function LoginPageContent() {
     const { user, signInWithGoogle, signInAsDev, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [showSetPinModal, setShowSetPinModal] = useState(false);
-    const [newPin, setNewPin] = useState('');
 
-    const isForgotPinFlow = searchParams.get('reason') === 'forgot_pin';
 
     // Redirect logic
     useEffect(() => {
         async function checkRouting() {
             if (!loading && user) {
-                // Check if this is a forgot PIN flow
-                if (isForgotPinFlow) {
-                    // Show Set PIN dialog instead of redirecting
-                    setShowSetPinModal(true);
-                    return;
-                }
-
-                // Normal login flow
+                // Normal login flow (including forgot PIN - modal will show on dashboard)
                 const profiles = await db.profiles
                     .where("accountId")
                     .equals(user.uid)
@@ -43,29 +31,9 @@ function LoginPageContent() {
             }
         }
         checkRouting();
-    }, [user, loading, router, isForgotPinFlow]);
+    }, [user, loading, router]);
 
-    const handleSetPin = async () => {
-        if (!newPin.trim()) return alert('Please enter a PIN');
-        if (newPin.length < 4) return alert('PIN must be at least 4 digits');
 
-        const profileId = localStorage.getItem('resetPinForProfile');
-        if (!profileId) {
-            alert('Error: Profile not found. Please try again.');
-            router.push('/parent/dashboard');
-            return;
-        }
-
-        // Update the PIN
-        await db.profiles.update(profileId, { pin: newPin });
-
-        // Clear the stored profile ID
-        localStorage.removeItem('resetPinForProfile');
-
-        // Close modal and redirect to dashboard
-        setShowSetPinModal(false);
-        router.push('/parent/dashboard');
-    };
 
     const handleLogin = async () => {
         try {
@@ -94,7 +62,7 @@ function LoginPageContent() {
                     Cosmic Routine
                 </h1>
                 <p className="font-sans font-medium text-[#94A3B8] text-lg">
-                    {isForgotPinFlow ? 'Sign in to reset your PIN' : 'Blast off to stress-free mornings.'}
+                    Blast off to stress-free mornings.
                 </p>
             </div>
 
@@ -143,38 +111,7 @@ function LoginPageContent() {
                 </div>
             </div>
 
-            {/* Set PIN Modal */}
-            <Modal
-                isOpen={showSetPinModal}
-                onClose={() => { }}
-                title="Set New PIN"
-                className="max-w-sm"
-            >
-                <div className="p-4 pt-0">
-                    <p className="text-slate-600 text-sm mb-4">
-                        Create a new PIN to secure your parent account.
-                    </p>
-                    <div className="mb-6">
-                        <label className="block text-sm font-bold text-slate-600 mb-2">New PIN</label>
-                        <Input
-                            type="password"
-                            value={newPin}
-                            onChange={e => setNewPin(e.target.value)}
-                            placeholder="Enter 4-digit PIN"
-                            maxLength={6}
-                            className="h-12 bg-white border-slate-200"
-                            autoFocus
-                        />
-                        <p className="text-xs text-slate-500 mt-2">Minimum 4 digits</p>
-                    </div>
-                    <Button
-                        className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
-                        onClick={handleSetPin}
-                    >
-                        Set PIN & Continue
-                    </Button>
-                </div>
-            </Modal>
+
         </div>
     );
 }
