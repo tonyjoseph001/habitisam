@@ -12,6 +12,7 @@ import * as Icons from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ChildHeader from '@/components/child/ChildHeader';
 import { GoalSlider } from '@/components/child/GoalSlider';
+import { toast } from 'sonner';
 
 export default function ChildGoalsPage() {
     const RenderIcon = ({ name }: { name: string }) => {
@@ -179,12 +180,17 @@ export default function ChildGoalsPage() {
                     status: 'cancelled',
                     completedAt: new Date()
                 });
+                toast.info("Goal cancelled.");
             } else {
                 // Complete
                 await db.goals.update(confirmationGoal.id, {
                     status: 'pending_approval',
                     current: confirmationGoal.target,
                     completedAt: new Date()
+                });
+                toast.success("Goal Completed! 🌟", {
+                    description: "Waiting for parent approval.",
+                    duration: 4000
                 });
             }
             setConfirmationGoal(null);
@@ -416,7 +422,7 @@ export default function ChildGoalsPage() {
                                     onClick={() => handleInputUpdate(goal)}
                                     className="bg-white/20 hover:bg-white/30 text-white border border-white/10 font-bold py-3 px-5 rounded-2xl text-xs transition-colors backdrop-blur-sm shadow-sm"
                                 >
-                                    {goal.type === 'checklist' ? 'View Steps' :
+                                    {goal.type === 'checklist' ? 'Steps' :
                                         goal.type === 'savings' ? 'Add $' :
                                             goal.type === 'timer' ? '+ Log' : 'Update'}
                                 </button>
@@ -502,7 +508,7 @@ export default function ChildGoalsPage() {
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-white rounded-3xl p-6 z-50 shadow-2xl max-w-sm mx-auto overflow-hidden"
+                            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-white rounded-3xl p-6 z-[9999] shadow-2xl max-w-sm mx-auto overflow-hidden text-center flex flex-col items-center"
                         >
                             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-400 to-purple-500"></div>
 
