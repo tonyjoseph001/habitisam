@@ -47,7 +47,7 @@ export default function ChildGoalsPage() {
         // We can randomize or use specific logic based on type
         switch (goal.type) {
             case 'checklist': return 'purple';
-            case 'slider': return 'blue';
+
             case 'counter': return 'green';
             case 'binary': return 'orange';
             case 'savings': return 'yellow';
@@ -96,11 +96,11 @@ export default function ChildGoalsPage() {
         const newCurrent = Math.max(0, Math.min(goal.target, goal.current + increment));
         await db.goals.update(goal.id, { current: newCurrent });
     };
-
-    const handleSliderUpdate = async (goal: any, value: number) => {
+    const handleGoalValueUpdate = async (goal: any, value: number) => {
         if (goal.status !== 'active') return;
         await db.goals.update(goal.id, { current: value });
     };
+
 
     const handleBinary = (goal: Goal) => {
         setConfirmationGoal(goal);
@@ -120,8 +120,7 @@ export default function ChildGoalsPage() {
             setChecklistModalGoal(goal);
         } else {
             const promptMsg = goal.type === 'savings' ? "Enter amount saved ($):" :
-                goal.type === 'timer' ? "Enter minutes done:" :
-                    goal.type === 'slider' ? "Enter new percentage (0-100):" : "Enter value:";
+                goal.type === 'timer' ? "Enter minutes done:" : "Enter value:";
 
             const res = window.prompt(promptMsg);
             if (res !== null) {
@@ -337,15 +336,7 @@ export default function ChildGoalsPage() {
                                 <GoalSlider
                                     goal={goal}
                                     colors={colors}
-                                    onUpdate={(val) => handleSliderUpdate(goal, val)}
-                                />
-                            )}
-
-                            {goal.type === 'slider' && (
-                                <GoalSlider
-                                    goal={goal}
-                                    colors={colors}
-                                    onUpdate={(val) => handleSliderUpdate(goal, val)}
+                                    onUpdate={(val) => handleGoalValueUpdate(goal, val)}
                                 />
                             )}
 
@@ -353,7 +344,7 @@ export default function ChildGoalsPage() {
                                 <GoalSlider
                                     goal={goal}
                                     colors={colors}
-                                    onUpdate={(val) => handleSliderUpdate(goal, val)}
+                                    onUpdate={(val) => handleGoalValueUpdate(goal, val)}
                                 />
                             )}
 
@@ -361,7 +352,7 @@ export default function ChildGoalsPage() {
                                 <GoalSlider
                                     goal={goal}
                                     colors={colors}
-                                    onUpdate={(val) => handleSliderUpdate(goal, val)}
+                                    onUpdate={(val) => handleGoalValueUpdate(goal, val)}
                                 />
                             )}
 
@@ -369,7 +360,7 @@ export default function ChildGoalsPage() {
                                 <GoalSlider
                                     goal={goal}
                                     colors={colors}
-                                    onUpdate={(val) => handleSliderUpdate(goal, val)}
+                                    onUpdate={(val) => handleGoalValueUpdate(goal, val)}
                                 />
                             )}
 
@@ -420,15 +411,14 @@ export default function ChildGoalsPage() {
                         <div className="flex gap-2">
 
                             {/* Primary Action */}
-                            {goal.type !== 'binary' && goal.type !== 'counter' && goal.type !== 'slider' && goal.type !== 'timer' && (
+                            {goal.type !== 'binary' && goal.type !== 'counter' && goal.type !== 'timer' && (
                                 <button
                                     onClick={() => handleInputUpdate(goal)}
                                     className="bg-white/20 hover:bg-white/30 text-white border border-white/10 font-bold py-3 px-5 rounded-2xl text-xs transition-colors backdrop-blur-sm shadow-sm"
                                 >
                                     {goal.type === 'checklist' ? 'View Steps' :
-                                        goal.type === 'slider' ? 'Update' :
-                                            goal.type === 'savings' ? 'Add $' :
-                                                goal.type === 'timer' ? '+ Log' : 'Update'}
+                                        goal.type === 'savings' ? 'Add $' :
+                                            goal.type === 'timer' ? '+ Log' : 'Update'}
                                 </button>
                             )}
 

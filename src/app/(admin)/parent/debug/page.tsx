@@ -78,7 +78,7 @@ export default function DebugPage() {
                 profileId: childId,
                 title: "Read 10 Books",
                 description: "Read science fiction books",
-                type: "slider",
+                type: "counter",
                 target: 10,
                 current: 4,
                 unit: "Books",

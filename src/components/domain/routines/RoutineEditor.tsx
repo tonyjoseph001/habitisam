@@ -30,7 +30,6 @@ const DAYS = [
 const TRACKING_TYPES = [
     { id: 'counter', label: 'Counter', desc: '1, 2, 3...', icon: Hash },
     { id: 'checklist', label: 'Checklist', desc: 'Steps', icon: ListChecks },
-    { id: 'slider', label: 'Slider', desc: '%', icon: SlidersHorizontal },
     { id: 'binary', label: 'Done?', desc: 'Yes / No', icon: CheckCircle2 },
 ];
 
@@ -452,7 +451,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                         {/* Goal Type Selection */}
                         <div className="flex flex-col gap-3">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Goal Type</label>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Progress Goal</label>
                             <div className="grid grid-cols-2 gap-3">
                                 {TRACKING_TYPES.map(t => {
                                     const isSelected = goalType === t.id;

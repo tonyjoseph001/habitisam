@@ -27,12 +27,11 @@ export function GoalSlider({ goal, colors, onUpdate }: GoalSliderProps) {
     };
 
     // Determine Logic/Display based on Type
-    const isPercentage = goal.type === 'checklist' || goal.type === 'slider' || goal.unit === '%';
+    const isPercentage = goal.type === 'checklist' || goal.unit === '%';
     const max = goal.target > 0 ? goal.target : 100;
     const label = goal.type === 'checklist' ? 'Progress' :
-        goal.type === 'slider' ? 'Confidence' :
-            goal.type === 'timer' ? 'Time Logged' :
-                goal.type === 'savings' ? 'Saved' : 'Count';
+        goal.type === 'timer' ? 'Time Logged' :
+            goal.type === 'savings' ? 'Saved' : 'Count';
 
     // Display Value Formatting
     const displayValue = isPercentage

@@ -168,7 +168,7 @@ export interface InboxReward {
 // ==========================================
 // NEW: Goals / Quests
 // ==========================================
-export type GoalType = 'checklist' | 'slider' | 'counter' | 'timer' | 'savings' | 'binary';
+export type GoalType = 'checklist' | 'counter' | 'timer' | 'savings' | 'binary';
 export type GoalStatus = 'active' | 'pending_approval' | 'completed' | 'cancelled';
 
 export interface Goal {
