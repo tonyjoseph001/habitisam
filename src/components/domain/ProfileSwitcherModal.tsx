@@ -16,7 +16,7 @@ interface ProfileSwitcherProps {
 }
 
 export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) {
-    const { user } = useAuth();
+    const { user, signOut, signInWithGoogle } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const router = useRouter(); // ID: 6b0c9e64-1340-47e1-aa3e-a5160c24b3c3
 
@@ -150,29 +150,35 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                                     return;
                                 }
 
-                                // Store the profile ID that needs PIN reset in a different key
-                                // This will be checked on login page, not dashboard
-                                if (targetProfile?.id) {
-                                    localStorage.setItem('pendingPinReset', targetProfile.id);
+                                try {
+                                    // 1. Close modal
+                                    onClose();
+
+                                    // 2. Clear old session data
+                                    if (targetProfile?.id) {
+                                        sessionStorage.removeItem('parentPinVerified_' + targetProfile.id);
+                                    }
+
+                                    // 3. Explicit Sign Out
+                                    await signOut();
+
+                                    // 4. Immediate Sign In Popup
+                                    // This forces the user to re-authenticate right here
+                                    const newUser = await signInWithGoogle();
+
+                                    if (newUser) {
+                                        // 5. Success! Set flag for Dashboard
+                                        if (targetProfile?.id) {
+                                            localStorage.setItem('resetPinForProfile', targetProfile.id);
+                                        }
+
+                                        // 6. Redirect to Dashboard
+                                        window.location.href = '/parent/dashboard';
+                                    }
+                                } catch (error) {
+                                    console.error('Forgot PIN flow error:', error);
+                                    window.location.href = '/login';
                                 }
-
-                                // Close modal first
-                                onClose();
-
-                                // Clear any existing session verification
-                                if (targetProfile?.id) {
-                                    sessionStorage.removeItem('parentPinVerified_' + targetProfile.id);
-                                }
-
-                                // Sign out user and wait for completion
-                                const { getAuth, signOut } = await import('firebase/auth');
-                                await signOut(getAuth());
-
-                                // Wait to ensure session is cleared
-                                await new Promise(resolve => setTimeout(resolve, 500));
-
-                                // Force redirect to login
-                                window.location.replace('/login?reason=forgot_pin');
                             }}
                             className="text-xs text-violet-600 hover:text-violet-700 font-medium underline"
                         >
