@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { db, Activity } from '@/lib/db';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, Volume2, ArrowLeft, Clock } from 'lucide-react';
+import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, SkipBack, Volume2, ArrowLeft, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/sound';
 
@@ -152,6 +152,20 @@ function RoutinePlayerContent() {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
     }, [isRunning, timeLeft]);
+
+    // Sync Audio with Timer Logic
+    useEffect(() => {
+        const step = routine?.steps[currentStepIndex];
+        if (step?.audioUrl && audioInstanceRef.current) {
+            if (isRunning && !isAudioPlaying) {
+                audioInstanceRef.current.play().catch(console.error);
+                setIsAudioPlaying(true);
+            } else if (!isRunning && isAudioPlaying) {
+                audioInstanceRef.current.pause();
+                setIsAudioPlaying(false);
+            }
+        }
+    }, [isRunning, currentStepIndex, routine, isAudioPlaying]);
 
     // Audio Logic
     useEffect(() => {
@@ -505,21 +519,16 @@ function RoutinePlayerContent() {
         );
     }
 
-    const step = routine.steps[currentStepIndex];
-    const avatarSrc = `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeProfile.name}&clothing=graphicShirt`;
-    // const totalRoutineStars = routine.steps.reduce((acc, s) => acc + (s.stars || 0), 0); // Replaced with earnedStars state
-
-    // Orbital Badge Calculation
+    const currentStep = routine.steps[currentStepIndex];
+    // Orbital Badge Calculation (For new layout, we reuse progress calc for stars mainly)
     const progressFraction = routine.steps.length > 0 ? completedStepIndices.size / routine.steps.length : 0;
-    const orbitalRadius = 56;
-    const center = 64; // 128px / 2 (w-32 h-32 container is 128px)
-    // Start at -90deg (Top)
-    const angle = (progressFraction * 2 * Math.PI) - (Math.PI / 2);
-    const badgeX = center + orbitalRadius * Math.cos(angle);
-    const badgeY = center + orbitalRadius * Math.sin(angle);
+    const accumulatedStars = routine.steps.reduce((acc, step, idx) => completedStepIndices.has(idx) ? acc + (step.stars || 0) : acc, 0);
+
+    // Derived values for new layout
+    const isActive = true; // Always active in single view
 
     return (
-        <main className="bg-[#EEF2FF] min-h-screen flex flex-col pt-8 pb-8 select-none relative overflow-hidden font-sans">
+        <main className="h-screen bg-[#EEF2FF] flex flex-col font-sans overflow-hidden">
 
             {/* Skip Confirmation Modal */}
             <AnimatePresence>
@@ -528,269 +537,214 @@ function RoutinePlayerContent() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
                         onClick={() => setIsSkipModalOpen(false)}
                     >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <SkipForward className="w-8 h-8 text-orange-500" />
+                        {/* ... modal content ... */}
+                        <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+                            <h2 className="text-xl font-bold mb-4">Skip?</h2>
+                            <div className="flex gap-4 justify-center">
+                                <button onClick={() => setIsSkipModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-xl font-bold">Cancel</button>
+                                <button onClick={confirmSkip} className="px-4 py-2 bg-orange-100 text-orange-600 rounded-xl font-bold">Skip</button>
                             </div>
-                            <h2 className="text-2xl font-black text-gray-800 mb-2">Skip this task?</h2>
-                            <p className="text-gray-500 font-medium mb-8">
-                                Are you sure? You won't earn stars for this step if you skip it.
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={() => setIsSkipModalOpen(false)}
-                                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={confirmSkip}
-                                    className="py-3 px-4 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold rounded-xl transition-colors border border-orange-200"
-                                >
-                                    Yes, Skip
-                                </button>
-                            </div>
-                        </motion.div>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
+            {/* NEW PLAYER LAYOUT */}
+            {/* NEW LAYOUT: Header Bar + Scrollable Body */}
+            <div className="flex flex-col h-full w-full relative z-10">
 
-            {/* Header / Progress */}
-            <div className="px-6 mb-4 text-center z-10 pt-4 flex flex-col items-center relative w-full">
-
-                {/* Back Button - Absolute */}
-                <button
-                    onClick={() => router.back()}
-                    className="absolute left-6 top-6 w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-500 shadow-sm border border-gray-100 active:scale-95"
-                >
-                    <ArrowLeft className="w-6 h-6" />
-                </button>
-
-                {/* Avatar Badge */}
-                <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 mb-4 mt-2 max-w-[80%]">
-                    <div className="w-6 h-6 rounded-full bg-yellow-100 border border-white shadow-sm flex items-center justify-center text-sm shrink-0">
-                        {(() => {
-                            // Inline helper or use effect, but better to just switch here or duplicate helper
-                            const aid = activeProfile.avatarId;
-                            switch (aid) {
-                                case 'boy': return '🧑‍🚀';
-                                case 'girl': return '👩‍🚀';
-                                case 'superhero': return '🦸';
-                                case 'superhero_girl': return '🦸‍♀️';
-                                case 'ninja': return '🥷';
-                                case 'wizard': return '🧙';
-                                case 'princess': return '👸';
-                                case 'pirate': return '🏴‍☠️';
-                                case 'alien': return '👽';
-                                case 'robot': return '🤖';
-                                case 'dinosaur': return '🦖';
-                                case 'unicorn': return '🦄';
-                                case 'dragon': return '🐉';
-                                case 'rocket': return '🚀';
-                                default: return '👶';
-                            }
-                        })()}
-                    </div>
-                    <span className="text-xs font-bold text-gray-600 leading-tight text-left line-clamp-2">{routine.title}</span>
-                </div>
-
-                {/* Progress Circle Container (Smaller) */}
-                <div className="relative w-32 h-32 flex items-center justify-center bg-white rounded-full shadow-sm">
-                    {/* SVG Ring */}
-                    <div className="absolute inset-0 p-1">
-                        <svg className="w-full h-full transform -rotate-90">
-                            {/* Background Track */}
-                            <circle
-                                cx="50%" cy="50%" r="56"
-                                stroke="#F3F4F6" strokeWidth="8" fill="none"
-                            />
-                            {/* Progress Arc */}
-                            <circle
-                                cx="50%" cy="50%" r="56"
-                                stroke="#3B82F6" strokeWidth="8" fill="none"
-
-                                strokeLinecap="round"
-                                strokeDasharray={351.86} // 2 * PI * 56
-                                strokeDashoffset={351.86 - (progressFraction * 351.86)}
-                                className="transition-all duration-700 ease-out"
-                            />
-                        </svg>
-                    </div>
-
-                    {/* Center Text */}
-                    <div className="flex flex-col items-center z-10">
-                        <span className="text-3xl font-black text-gray-800 tracking-tight">
-                            {Math.round(progressFraction * 100)}%
-                        </span>
-                    </div>
-
-                    {/* Integrated Orbital Star Badge (Smaller) */}
-                    <div
-                        className="absolute bg-white border-4 border-yellow-50 rounded-full w-14 h-14 flex flex-col items-center justify-center shadow-lg z-20"
-                        style={{
-                            left: badgeX,
-                            top: badgeY,
-                            transform: 'translate(-50%, -50%)',
-                            transition: 'left 0.7s ease-out, top 0.7s ease-out'
-                        }}
+                {/* 1. Yellow Header Bar */}
+                <div className="h-16 bg-[#FFF4C3] flex items-center justify-between px-4 sticky top-0 z-50 shadow-sm flex-shrink-0">
+                    <button
+                        onClick={() => router.back()}
+                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm active:scale-95"
                     >
-                        <div ref={starTargetRef} className="relative mb-[-2px]">
-                            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                            <div className="absolute inset-0 animate-ping opacity-20 bg-yellow-400 rounded-full"></div>
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-white border-2 border-white overflow-hidden shadow-sm flex items-center justify-center text-lg">
+                            {(() => {
+                                const aid = activeProfile?.avatarId;
+                                switch (aid) {
+                                    case 'boy': return '🧑‍🚀';
+                                    case 'girl': return '👩‍🚀';
+                                    case 'superhero': return '🦸';
+                                    case 'superhero_girl': return '🦸‍♀️';
+                                    case 'ninja': return '🥷';
+                                    case 'wizard': return '🧙';
+                                    case 'princess': return '👸';
+                                    case 'pirate': return '🏴‍☠️';
+                                    case 'alien': return '👽';
+                                    case 'robot': return '🤖';
+                                    case 'dinosaur': return '🦖';
+                                    case 'unicorn': return '🦄';
+                                    case 'dragon': return '🐉';
+                                    case 'rocket': return '🚀';
+                                    default: return '👶';
+                                }
+                            })()}
                         </div>
-                        <span className="font-black text-gray-800 text-sm leading-none">
-                            +{earnedStars}
+                        <h1 className="font-extrabold text-gray-800 text-lg truncate max-w-[150px]">{routine.title}</h1>
+                    </div>
+
+                    <div className="bg-orange-100/50 px-3 py-1 rounded-full border border-orange-100">
+                        <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
+                            Task {currentStepIndex + 1}/{routine.steps.length}
                         </span>
                     </div>
                 </div>
-            </div>
 
-            {/* Main Carousel */}
-            <div className="routine-carousel flex-1 w-full overflow-hidden flex flex-col justify-center z-10">
-                <motion.div
-                    className="flex gap-4 px-4"
-                    initial={false}
-                    animate={{ x: `calc(${centerOffset} - ${currentStepIndex} * ${stride})` }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    style={{ width: "fit-content" }}
-                    drag="x"
-                    dragConstraints={{ left: 0, right: 0 }}
-                    onDragEnd={(e, { offset }) => {
-                        const swipe = offset.x; // negative is left (next)
-                        if (swipe < -50 && currentStepIndex < routine.steps.length - 1) {
-                            // Swipe = Navigation ONLY. Do not trigger rewards/completion.
-                            setCurrentStepIndex(currentStepIndex + 1);
-                            playSound('select');
-                        }
-                        if (swipe > 50 && currentStepIndex > 0) {
-                            setCurrentStepIndex(currentStepIndex - 1);
-                            playSound('select');
-                        }
-                    }}
-                >
-                    {routine.steps.map((stepItem, index) => {
-                        const isActive = index === currentStepIndex;
-                        const isPast = index < currentStepIndex;
-                        const displayStars = isActive ? activeStepRemainingStars : stepItem.stars;
+                {/* 2. Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center pb-32">
 
-                        return (
-                            <motion.div
-                                key={stepItem.id || index}
-                                className={`flex-shrink-0 bg-white rounded-[2.5rem] p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] relative transition-all duration-300 ${isActive ? 'scale-100 opacity-100 ring-4 ring-transparent' : 'scale-90 opacity-50 blur-[1px] grayscale'}`}
-                                style={{ width: cardWidth }}
-                                onClick={() => {
-                                    if (!isActive) setCurrentStepIndex(index);
-                                }}
-                            >
-                                {/* Timer Badge (Top Left) */}
-                                <div className={`absolute -top-4 -left-4 h-14 pl-4 pr-5 bg-white border-4 rounded-full shadow-lg flex items-center gap-2 z-20 ${isActive && isRunning ? 'border-orange-100' : 'border-gray-50'}`}>
-                                    <Clock className={`w-5 h-5 ${isActive && isRunning ? 'text-orange-500 animate-pulse' : 'text-gray-400'}`} />
-                                    <span className={`font-black font-mono text-xl ${isActive && isRunning ? 'text-orange-600' : 'text-gray-600'}`}>
-                                        {isActive ? formatTime(timeLeft) : `${stepItem.duration || 2}:00`}
-                                    </span>
-                                </div>
+                    {/* Top Section: Progress Dome & Stars */}
+                    <div className="w-full bg-gradient-to-b from-[#FFF4C3] to-[#EEF2FF] rounded-b-[3rem] pb-8 pt-4 flex flex-col items-center relative mb-4">
 
-                                {/* Step Stars Badge (Bigger, Top Right) */}
-                                {displayStars > 0 && (
-                                    <div
-                                        ref={isActive ? activeStepStarRef : null}
-                                        className="absolute -top-4 -right-4 w-16 h-16 bg-white border-4 border-yellow-100 rounded-full shadow-lg flex flex-col items-center justify-center transform rotate-12 z-20"
-                                    >
-                                        <Star className="w-6 h-6 fill-yellow-400 text-yellow-400 mb-[-2px]" />
-                                        <span className="text-lg font-black text-gray-800 leading-none">+{displayStars}</span>
-                                    </div>
+                        {/* Progress Dome (Half Circle) */}
+                        <div className="relative w-48 h-24 mt-2">
+                            <svg className="w-full h-full overflow-visible">
+                                {/* Track (Semi Circle) */}
+                                <path
+                                    d="M 10,96 A 86,86 0 0,1 182,96"
+                                    fill="none"
+                                    stroke="white"
+                                    strokeWidth="12"
+                                    strokeLinecap="round"
+                                />
+                                {/* Progress (Semi Circle) */}
+                                {isActive && (
+                                    <path
+                                        d="M 10,96 A 86,86 0 0,1 182,96"
+                                        fill="none"
+                                        stroke="#3B82F6"
+                                        strokeWidth="12"
+                                        strokeLinecap="round"
+                                        strokeDasharray={270} // Approx arc length
+                                        strokeDashoffset={270 - (progressFraction * 270)}
+                                        className="transition-all duration-1000 ease-linear"
+                                        id="progress-arc"
+                                    />
                                 )}
+                            </svg>
 
-                                <h2
-                                    className={`text-3xl font-extrabold text-gray-800 text-center mb-4 mt-2 cursor-pointer transition-all active:scale-[98%] ${isTitleExpanded ? '' : 'line-clamp-2'}`}
-                                    onClick={(e) => {
-                                        if (!isActive) return;
-                                        e.stopPropagation();
-                                        setIsTitleExpanded(!isTitleExpanded);
+                            {/* Floating Star Badge on top of Arc */}
+                            <div className="absolute -top-4 right-1/2 translate-x-1/2 w-12 h-12 bg-white rounded-full shadow-md flex flex-col items-center justify-center border-2 border-yellow-100">
+                                <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                                <span className="text-[10px] font-black text-gray-700 leading-none">{accumulatedStars}</span>
+                            </div>
+
+                            {/* Time Display (Inside Dome) */}
+                            <div className="absolute top-8 left-0 right-0 text-center flex flex-col items-center">
+                                <span className="text-4xl font-black text-gray-800 tracking-tight">{isActive ? formatTime(timeLeft) : `${currentStep.duration || 2}:00`}</span>
+                                <span className="text-lg font-bold text-blue-500">{Math.round(progressFraction * 100)}%</span>
+                            </div>
+                        </div>
+
+
+
+                    </div>
+
+                    {/* 3. Character & Content */}
+                    <div className="w-full max-w-sm px-6 flex flex-col items-center">
+
+
+
+                        {/* Title */}
+                        <h2 className="text-3xl font-black text-slate-800 text-center mb-2 mt-8 leading-tight flex items-center justify-center gap-3">
+                            <span className="text-4xl filter drop-shadow-sm">
+                                {currentStep.icon?.length < 3 ? currentStep.icon : (currentStep.icon === 'toothbrush' ? '🦷' : '✨')}
+                            </span>
+                            <span>{currentStep.title}</span>
+                        </h2>
+
+                        {/* Instruction List (Split description) */}
+                        <div className="w-full bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6">
+                            <ul className="space-y-2 text-slate-600 font-medium text-sm text-left">
+                                {(currentStep.description || "Follow the steps carefully!").split('. ').map((sentence, i) => (
+                                    sentence.trim() && (
+                                        <li key={i} className="flex gap-2 items-start">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0"></div>
+                                            <span>{sentence.trim()}{sentence.trim().endsWith('.') ? '' : '.'}</span>
+                                        </li>
+                                    )
+                                ))}
+                            </ul>
+                        </div>
+
+                        {/* Audio Controls Box */}
+                        <div className="w-full bg-white rounded-[2rem] p-4 shadow-[0_10px_30px_-5px_rgba(0,0,0,0.05)] border border-slate-50 relative overflow-hidden">
+                            {/* Glossy overlay */}
+                            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent pointer-events-none"></div>
+
+                            {/* Controls Row */}
+                            <div className="flex items-center justify-between gap-4 px-2 mb-4 mt-2">
+                                <button
+                                    onClick={() => {
+                                        if (currentStepIndex > 0) {
+                                            setCurrentStepIndex(currentStepIndex - 1);
+                                            playSound('select');
+                                        }
                                     }}
+                                    disabled={currentStepIndex === 0}
+                                    className="p-3 text-slate-300 hover:text-slate-500 disabled:opacity-20 transition-colors"
                                 >
-                                    {stepItem.title}
-                                </h2>
+                                    <SkipBack className="w-8 h-8 fill-current" />
+                                </button>
 
-                                <div className="flex flex-col items-center mb-6">
-                                    {/* Description Text */}
-                                    <div className="bg-blue-50/50 rounded-2xl p-4 mb-4 w-full">
-                                        <p className="text-gray-600 text-base font-medium text-center leading-relaxed">
-                                            {stepItem.description || "You can do it! Follow the steps."}
-                                        </p>
-                                    </div>
+                                <button
+                                    onClick={toggleTimer}
+                                    className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isRunning
+                                        ? 'bg-gradient-to-br from-teal-400 to-emerald-500 shadow-emerald-500/30'
+                                        : 'bg-gradient-to-br from-blue-400 to-indigo-500 shadow-blue-500/30'
+                                        }`}
+                                >
+                                    {isRunning ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />}
+                                </button>
 
-                                    {/* Audio Button - Only Active IF Audio Exists */}
-                                    {stepItem.audioUrl && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isActive) toggleAudio();
-                                            }}
-                                            className={`flex items-center gap-2 pl-3 pr-4 py-2 rounded-full text-xs font-bold transition-all border group active:scale-95 ${isActive && isAudioPlaying
-                                                ? 'bg-blue-100 text-blue-600 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.4)]'
-                                                : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'
-                                                } ${!isActive && 'opacity-0 pointer-events-none'}`}
-                                        >
-                                            {!isAudioPlaying ? (
-                                                <Volume2 className="w-4 h-4" />
-                                            ) : (
-                                                <div className="flex items-center gap-0.5 h-4">
-                                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-2.5 [animation-delay:0.1s]"></div>
-                                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-4 [animation-delay:0.2s]"></div>
-                                                    <div className="w-[3px] bg-blue-500 rounded-full animate-wave h-3 [animation-delay:0.3s]"></div>
-                                                </div>
-                                            )}
-                                            <span>{isAudioPlaying ? "Stop" : "Listen"}</span>
-                                        </button>
-                                    )}
+                                <button
+                                    onClick={() => setIsSkipModalOpen(true)}
+                                    className="p-3 text-slate-300 hover:text-slate-500 transition-colors"
+                                >
+                                    <SkipForward className="w-8 h-8 fill-current" />
+                                </button>
+                            </div>
+
+                            {/* Timeline */}
+                            <div className="flex items-center gap-3 px-2">
+                                <span className="text-[10px] font-bold text-slate-400 w-8 text-right tabular-nums">
+                                    {formatTime(totalTime - timeLeft)}
+                                </span>
+                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <motion.div
+                                        className="h-full bg-blue-400 rounded-full"
+                                        animate={{ width: `${((totalTime - timeLeft) / totalTime) * 100}%` }}
+                                        transition={{ duration: 1, ease: 'linear' }}
+                                    />
                                 </div>
+                                <span className="text-[10px] font-bold text-slate-400 w-8 tabular-nums">
+                                    {formatTime(totalTime)}
+                                </span>
+                            </div>
+                        </div>
 
-                                {/* Step Icon (Centered) */}
-                                <div className="flex items-center justify-center mb-8 h-32">
-                                    <div className="w-32 h-32 flex items-center justify-center bg-gray-50 rounded-full">
-                                        <div className="text-7xl filter drop-shadow-sm transform -rotate-6 transition-transform hover:rotate-12 duration-500">
-                                            {/* We can use RenderIcon here if available, or just emoji fallback */}
-                                            {stepItem.icon?.length < 3 ? stepItem.icon : (stepItem.icon === 'toothbrush' ? '🦷' : '✨')}
-                                        </div>
-                                    </div>
-                                </div>
+                    </div>
+                </div>
 
-                                {/* Controls - Compact Controls */}
-                                <div className={`flex justify-between items-center gap-2 mt-2 w-full transition-opacity duration-300 ${!isActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                                    <button onClick={(e) => { e.stopPropagation(); resetTimer(); }} className="w-12 h-12 flex-shrink-0 bg-orange-100 text-orange-500 rounded-xl flex items-center justify-center hover:bg-orange-200 transition-colors shadow-sm active:scale-95">
-                                        <RefreshCw className="w-5 h-5" />
-                                    </button>
+                {/* Sticky Bottom Actions */}
+                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-50 via-slate-50/90 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
+                    <button
+                        onClick={handleStepComplete}
+                        disabled={isCompleting}
+                        className={`w-full max-w-md bg-[#1E293B] text-white text-lg font-bold py-4 rounded-3xl transition-all flex items-center justify-center gap-2 shadow-xl pointer-events-auto ${isCompleting ? 'opacity-80 scale-95' : 'active:scale-[0.98]'}`}
+                    >
+                        <span>I'm Done!</span>
+                        <Check className="w-6 h-6" />
+                    </button>
+                </div>
 
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); toggleTimer(); }}
-                                        className={`flex-1 h-14 rounded-xl shadow-[0_3px_0_0_rgba(0,0,0,0.1)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 text-white ${isRunning
-                                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 shadow-[0_3px_0_0_#e68a00]'
-                                            : 'bg-gradient-to-r from-[#10B981] to-[#059669] shadow-[0_3px_0_0_#059669]'
-                                            }`}
-                                    >
-                                        <span className="font-bold text-base">{isRunning ? "Pause" : "Start"}</span>
-                                        {isRunning ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-                                    </button>
-
-                                    <button onClick={(e) => { e.stopPropagation(); handleSkip(); }} className="w-12 h-12 flex-shrink-0 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm active:scale-95">
-                                        <SkipForward className="w-5 h-5" />
-                                    </button>
-                                </div>
-
-                            </motion.div>
-                        );
-                    })}
-                </motion.div>
             </div>
 
             {/* FLYING STAR ANIMATION LAYER */}
@@ -812,9 +766,8 @@ function RoutinePlayerContent() {
                         }}
                         exit={{ opacity: 0, scale: 0 }}
                         transition={{
-                            duration: 0.4, // Super Fast flight
-                            ease: "backIn" // "backIn" pulls back slightly then shoots, or "easeInOut"
-                            // No delay (handled by spawn time)
+                            duration: 0.4,
+                            ease: "backIn"
                         }}
                         className="fixed top-0 left-0 z-[100] w-8 h-8 text-yellow-400 pointer-events-none drop-shadow-xl"
                     >
@@ -822,22 +775,7 @@ function RoutinePlayerContent() {
                     </motion.div>
                 ))}
             </AnimatePresence>
-
-            {/* Footer Button */}
-            <div className="px-6 w-full max-w-md mx-auto z-10">
-                <button
-                    onClick={handleStepComplete}
-                    disabled={isCompleting}
-                    className={`w-full bg-slate-900 text-white text-lg font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 ${isCompleting
-                        ? 'opacity-70 cursor-not-allowed scale-[0.98]'
-                        : 'shadow-lg shadow-slate-300 active:scale-95'
-                        }`}
-                >
-                    <span>I'm Done!</span>
-                    <Check className="w-6 h-6" />
-                </button>
-            </div>
-        </main>
+        </main >
     );
 }
 
