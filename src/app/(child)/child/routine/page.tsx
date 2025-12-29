@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { db, Activity } from '@/lib/db';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, Volume2, ArrowLeft } from 'lucide-react';
+import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, Volume2, ArrowLeft, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/sound';
 
@@ -567,13 +567,21 @@ function RoutinePlayerContent() {
             {/* Header / Progress */}
             <div className="px-6 mb-4 text-center z-10 pt-4 flex flex-col items-center relative w-full">
 
-                {/* Back Button - Absolute */}
-                <button
-                    onClick={() => router.back()}
-                    className="absolute left-6 top-6 w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 active:scale-95"
-                >
-                    <ArrowLeft className="w-6 h-6" />
-                </button>
+                {/* Top Left Navigation & Timer */}
+                <div className="absolute left-6 top-6 flex items-center gap-3 z-50">
+                    <button
+                        onClick={() => router.back()}
+                        className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-500 shadow-sm border border-gray-100 active:scale-95"
+                    >
+                        <ArrowLeft className="w-6 h-6" />
+                    </button>
+
+                    {/* Timer Badge */}
+                    <div className={`h-12 px-4 rounded-full font-black font-mono text-xl shadow-sm border flex items-center gap-2 transition-colors ${isRunning ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-white text-gray-400 border-gray-100'}`}>
+                        <Clock className={`w-5 h-5 ${isRunning ? 'animate-pulse' : ''}`} />
+                        <span>{formatTime(timeLeft)}</span>
+                    </div>
+                </div>
 
                 {/* Avatar Badge */}
                 <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 mb-4 mt-2 max-w-[80%]">
@@ -747,45 +755,13 @@ function RoutinePlayerContent() {
                                     )}
                                 </div>
 
-                                <div className="flex items-center justify-between mb-8 px-2 relative min-h-[140px]">
-                                    {/* Static Icon */}
-                                    <div className="w-28 h-28 relative flex items-center justify-center">
-                                        <div className="text-7xl filter drop-shadow-md transform -rotate-12">
+                                {/* Step Icon (Centered) */}
+                                <div className="flex items-center justify-center mb-8 h-32">
+                                    <div className="w-32 h-32 flex items-center justify-center bg-gray-50 rounded-full">
+                                        <div className="text-7xl filter drop-shadow-sm transform -rotate-6 transition-transform hover:rotate-12 duration-500">
                                             {/* We can use RenderIcon here if available, or just emoji fallback */}
                                             {stepItem.icon?.length < 3 ? stepItem.icon : (stepItem.icon === 'toothbrush' ? '🦷' : '✨')}
                                         </div>
-                                    </div>
-
-                                    {/* Timer Ring */}
-                                    <div className="relative w-32 h-32 flex items-center justify-center">
-                                        {isActive ? (
-                                            <>
-                                                <svg className="w-full h-full transform -rotate-90">
-                                                    <circle cx="64" cy="64" r={radius} stroke="#F1F5F9" strokeWidth="8" fill="none"></circle>
-                                                    <circle
-                                                        cx="64" cy="64" r={radius}
-                                                        stroke="#3B82F6" strokeWidth="8" fill="none"
-                                                        strokeLinecap="round"
-                                                        strokeDasharray={circumference}
-                                                        strokeDashoffset={strokeDashoffset}
-                                                        className="transition-all duration-1000 ease-linear"
-                                                    ></circle>
-                                                </svg>
-                                                <div className="absolute text-center z-10">
-                                                    <span className="text-3xl font-black text-gray-700 tracking-tight tabular-nums">
-                                                        {formatTime(timeLeft)}
-                                                    </span>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            /* Inactive Timer */
-                                            <div className="flex flex-col items-center justify-center opacity-50">
-                                                <span className="text-2xl font-bold text-gray-400">
-                                                    {(stepItem.duration || 2)}:00
-                                                </span>
-                                                <span className="text-xs font-bold text-gray-300 uppercase">Min</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 
