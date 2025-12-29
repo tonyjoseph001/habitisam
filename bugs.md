@@ -55,9 +55,9 @@ Goal Page
 - Goal type should be changed to "Progress Goal" - Fixed
 - Slider  can remove from goal type, doesnt make any sense - Fixed
 
-Child Dashboard
-- Profile icons are hardcoded, It should the exacat same icons from child profile 
-- Need to implement streak logic
+Child Dashboard 
+- Profile icons are hardcoded, It should the exacat same icons from child profile - Fixed
+- Need to implement streak logic - Fixed
 
 Child Goal Page
 

@@ -4,9 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { Profile, db } from '@/lib/db';
-import { Lock, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Lock, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 
@@ -16,9 +14,9 @@ interface ProfileSwitcherProps {
 }
 
 export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) {
-    const { user, signOut, signInWithGoogle } = useAuth();
+    const { user } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
-    const router = useRouter(); // ID: 6b0c9e64-1340-47e1-aa3e-a5160c24b3c3
+    const router = useRouter();
 
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -26,8 +24,8 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
     const [error, setError] = useState("");
 
     // UI State for PIN
-    const [showPinPad, setShowPinPad] = useState(false); // ID: 987fc1a6-1aed-43f0-88e7-8ba3d2ea7735
-    const [targetProfile, setTargetProfile] = useState<Profile | null>(null); // ID: b7ab8b5d-735d-4d5c-b963-a497095b84ea
+    const [showPinPad, setShowPinPad] = useState(false);
+    const [targetProfile, setTargetProfile] = useState<Profile | null>(null);
 
     // Load profiles
     useEffect(() => {
@@ -36,13 +34,13 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
             setSelectedProfileId(activeProfile?.id || null);
             setPin("");
             setError("");
-            setShowPinPad(false); // Reset PIN pad visibility
-            setTargetProfile(null); // Reset target profile
+            setShowPinPad(false);
+            setTargetProfile(null);
         }
     }, [isOpen, user, activeProfile]);
 
     const handleSelect = async (profile: Profile) => {
-        setSelectedProfileId(profile.id); // Keep track of selected profile for UI highlighting
+        setSelectedProfileId(profile.id);
         setPin("");
         setError("");
 
@@ -53,7 +51,6 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
             // Child: Just switch
             setActiveProfile(profile);
             onClose();
-            // Route to Child Dashboard
             router.push('/child/dashboard');
         }
     };
@@ -62,7 +59,6 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
         if (targetProfile) {
             setActiveProfile(targetProfile);
             onClose();
-            // Parent: Stay on dashboard or refresh state
             router.push('/parent/dashboard');
         }
     };
@@ -79,7 +75,6 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
 
         if (targetProfile.pin === pin) {
             setError("");
-            // Set session flag to indicate PIN was verified
             if (targetProfile.type === 'parent') {
                 sessionStorage.setItem('parentPinVerified_' + targetProfile.id, 'true');
             }
@@ -94,89 +89,72 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
         setPin(prev => prev.slice(0, -1));
     };
 
-    const selectedProfile = profiles.find(p => p.id === selectedProfileId);
-    const isParentSelected = selectedProfile?.type === 'parent';
+    const getAvatarEmoji = (profile: Profile) => {
+        if (profile.type === 'parent' && !profile.avatarId) return '👤';
+
+        switch (profile.avatarId) {
+            case 'boy': return '🧑‍🚀';
+            case 'girl': return '👩‍🚀';
+            case 'superhero': return '🦸';
+            case 'superhero_girl': return '🦸‍♀️';
+            case 'ninja': return '🥷';
+            case 'wizard': return '🧙';
+            case 'princess': return '👸';
+            case 'pirate': return '🏴‍☠️';
+            case 'alien': return '👽';
+            case 'robot': return '🤖';
+            case 'dinosaur': return '🦖';
+            case 'unicorn': return '🦄';
+            case 'dragon': return '🐉';
+            case 'rocket': return '🚀';
+            default: return profile.type === 'parent' ? '👤' : '🧒';
+        }
+    };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Who's using Habitisim?">
+        <Modal isOpen={isOpen} onClose={onClose} title="Switch Profile">
             {showPinPad ? (
                 // PIN PAD VIEW
-                <div className="flex flex-col gap-4 p-6">
+                <div className="flex flex-col items-center justify-center p-6 space-y-6">
                     <div className="text-center">
-                        <p className="text-sm text-slate-500 mb-2">Enter PIN for {targetProfile?.name}</p>
-                        <div className="flex justify-center gap-2 mb-4">
+                        <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center text-4xl mb-3 mx-auto">
+                            {targetProfile ? getAvatarEmoji(targetProfile) : '👤'}
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800">Enter PIN for {targetProfile?.name}</h3>
+                        <div className="flex justify-center gap-2 mt-4">
                             {[0, 1, 2, 3].map(i => (
-                                <div key={i} className={`w-3 h-3 rounded-full ${pin.length > i ? 'bg-violet-600' : 'bg-slate-200'}`} />
+                                <div key={i} className={`w-4 h-4 rounded-full transition-all ${pin.length > i ? "bg-violet-600 scale-110" : "bg-slate-200"}`} />
                             ))}
                         </div>
-                        {error && <p className="text-red-500 text-xs">{error}</p>}
+                        {error && <p className="text-red-500 text-sm mt-2 font-bold animate-pulse">{error}</p>}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 max-w-[200px] mx-auto">
+                    <div className="grid grid-cols-3 gap-4 w-full max-w-[280px]">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                             <button
                                 key={num}
                                 onClick={() => handlePinInput(num.toString())}
-                                className="w-12 h-12 rounded-full bg-slate-100 text-lg font-bold text-slate-700 hover:bg-slate-200 active:bg-slate-300 transition-colors"
+                                className="h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-2xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-slate-50 hover:border-violet-100"
                             >
                                 {num}
                             </button>
                         ))}
-                        <div /> {/* spacer */}
-                        <button
-                            onClick={() => handlePinInput('0')}
-                            className="w-12 h-12 rounded-full bg-slate-100 text-lg font-bold text-slate-700 hover:bg-slate-200 active:bg-slate-300 transition-colors"
-                        >
-                            0
-                        </button>
-                        <button
-                            onClick={handleBackspace}
-                            className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center"
-                        >
-                            ←
-                        </button>
+                        <button onClick={() => { setShowPinPad(false); setPin(""); }} className="h-16 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 font-bold text-xs uppercase tracking-wider">Back</button>
+                        <button onClick={() => handlePinInput("0")} className="h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-2xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-slate-50 hover:border-violet-100">0</button>
+                        <button onClick={handleBackspace} className="h-16 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-red-500"><ChevronLeft className="w-6 h-6" /></button>
                     </div>
 
-                    <div className="flex gap-2 mt-2">
-                        <Button variant="ghost" className="flex-1" onClick={() => setShowPinPad(false)}>Cancel</Button>
-                        <Button variant="cosmic" className="flex-1" onClick={handleUnlock} disabled={pin.length !== 4}>Unlock</Button>
-                    </div>
-
-                    {/* Forgot PIN Link */}
-                    <div className="text-center mt-4">
+                    <div className="flex flex-col items-center gap-4 w-full">
                         <button
-                            onClick={async () => {
-                                if (!confirm('To reset your PIN, you will be logged out and need to sign in again with your email.\n\nContinue?')) {
-                                    return;
-                                }
-
-                                try {
-                                    // 1. Close modal
-                                    onClose();
-
-                                    // 2. Clear old session data
-                                    if (targetProfile?.id) {
-                                        sessionStorage.removeItem('parentPinVerified_' + targetProfile.id);
-                                    }
-
-                                    // 3. Explicit Sign Out
-                                    await signOut();
-
-                                    // 4. Immediate Sign In Popup
-                                    // This forces the user to re-authenticate right here
-                                    const newUser = await signInWithGoogle();
-
-                                    if (newUser) {
-                                        // 5. Success! Set flag for Dashboard
-                                        if (targetProfile?.id) {
-                                            localStorage.setItem('resetPinForProfile', targetProfile.id);
-                                        }
-
-                                        // 6. Redirect to Dashboard
-                                        window.location.href = '/parent/dashboard';
-                                    }
-                                } catch (error) {
-                                    console.error('Forgot PIN flow error:', error);
+                            onClick={handleUnlock}
+                            disabled={pin.length < 4}
+                            className="w-full py-4 rounded-2xl bg-violet-600 text-white font-bold shadow-lg shadow-violet-200 disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all flex items-center justify-center gap-2 text-lg"
+                        >
+                            <Lock className="w-5 h-5" /> Unlock
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (confirm("Forgot PIN? Please sign in again with Google to verify account.")) {
                                     window.location.href = '/login';
                                 }
                             }}
@@ -199,7 +177,7 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                                 }`}
                         >
                             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl shadow-inner">
-                                {profile.type === 'parent' ? '👤' : '🧒'}
+                                {getAvatarEmoji(profile)}
                             </div>
                             <div className="text-center">
                                 <h3 className="font-bold text-slate-900">{profile.name}</h3>
