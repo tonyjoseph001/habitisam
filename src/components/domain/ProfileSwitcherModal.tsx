@@ -141,15 +141,10 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                     {/* Forgot PIN Link */}
                     <div className="text-center mt-4">
                         <button
-                            onClick={async () => {
-                                if (confirm('Reset PIN for ' + targetProfile?.name + '? This will set a new temporary PIN: 0000\n\nYou can change it in Settings after logging in.')) {
-                                    if (targetProfile?.id) {
-                                        await db.profiles.update(targetProfile.id, { pin: '0000' });
-                                        setError('');
-                                        setPin('');
-                                        alert('PIN has been reset to: 0000\n\nPlease enter 0000 to continue, then change it in Settings.');
-                                    }
-                                }
+                            onClick={() => {
+                                // Close modal and redirect to login to re-authenticate
+                                onClose();
+                                window.location.href = '/login?reason=forgot_pin&profile=' + targetProfile?.id;
                             }}
                             className="text-xs text-violet-600 hover:text-violet-700 font-medium underline"
                         >
