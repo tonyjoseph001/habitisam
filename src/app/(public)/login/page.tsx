@@ -1,51 +1,75 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { db } from "@/lib/db";
-// We need to import the exact path to the generated image artifact. 
-// Since I cannot know the exact path of the *previously* generated artifact dynamically in code without checking, 
-// I will assume I need to copy it to public. 
-// WAIT: The browser/client code can't see the .gemini artifacts folder. 
-// I MUST move the generated image to `public/` first. I will add a TODO or do it in the next step.
-// For now, I will point to a placeholder path that I will fulfill in a moment: "/hero-cosmic.png"
 
-export default function LoginPage() {
+function LoginPageContent() {
     const { user, signInWithGoogle, signInAsDev, loading } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const [showSetPinModal, setShowSetPinModal] = useState(false);
+    const [newPin, setNewPin] = useState('');
+
+    const isForgotPinFlow = searchParams.get('reason') === 'forgot_pin';
 
     // Redirect logic
     useEffect(() => {
         async function checkRouting() {
             if (!loading && user) {
-                // User is authenticated. Check if they have a profile.
+                // Check if this is a forgot PIN flow
+                if (isForgotPinFlow) {
+                    // Show Set PIN dialog instead of redirecting
+                    setShowSetPinModal(true);
+                    return;
+                }
+
+                // Normal login flow
                 const profiles = await db.profiles
                     .where("accountId")
                     .equals(user.uid)
                     .toArray();
 
                 if (profiles.length === 0) {
-                    // No profiles -> Go to Setup
                     router.push("/setup");
                 } else {
-                    // Has profiles -> Go to Dashboard (which should trigger Profile Switcher/PIN)
-                    // Actually, as per spec: "Redirect to Screen 2 (Parent PIN)" -> which effectively is the dashboard entry gate.
-                    // We'll trust /parent/dashboard to handle the lock logic, or we create a specific /lock screen.
-                    // For now, let's route to /parent/dashboard.
                     router.push("/parent/dashboard");
                 }
             }
         }
         checkRouting();
-    }, [user, loading, router]);
+    }, [user, loading, router, isForgotPinFlow]);
+
+    const handleSetPin = async () => {
+        if (!newPin.trim()) return alert('Please enter a PIN');
+        if (newPin.length < 4) return alert('PIN must be at least 4 digits');
+
+        const profileId = localStorage.getItem('resetPinForProfile');
+        if (!profileId) {
+            alert('Error: Profile not found. Please try again.');
+            router.push('/parent/dashboard');
+            return;
+        }
+
+        // Update the PIN
+        await db.profiles.update(profileId, { pin: newPin });
+
+        // Clear the stored profile ID
+        localStorage.removeItem('resetPinForProfile');
+
+        // Close modal and redirect to dashboard
+        setShowSetPinModal(false);
+        router.push('/parent/dashboard');
+    };
 
     const handleLogin = async () => {
         try {
             await signInWithGoogle();
-            // Effect will handle redirect
         } catch (err) {
             console.error("Login failed", err);
         }
@@ -53,13 +77,8 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen w-full flex flex-col items-center justify-between bg-gradient-to-b from-[#2E1065] to-[#0B0F19] text-white overflow-hidden relative">
-            {/* 1. Hero Illustration */}
             <div className="relative w-full flex-1 flex items-center justify-center p-6">
-                {/* Floating animation container */}
                 <div className="animate-float relative z-10 max-w-md w-full aspect-square">
-                    {/* 
-                IMPORTANT: I will ensure 'hero-cosmic.png' exists in public directory in the next step. 
-             */}
                     <Image
                         src="/hero-cosmic.png"
                         alt="Parent and Child Astronaut High-Five"
@@ -68,21 +87,17 @@ export default function LoginPage() {
                         priority
                     />
                 </div>
-
-                {/* Background stars/particles could go here as absolute divs */}
             </div>
 
-            {/* 2. Brand Header */}
             <div className="text-center z-10 px-4 -mt-10 mb-8">
                 <h1 className="font-heading font-bold text-5xl mb-2 text-white drop-shadow-[0_0_15px_rgba(124,58,237,0.8)]">
                     Cosmic Routine
                 </h1>
                 <p className="font-sans font-medium text-[#94A3B8] text-lg">
-                    Blast off to stress-free mornings.
+                    {isForgotPinFlow ? 'Sign in to reset your PIN' : 'Blast off to stress-free mornings.'}
                 </p>
             </div>
 
-            {/* 3. Authentication Action Area */}
             <div className="w-full bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20 animate-slide-up">
                 <div className="max-w-sm mx-auto flex flex-col gap-4">
                     <Button
@@ -92,7 +107,6 @@ export default function LoginPage() {
                         className="w-full h-14 text-base font-medium flex items-center gap-3"
                         disabled={loading}
                     >
-                        {/* Google "G" Icon SVG */}
                         <svg viewBox="0 0 24 24" className="w-6 h-6" xmlns="http://www.w3.org/2000/svg">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -123,12 +137,52 @@ export default function LoginPage() {
                     </Button>
                 </div>
 
-                {/* 4. Footer Links */}
                 <div className="mt-8 flex justify-center gap-6 text-xs text-[#94A3B8]">
                     <a href="#" className="hover:underline">Privacy Policy</a>
                     <a href="#" className="hover:underline">Terms of Service</a>
                 </div>
             </div>
+
+            {/* Set PIN Modal */}
+            <Modal
+                isOpen={showSetPinModal}
+                onClose={() => { }}
+                title="Set New PIN"
+                className="max-w-sm"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 text-sm mb-4">
+                        Create a new PIN to secure your parent account.
+                    </p>
+                    <div className="mb-6">
+                        <label className="block text-sm font-bold text-slate-600 mb-2">New PIN</label>
+                        <Input
+                            type="password"
+                            value={newPin}
+                            onChange={e => setNewPin(e.target.value)}
+                            placeholder="Enter 4-digit PIN"
+                            maxLength={6}
+                            className="h-12 bg-white border-slate-200"
+                            autoFocus
+                        />
+                        <p className="text-xs text-slate-500 mt-2">Minimum 4 digits</p>
+                    </div>
+                    <Button
+                        className="w-full bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
+                        onClick={handleSetPin}
+                    >
+                        Set PIN & Continue
+                    </Button>
+                </div>
+            </Modal>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gradient-to-b from-[#2E1065] to-[#0B0F19]" />}>
+            <LoginPageContent />
+        </Suspense>
     );
 }

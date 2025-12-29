@@ -141,10 +141,22 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                     {/* Forgot PIN Link */}
                     <div className="text-center mt-4">
                         <button
-                            onClick={() => {
-                                // Close modal and redirect to login to re-authenticate
-                                onClose();
-                                window.location.href = '/login?reason=forgot_pin&profile=' + targetProfile?.id;
+                            onClick={async () => {
+                                if (!confirm('To reset your PIN, you will be logged out and need to sign in again with your email.\n\nContinue?')) {
+                                    return;
+                                }
+
+                                // Store the profile ID that needs PIN reset
+                                if (targetProfile?.id) {
+                                    localStorage.setItem('resetPinForProfile', targetProfile.id);
+                                }
+
+                                // Sign out user
+                                const { getAuth, signOut } = await import('firebase/auth');
+                                await signOut(getAuth());
+
+                                // Redirect to login with forgot_pin flag
+                                window.location.href = '/login?reason=forgot_pin';
                             }}
                             className="text-xs text-violet-600 hover:text-violet-700 font-medium underline"
                         >
