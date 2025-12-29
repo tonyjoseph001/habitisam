@@ -27,30 +27,28 @@ Routine Page
 
 Add Routine Page
 - title should be "New Routine", This confusing title, the same page can be used to create new routine or edit existing routine. And also same page cabe used to create/edit Task and Goals by toggeling the tabs. So we need to change the title based on the action. - Fixed
-- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission. - Verified (implemented with alert)
+- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission. - need to test it mobile app
 - icon model window need to be redesigned, it should be similar icon model of step creation page - Fixed
 - Error message like "Please enter a ttitle" should be in model window. - Fixed
 - reward image should be * and that box should be editable along with + and - buttons. - Fixed
 - there is backbutton with "<-Back" text, it should be removed. when just show thw back button similar to  other pages. - Fixed
 
 parents rewards page
-- purchase histotory button is cluttered with other buttons
-- reward page buttons color should be followed by the theme color
-- Title should be change to "Rewards"
-- There are two add rewards button when there is no rewards created
-
-Parent add rewards page
-- cost * , not able to remove 0 from the input field, the start filed styel should be similar to routine creation page
-- Assigned to file should show icon and name of the chil. Now its showing "boy Ethan"
-- button color should be followed by the theme color
-- Create Reward button not working, unable to add reward
+- purchase histotory button is cluttered with other buttons - fixed
+- reward page buttons color should be followed by the theme color - fixed
+- Title should be change to "Rewards" - fixed
+- There are two add rewards button when there is no rewards created - fixed
+- cost * , not able to remove 0 from the input field, the star field should be similar to goal creation page - fixed
+- Assigned to file should show icon and name of the chil. Now its showing "boy Ethan" - fixed
+- button color should be followed by the theme color - fixed
+- Create Reward button not working, unable to add reward - fixed
 
 
-Step Page
-- save button should be botton, remove save button from top
-- remove 10m, 1h options, add custom option
-- reward image should be * and that box should be editable along with + and - buttons.
-- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission. 
+Parent Step Page
+- save button should be botton, remove save button from top - fixed
+- remove 10m, 1h options, add custom option - fixed
+- reward image should be * and that box should be editable along with + and - buttons. - fixed
+- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission.
 
 Goal Page
 - reward image should be * and that box should be editable along with + and - buttons.

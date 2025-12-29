@@ -227,32 +227,30 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                 </div>
 
                                 {isTimerEnabled && (
-                                    <div className="flex flex-col gap-3 animate-in slide-in-from-top-2 fade-in">
-                                        <div className="flex flex-wrap gap-2">
-                                            {TIMER_OPTIONS.map(opt => (
-                                                <button
-                                                    key={opt.value}
-                                                    onClick={() => { setTimerDuration(opt.value); setCustomMinutes(''); }}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
-                                                        (timerDuration === opt.value && !customMinutes)
-                                                            ? "bg-primary text-white border-primary shadow-sm"
-                                                            : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                                                    )}
-                                                >
-                                                    {opt.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2 animate-in slide-in-from-top-2 fade-in">
+                                        {TIMER_OPTIONS.map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => { setTimerDuration(opt.value); setCustomMinutes(''); }}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all h-9",
+                                                    (timerDuration === opt.value && !customMinutes)
+                                                        ? "bg-primary text-white border-primary shadow-sm"
+                                                        : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                                                )}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                        <div className="flex items-center gap-2 ml-2 border-l border-slate-200 pl-4">
                                             <Input
                                                 type="number"
                                                 placeholder="Custom"
                                                 value={customMinutes}
                                                 onChange={e => handleCustomTimerChange(e.target.value)}
-                                                className="h-9 w-24 text-xs font-bold bg-slate-50 border-slate-200 text-slate-900"
+                                                className="h-9 w-20 text-xs font-bold bg-slate-50 border-slate-200 text-slate-900 focus-visible:ring-primary/50"
                                             />
-                                            <span className="text-xs font-bold text-slate-400">minutes</span>
+                                            <span className="text-xs font-bold text-slate-400">min</span>
                                         </div>
                                     </div>
                                 )}
