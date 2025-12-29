@@ -75,7 +75,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const [target, setTarget] = useState<number>(10);
     const [unit, setUnit] = useState<string>('Books');
     const [dueDate, setDueDate] = useState<string>('');
-    const [goalRewardStars, setGoalRewardStars] = useState<number>(500);
+    const [goalRewardStars, setGoalRewardStars] = useState<number | ''>(500);
     const [goalChecklistItems, setGoalChecklistItems] = useState<string[]>([]);
 
     // Modal
@@ -185,7 +185,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                         target: finalTarget,
                         current: 0,
                         unit: unit,
-                        stars: goalRewardStars,
+                        stars: Number(goalRewardStars) || 0,
                         icon: icon,
                         dueDate: dueDate || undefined,
                         checklist: goalType === 'checklist' ? goalChecklistItems.map(text => ({ text, completed: false })) : undefined,
@@ -363,13 +363,13 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                             <Input
                                                 type="number"
                                                 value={goalRewardStars}
-                                                onChange={(e) => setGoalRewardStars(Number(e.target.value))}
-                                                className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full"
+                                                onChange={(e) => setGoalRewardStars(e.target.value === '' ? '' : Number(e.target.value))}
+                                                className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full text-center shadow-none"
                                             />
                                         </div>
                                         <div className="flex gap-1 ml-2">
-                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, s - 50))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">-</button>
-                                            <button onClick={() => setGoalRewardStars(s => s + 50)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">+</button>
+                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, (Number(s) || 0) - 50))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">-</button>
+                                            <button onClick={() => setGoalRewardStars(s => (Number(s) || 0) + 50)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">+</button>
                                         </div>
                                     </div>
                                 </div>
