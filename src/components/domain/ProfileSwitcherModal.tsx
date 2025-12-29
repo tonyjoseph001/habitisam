@@ -150,13 +150,19 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                                     return;
                                 }
 
-                                // Store the profile ID that needs PIN reset
+                                // Store the profile ID that needs PIN reset in a different key
+                                // This will be checked on login page, not dashboard
                                 if (targetProfile?.id) {
-                                    localStorage.setItem('resetPinForProfile', targetProfile.id);
+                                    localStorage.setItem('pendingPinReset', targetProfile.id);
                                 }
 
                                 // Close modal first
                                 onClose();
+
+                                // Clear any existing session verification
+                                if (targetProfile?.id) {
+                                    sessionStorage.removeItem('parentPinVerified_' + targetProfile.id);
+                                }
 
                                 // Sign out user and wait for completion
                                 const { getAuth, signOut } = await import('firebase/auth');
