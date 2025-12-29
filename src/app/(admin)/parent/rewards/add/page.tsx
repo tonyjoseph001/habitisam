@@ -18,7 +18,7 @@ export default function AddRewardPage() {
     const { activeProfile } = useSessionStore();
 
     const [title, setTitle] = useState('');
-    const [cost, setCost] = useState(10);
+    const [cost, setCost] = useState<number | ''>(10);
     const [icon, setIcon] = useState('🎁');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [assignedIds, setAssignedIds] = useState<string[]>([]);
@@ -37,9 +37,33 @@ export default function AddRewardPage() {
         );
     };
 
+    const getAvatarEmoji = (avatarId?: string) => {
+        switch (avatarId) {
+            case 'boy': return '🧑‍🚀';
+            case 'girl': return '👩‍🚀';
+            case 'superhero': return '🦸';
+            case 'superhero_girl': return '🦸‍♀️';
+            case 'ninja': return '🥷';
+            case 'wizard': return '🧙';
+            case 'princess': return '👸';
+            case 'pirate': return '🏴‍☠️';
+            case 'alien': return '👽';
+            case 'robot': return '🤖';
+            case 'dinosaur': return '🦖';
+            case 'unicorn': return '🦄';
+            case 'dragon': return '🐉';
+            case 'rocket': return '🚀';
+            default: return '👶';
+        }
+    };
+
     const handleSave = async () => {
-        if (!activeProfile?.accountId) return;
+        if (!activeProfile?.accountId) {
+            alert('Session error. Please refresh the page.');
+            return;
+        }
         if (!title.trim()) return alert('Please enter a reward name');
+        if (cost === '') return alert('Please enter a cost');
 
         await db.rewards.add({
             id: crypto.randomUUID(),
@@ -112,16 +136,25 @@ export default function AddRewardPage() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-600">Cost (Stars)</label>
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-yellow-100 text-yellow-600 flex items-center justify-center shrink-0">
-                                <Star className="fill-current w-6 h-6" />
+                        <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-3">
+                            <div className="flex items-center gap-2 flex-1">
+                                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={cost}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '') setCost('');
+                                        else if (/^\d+$/.test(val)) setCost(Number(val));
+                                    }}
+                                    className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full text-center shadow-none"
+                                />
                             </div>
-                            <Input
-                                type="number"
-                                value={cost}
-                                onChange={e => setCost(Number(e.target.value))}
-                                className="h-12 bg-white border-slate-200 font-bold text-lg"
-                            />
+                            <div className="flex gap-1 ml-2">
+                                <button onClick={() => setCost(s => Math.max(0, (Number(s) || 0) - 1))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">-</button>
+                                <button onClick={() => setCost(s => (Number(s) || 0) + 1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">+</button>
+                            </div>
                         </div>
                     </div>
 
@@ -136,7 +169,7 @@ export default function AddRewardPage() {
                                 className={cn(
                                     "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-bold transition whitespace-nowrap",
                                     assignedIds.length === 0
-                                        ? "bg-slate-800 text-white border-slate-800"
+                                        ? "bg-primary text-white border-primary"
                                         : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                                 )}
                             >
@@ -150,11 +183,11 @@ export default function AddRewardPage() {
                                     className={cn(
                                         "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-bold transition whitespace-nowrap",
                                         assignedIds.includes(child.id)
-                                            ? "bg-blue-600 text-white border-blue-600"
+                                            ? "bg-primary text-white border-primary"
                                             : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                                     )}
                                 >
-                                    {child.avatarId || '🦁'} {child.name}
+                                    <span className="text-lg leading-none">{getAvatarEmoji(child.avatarId)}</span> {child.name}
                                     {assignedIds.includes(child.id) && <Check size={14} />}
                                 </button>
                             ))}
@@ -165,7 +198,7 @@ export default function AddRewardPage() {
 
                 <Button
                     onClick={handleSave}
-                    className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-lg shadow-xl shadow-slate-200"
+                    className="w-full h-14 bg-primary hover:bg-primary/90 text-white rounded-2xl font-bold text-lg shadow-xl shadow-slate-200"
                 >
                     Create Reward
                 </Button>
