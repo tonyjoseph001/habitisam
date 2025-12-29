@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { db, Activity, Step, Goal, GoalType } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2, Bell, XCircle } from 'lucide-react';
+import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2, Bell, XCircle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
 import { AudioRecorder } from '@/components/ui/AudioRecorder';
+import { Modal } from '@/components/ui/modal';
 import * as Icons from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -80,6 +81,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     // Modal
     const [isStepModalOpen, setIsStepModalOpen] = useState(false);
     const [editingStep, setEditingStep] = useState<Step | undefined>(undefined);
+    const [errorModalOpen, setErrorModalOpen] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     useEffect(() => {
         if (initialRoutineId) {
@@ -157,10 +160,12 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     };
 
 
+    const showError = (msg: string) => { setErrorMessage(msg); setErrorModalOpen(true); };
+
     const handleSave = async () => {
-        if (!user) return alert("Please log in.");
-        if (!title.trim()) return alert("Please enter a title.");
-        if (assignedChildIds.length === 0) return alert("Please assign to at least one child.");
+        if (!user) return showError("Please log in.");
+        if (!title.trim()) return showError("Please enter a title.");
+        if (assignedChildIds.length === 0) return showError("Please assign to at least one child.");
 
         try {
             if (editorType === 'goal') {
@@ -219,7 +224,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 else await db.activities.add(activityData);
             }
             router.push('/parent/routines');
-        } catch (e) { console.error(e); alert("Failed to save."); }
+        } catch (e) { console.error(e); showError("Failed to save."); }
     };
 
     const openAddStep = () => { setEditingStep(undefined); setIsStepModalOpen(true); };
@@ -249,11 +254,14 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
         <div className="min-h-screen bg-[#F8FAFC] pb-28 font-sans">
             {/* Header */}
             <header className="px-4 py-3 bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between border-b border-slate-200">
-                <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-0 text-slate-500 hover:bg-transparent">
-                    <ChevronLeft className="w-6 h-6" /> Back
+                <Button variant="ghost" size="sm" onClick={() => router.back()} className="w-10 h-10 p-0 text-slate-500 hover:bg-slate-100 rounded-full">
+                    <ChevronLeft className="w-6 h-6" />
                 </Button>
-                <h1 className="text-lg font-bold text-slate-900">{isEditMode ? 'Edit Routine' : 'Create New Routine'}</h1>
-                <div className="w-6"></div> {/* Spacer */}
+                <h1 className="text-lg font-bold text-slate-900">
+                    {isEditMode ? 'Edit ' : 'New '}
+                    {editorType === 'goal' ? 'Goal' : (editorType === 'one-time' ? 'Task' : 'Routine')}
+                </h1>
+                <div className="w-10"></div> {/* Spacer */}
             </header>
 
             <main className="py-4 flex flex-col gap-4 max-w-screen-md mx-auto px-4">
@@ -285,12 +293,26 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             <div className="grid grid-cols-[80px_1fr] gap-4">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
-                                    <button
-                                        onClick={() => setShowIconModal(true)}
-                                        className="w-full h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
-                                    >
-                                        <RenderIcon name={icon} size="w-6 h-6" />
-                                    </button>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowIconModal(!showIconModal)}
+                                            className="w-full h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
+                                        >
+                                            <RenderIcon name={icon} size="w-6 h-6" />
+                                        </button>
+                                        {showIconModal && (
+                                            <>
+                                                <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setShowIconModal(false)} />
+                                                <div className="absolute top-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[300px] bg-white animate-in slide-in-from-top-2">
+                                                    <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+                                                        <h3 className="font-bold text-xs text-slate-600 uppercase">Choose Icon</h3>
+                                                        <button onClick={() => setShowIconModal(false)} className="p-1 bg-slate-100 rounded-full hover:bg-slate-200"><Icons.X className="w-3 h-3 text-slate-400" /></button>
+                                                    </div>
+                                                    <EmojiPicker onEmojiClick={(d) => { setIcon(d.emoji); setShowIconModal(false); }} width="100%" height={300} lazyLoadEmojis={true} skinTonesDisabled={true} previewConfig={{ showPreview: false }} />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex flex-col gap-2 relative z-10">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Due Date</label>
@@ -335,12 +357,19 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                 {/* Reward */}
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
-                                    <div className="h-10 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-2">
-                                        <Award className="w-4 h-4 text-yellow-500" />
-                                        <span className="font-bold text-yellow-700 text-sm">{goalRewardStars}</span>
-                                        <div className="flex gap-1">
-                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, s - 50))} className="w-5 h-5 flex items-center justify-center rounded bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-50 text-xs">-</button>
-                                            <button onClick={() => setGoalRewardStars(s => s + 50)} className="w-5 h-5 flex items-center justify-center rounded bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-50 text-xs">+</button>
+                                    <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-3">
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                            <Input
+                                                type="number"
+                                                value={goalRewardStars}
+                                                onChange={(e) => setGoalRewardStars(Number(e.target.value))}
+                                                className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full"
+                                            />
+                                        </div>
+                                        <div className="flex gap-1 ml-2">
+                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, s - 50))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">-</button>
+                                            <button onClick={() => setGoalRewardStars(s => s + 50)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -362,12 +391,26 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
-                                    <button
-                                        onClick={() => setShowIconModal(true)}
-                                        className="w-12 h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
-                                    >
-                                        <RenderIcon name={icon} size="w-6 h-6" />
-                                    </button>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowIconModal(!showIconModal)}
+                                            className="w-12 h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
+                                        >
+                                            <RenderIcon name={icon} size="w-6 h-6" />
+                                        </button>
+                                        {showIconModal && (
+                                            <>
+                                                <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setShowIconModal(false)} />
+                                                <div className="absolute top-14 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[300px] bg-white animate-in slide-in-from-top-2">
+                                                    <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+                                                        <h3 className="font-bold text-xs text-slate-600 uppercase">Choose Icon</h3>
+                                                        <button onClick={() => setShowIconModal(false)} className="p-1 bg-slate-100 rounded-full hover:bg-slate-200"><Icons.X className="w-3 h-3 text-slate-400" /></button>
+                                                    </div>
+                                                    <EmojiPicker onEmojiClick={(d) => { setIcon(d.emoji); setShowIconModal(false); }} width="100%" height={300} lazyLoadEmojis={true} skinTonesDisabled={true} previewConfig={{ showPreview: false }} />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -658,6 +701,13 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
             )}
 
             <StepEditorModal isOpen={isStepModalOpen} initialData={editingStep} onClose={() => setIsStepModalOpen(false)} onSave={handleSaveStep} onDelete={editingStep ? () => handleDeleteStep(editingStep.id) : undefined} />
+
+            <Modal isOpen={errorModalOpen} onClose={() => setErrorModalOpen(false)} title="Required" className="max-w-xs">
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 font-medium mb-6">{errorMessage}</p>
+                    <Button onClick={() => setErrorModalOpen(false)} className="w-full bg-primary text-white">Okay</Button>
+                </div>
+            </Modal>
         </div>
     );
 }

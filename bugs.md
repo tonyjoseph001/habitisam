@@ -26,12 +26,12 @@ Routine Page
 - There hardcoded goals created by default, need to remove them - Fixed
 
 Add Routine Page
-- title should be "New Routine", This confusing title, the same page can be used to create new routine or edit existing routine. And also same page cabe used to create/edit Task and Goals by toggeling the tabs. So we need to change the title based on the action.
-- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission. 
-- icon model window need to be redesigned, it should be similar icon model of step creation page
-- Error message like "Please enter a ttitle" should be in model window.
-- reward image should be * and that box should be editable along with + and - buttons.
-- there is backbutton with "<-Back" text, it should be removed. when just show thw back button similar to  other pages.
+- title should be "New Routine", This confusing title, the same page can be used to create new routine or edit existing routine. And also same page cabe used to create/edit Task and Goals by toggeling the tabs. So we need to change the title based on the action. - Fixed
+- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission. - Verified (implemented with alert)
+- icon model window need to be redesigned, it should be similar icon model of step creation page - Fixed
+- Error message like "Please enter a ttitle" should be in model window. - Fixed
+- reward image should be * and that box should be editable along with + and - buttons. - Fixed
+- there is backbutton with "<-Back" text, it should be removed. when just show thw back button similar to  other pages. - Fixed
 
 parents rewards page
 - purchase histotory button is cluttered with other buttons
