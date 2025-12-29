@@ -24,6 +24,8 @@ export function StatusBarProvider() {
 
                 // Don't overlay the webview - push content down instead
                 await StatusBar.setOverlaysWebView({ overlay: false });
+
+                console.log('StatusBar initialized successfully');
             } catch (error) {
                 console.error('Failed to initialize StatusBar:', error);
             }

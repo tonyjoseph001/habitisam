@@ -23,7 +23,17 @@ export default function ParentLayout({
         // For now, simple auth check is enough.
     }, [user, loading, router]);
 
-    if (loading) return null; // Or a spinner
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-[env(safe-area-inset-top)]">
+                <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
-    return <>{children}</>;
+    return (
+        <div className="min-h-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            {children}
+        </div>
+    );
 }
