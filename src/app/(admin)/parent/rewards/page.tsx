@@ -69,7 +69,18 @@ export default function ParentRewardsPage() {
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-32">
 
-            <ParentHeader title="Rewards Management" />
+            <ParentHeader
+                title="Rewards"
+                rightAction={
+                    <button
+                        onClick={() => router.push('/parent/purchases')}
+                        className="px-3 py-1.5 bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
+                    >
+                        <History className="w-3.5 h-3.5" />
+                        History
+                    </button>
+                }
+            />
 
             <main className="max-w-4xl mx-auto p-5 space-y-6">
 
@@ -87,15 +98,9 @@ export default function ParentRewardsPage() {
                             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Shop Items</p>
                             <span className="text-3xl font-bold text-slate-900">{rewards?.length || 0}</span>
                         </div>
-                        <button
-                            onClick={() => router.push('/parent/purchases')}
-                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold flex items-center gap-2 transition"
-                        >
-                            <History className="w-4 h-4" />
-                            Purchase History
-                        </button>
                     </div>
                 </div>
+
 
                 {/* Children Balances */}
                 <section>
@@ -138,13 +143,15 @@ export default function ParentRewardsPage() {
                 <section>
                     <div className="flex items-center justify-between mb-3 px-1">
                         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Reward Catalog</h2>
-                        <button
-                            onClick={() => router.push('/parent/rewards/add?returnUrl=/parent/rewards')}
-                            className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add Reward
-                        </button>
+                        {rewards && rewards.length > 0 && (
+                            <button
+                                onClick={() => router.push('/parent/rewards/add?returnUrl=/parent/rewards')}
+                                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Reward
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -251,6 +258,6 @@ export default function ParentRewardsPage() {
                     </div>
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 }
