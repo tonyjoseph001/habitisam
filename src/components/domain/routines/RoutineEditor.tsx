@@ -373,8 +373,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                             />
                                         </div>
                                         <div className="flex gap-1 ml-2">
-                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, (Number(s) || 0) - 50))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">-</button>
-                                            <button onClick={() => setGoalRewardStars(s => (Number(s) || 0) + 50)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">+</button>
+                                            <button onClick={() => setGoalRewardStars(s => Math.max(0, (Number(s) || 0) - 1))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">-</button>
+                                            <button onClick={() => setGoalRewardStars(s => (Number(s) || 0) + 1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-lg">+</button>
                                         </div>
                                     </div>
                                 </div>
