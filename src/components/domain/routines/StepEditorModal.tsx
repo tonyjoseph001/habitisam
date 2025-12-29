@@ -21,10 +21,9 @@ interface StepEditorModalProps {
 }
 
 const TIMER_OPTIONS = [
-    { label: '10m', value: 600 },
     { label: '15m', value: 900 },
     { label: '30m', value: 1800 },
-    { label: '1h', value: 3600 },
+    { label: '45m', value: 2700 }, // Added 45m as a useful intermediate since we removed 10m and 1h
 ];
 
 export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete }: StepEditorModalProps) {
@@ -38,7 +37,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
     const [customMinutes, setCustomMinutes] = useState<string>(''); // For custom input
 
     // Fields
-    const [starReward, setStarReward] = useState(5);
+    const [starReward, setStarReward] = useState<number | ''>(5);
     const [description, setDescription] = useState('');
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined);
 
@@ -75,7 +74,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
             duration: Math.ceil((isTimerEnabled ? timerDuration : 0) / 60) || 5,
             timerDuration: isTimerEnabled ? timerDuration : 0,
             icon,
-            stars: starReward,
+            stars: Number(starReward) || 0,
             description: description.trim(),
             audioUrl: audioUrl
         };
@@ -131,12 +130,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                         <Trash2 className="w-5 h-5" />
                                     </button>
                                 )}
-                                <Button
-                                    onClick={handleSave}
-                                    className="bg-primary hover:bg-primary/90 text-white font-bold rounded-lg h-9 px-4 text-sm"
-                                >
-                                    Save
-                                </Button>
+
                             </div>
                         </header>
 
@@ -197,11 +191,23 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
                                     <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-3">
-                                        <Award className="w-5 h-5 text-yellow-500" />
-                                        <span className="font-bold text-yellow-700 text-lg">{starReward}</span>
-                                        <div className="flex gap-1">
-                                            <button onClick={() => setStarReward(s => Math.max(0, s - 1))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-sm">-</button>
-                                            <button onClick={() => setStarReward(s => s + 1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-sm">+</button>
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                            <Input
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={starReward}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '') setStarReward('');
+                                                    else if (/^\d+$/.test(val)) setStarReward(Number(val));
+                                                }}
+                                                className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full text-center shadow-none"
+                                            />
+                                        </div>
+                                        <div className="flex gap-1 ml-2">
+                                            <button onClick={() => setStarReward(s => Math.max(0, (Number(s) || 0) - 1))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-sm">-</button>
+                                            <button onClick={() => setStarReward(s => (Number(s) || 0) + 1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-yellow-600 shadow-sm border border-yellow-100 hover:bg-yellow-100 font-bold text-sm">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -275,9 +281,20 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                         </div>
 
 
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-100 bg-white">
+                            <Button
+                                onClick={handleSave}
+                                className="w-full bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl h-12 text-lg shadow-lg shadow-primary/20"
+                            >
+                                Save Step
+                            </Button>
+                        </div>
+
                     </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+                </div >
+            )
+            }
+        </AnimatePresence >
     );
 }
