@@ -362,9 +362,14 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                             <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                                             <Input
                                                 type="number"
+                                                min={0}
                                                 value={goalRewardStars}
-                                                onChange={(e) => setGoalRewardStars(e.target.value === '' ? '' : Number(e.target.value))}
-                                                className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full text-center shadow-none"
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '') setGoalRewardStars('');
+                                                    else if (parseInt(val) >= 0) setGoalRewardStars(Number(val));
+                                                }}
+                                                className="h-8 bg-transparent border-none text-yellow-700 font-bold text-lg p-0 focus-visible:ring-0 w-full text-center shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                             />
                                         </div>
                                         <div className="flex gap-1 ml-2">
