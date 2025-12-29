@@ -475,16 +475,16 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                         {/* Checklist Section */}
                         {goalType === 'checklist' && (
                             <div className="flex flex-col gap-3 pt-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Checklist Steps</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Checklist Items</label>
                                 <div className="flex flex-col gap-2">
                                     {goalChecklistItems.map((item, idx) => (
                                         <div key={idx} className="flex gap-2">
                                             <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-sm">{idx + 1}</div>
-                                            <Input value={item} onChange={e => updateChecklistItem(idx, e.target.value)} placeholder={`Step ${idx + 1}`} className="h-10 border-slate-200 text-sm font-medium" />
+                                            <Input value={item} onChange={e => updateChecklistItem(idx, e.target.value)} placeholder={`Item ${idx + 1}`} className="h-10 border-slate-200 text-sm font-medium" />
                                             <button onClick={() => removeChecklistItem(idx)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     ))}
-                                    <Button onClick={addChecklistItem} variant="outline" className="h-10 border-dashed border-2 border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 bg-slate-50">+ Add Step</Button>
+                                    <Button onClick={addChecklistItem} variant="outline" className="h-10 border-dashed border-2 border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 bg-slate-50">+ Add Item</Button>
                                 </div>
                             </div>
                         )}

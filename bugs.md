@@ -51,11 +51,9 @@ Parent Step Page
 - recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission.
 
 Goal Page
-- reward image should be * and that box should be editable along with + and - buttons.
-- recording required premission, need to ask for permission before installing the app. if permission is not granted, when click on record button, it should show a message that recording is not allowed and ask for permission. 
-- Error message like "Please enter a ttitle" should be in model window.
-- Goal type should be changed to "Progress Goal"
-- Slider  can remove from goal type, doesnt make any sense
+
+- Goal type should be changed to "Progress Goal" - Fixed
+- Slider  can remove from goal type, doesnt make any sense - Fixed
 
 Child Dashboard
 - Profile icons are hardcoded, It should the exacat same icons from child profile 
