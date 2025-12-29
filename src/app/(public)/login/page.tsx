@@ -17,6 +17,14 @@ function LoginPageContent() {
     useEffect(() => {
         async function checkRouting() {
             if (!loading && user) {
+                // Check if this is a forgot PIN flow
+                const pendingReset = localStorage.getItem('pendingPinReset');
+                if (pendingReset) {
+                    // User has re-authenticated, now set the reset flag
+                    localStorage.setItem('resetPinForProfile', pendingReset);
+                    localStorage.removeItem('pendingPinReset');
+                }
+
                 // Normal login flow (including forgot PIN - modal will show on dashboard)
                 const profiles = await db.profiles
                     .where("accountId")
