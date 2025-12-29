@@ -34,9 +34,10 @@ export default function ChildLayout({
         // }
     }, [user, loading, hasHydrated, router]);
 
+    // Wait for BOTH auth loading AND Zustand hydration to complete
     if (loading || !hasHydrated) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF2FF]">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF2FF] pt-[env(safe-area-inset-top)]">
                 <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
             </div>
         );
@@ -44,7 +45,7 @@ export default function ChildLayout({
 
     if (!user) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF2FF]">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF2FF] pt-[env(safe-area-inset-top)]">
                 <p className="text-gray-500 font-bold">You need to log in.</p>
                 <button onClick={() => router.push('/login')} className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg">Go to Login</button>
             </div>
@@ -56,7 +57,7 @@ export default function ChildLayout({
     // but explicit check is good.
     if (!activeProfile) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF2FF] p-6 text-center">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF2FF] p-6 text-center pt-[env(safe-area-inset-top)]">
                 <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full font-sans">
                     <div className="text-4xl mb-4">👻</div>
                     <h2 className="text-xl font-bold text-gray-800 mb-2">No Profile Found</h2>
@@ -79,7 +80,7 @@ export default function ChildLayout({
     const showNav = !pathname.includes('/child/routine');
 
     return (
-        <div className={cn(`min-h-screen relative flex flex-col ${bgClass} text-[#2B2D42] transition-colors duration-500 selection:bg-orange-100`, quicksand.className)}>
+        <div className={cn(`min-h-screen relative flex flex-col ${bgClass} text-[#2B2D42] transition-colors duration-500 selection:bg-orange-100 pt-[env(safe-area-inset-top)]`, quicksand.className)}>
             {/* Dynamic Content */}
             <div className={cn("relative z-10 flex-1 flex flex-col", showNav && "pb-24")}>
                 {children}

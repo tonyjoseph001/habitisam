@@ -34,6 +34,7 @@ export const viewport: Viewport = {
 
 import { ThemeProvider } from '@/components/providers/ThemeContext';
 import { AuthProvider } from '@/components/providers/AuthProvider';
+import { BackButtonHandler } from '@/components/providers/BackButtonHandler';
 
 import { Toaster } from 'sonner';
 
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${fredoka.variable} font-sans`}>
         <AuthProvider>
           <ThemeProvider>
+            <BackButtonHandler />
             {children}
             <Toaster position="top-center" richColors />
           </ThemeProvider>

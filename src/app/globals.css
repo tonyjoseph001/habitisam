@@ -64,7 +64,6 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    padding-top: var(--safe-area-top);
     padding-bottom: var(--safe-area-bottom);
   }
 }
