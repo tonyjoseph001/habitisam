@@ -34,48 +34,12 @@ export default function ChildGoalsPage() {
             .toArray();
     }, [activeProfile?.id]);
 
-    // Seed Default Data if Empty
+    // Seed Default Data logic removed per user request
+    /*
     useEffect(() => {
-        const seedData = async () => {
-            if (!activeProfile) return;
-            // Check if profile has ANY goals
-            const count = await db.goals.where('profileId').equals(activeProfile.id).count();
-            if (count === 0) {
-                const defaultGoals: Goal[] = [
-                    {
-                        id: crypto.randomUUID(),
-                        title: 'Science Project',
-                        description: 'Multi-step task',
-                        type: 'checklist',
-                        current: 1,
-                        target: 4,
-                        stars: 500,
-                        icon: '🌋',
-                        dueDate: 'Nov 15',
-                        status: 'active',
-                        accountId: activeProfile.accountId,
-                        profileId: activeProfile.id,
-                        color: 'purple',
-                        createdAt: new Date(),
-                        checklist: [
-                            { text: 'Research Volcanoes', completed: true },
-                            { text: 'Buy Materials', completed: false },
-                            { text: 'Build Model', completed: false },
-                            { text: 'Write Report', completed: false }
-                        ]
-                    },
-                    { id: crypto.randomUUID(), title: 'Piano Practice', description: "Master 'Fur Elise'", type: 'slider', current: 50, target: 100, stars: 300, icon: '🎹', dueDate: 'Dec 01', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'blue', createdAt: new Date() },
-                    { id: crypto.randomUUID(), title: 'Read 10 Books', description: 'Summer Reading', type: 'counter', current: 3, target: 10, stars: 1000, icon: '📚', dueDate: 'Aug 20', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'green', createdAt: new Date() },
-                    { id: crypto.randomUUID(), title: 'Lego Castle', description: 'Creative Build', type: 'checklist', current: 0, target: 1, stars: 250, icon: '🏰', dueDate: 'This Weekend', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'pink', createdAt: new Date() },
-                    { id: crypto.randomUUID(), title: 'Math Time', description: 'Goal: 60 Mins', type: 'timer', current: 20, target: 60, stars: 100, icon: '⏱️', dueDate: 'Weekly', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'indigo', createdAt: new Date() },
-                    { id: crypto.randomUUID(), title: 'Save for Bike', description: 'Goal: $50.00', type: 'savings', current: 15, target: 50, stars: 500, icon: '🐷', dueDate: 'Ongoing', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'yellow', createdAt: new Date() },
-                    { id: crypto.randomUUID(), title: 'Clean Garage', description: 'One-time Big Job', type: 'binary', current: 0, target: 1, stars: 800, icon: '🧹', dueDate: 'Sunday', status: 'active', accountId: activeProfile.accountId, profileId: activeProfile.id, color: 'orange', createdAt: new Date() },
-                ];
-                await db.goals.bulkAdd(defaultGoals);
-            }
-        };
-        seedData();
+        // ... removed
     }, [activeProfile?.id]);
+    */
 
     // Format Helpers
     const getStatusColor = (goal: Goal) => {

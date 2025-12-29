@@ -224,7 +224,7 @@ export default function RoutinesPage() {
             <div className="px-4 mt-4">
                 <div className="bg-slate-200 p-1 rounded-lg flex">
                     <button onClick={() => setActiveTab('routines')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'routines' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Routines</button>
-                    <button onClick={() => setActiveTab('goals')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'goals' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Quests / Goals</button>
+                    <button onClick={() => setActiveTab('goals')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'goals' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Goals</button>
                 </div>
             </div>
 
@@ -302,11 +302,11 @@ export default function RoutinesPage() {
                         {/* ACTIVE GOALS SECTION */}
                         <div className="mb-8">
                             <h3 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center justify-between">
-                                Active Quests
+                                Active Goals
                                 <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{activeGoals.length}</span>
                             </h3>
                             {activeGoals.length === 0 && (
-                                <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">No active quests. Create one!</div>
+                                <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">No active goals. Create one!</div>
                             )}
                             <div className="space-y-3">
                                 {activeGoals.map(goal => <RenderGoalCard key={goal.id} goal={goal} />)}
@@ -337,7 +337,7 @@ export default function RoutinesPage() {
                                     <Edit2 className="w-10 h-10 text-blue-300" />
                                 </div>
                                 <h3 className="font-bold text-slate-700">No Goals Yet</h3>
-                                <p className="text-sm text-slate-500 max-w-xs">Create long term quests like "Read 10 Books".</p>
+                                <p className="text-sm text-slate-500 max-w-xs">Create long term goals like "Read 10 Books".</p>
                             </div>
                         )}
                     </>
@@ -421,7 +421,7 @@ export default function RoutinesPage() {
             <Modal
                 isOpen={!!deletingItem}
                 onClose={() => setDeletingItem(null)}
-                title={`Delete ${deletingItem?.type === 'routine' ? 'Routine' : 'Quest'}`}
+                title={`Delete ${deletingItem?.type === 'routine' ? 'Routine' : 'Goal'}`}
                 className="max-w-xs"
             >
                 <div className="p-4 pt-0">

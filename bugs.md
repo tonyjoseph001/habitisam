@@ -11,7 +11,7 @@ Startup Screen
 
 Parent Dashboard
 - alert bell icon has red dot even when there are no alerts- Fixed
-- There should be an option to recover or reset the pin number if user forgets it.
+- There should be an option to recover or reset the pin number if user forgets it. - Fixed
 - weekly success rate is hardcoded, it should be dynamic
 
 Profile Page
@@ -22,8 +22,8 @@ Profile Page
 - the profile creation page need to rewrite to accept parent information and change all the fields accordingly. date of birth is not needed for parent account. - Fixed
 
 Routine Page
--  Quests/Goals table changed to Goals
-- There hardcoded goals created by default, need to remove them
+-  Quests/Goals tab changed to Goals - Fixed
+- There hardcoded goals created by default, need to remove them - Fixed
 
 Add Routine Page
 - title should be "New Routine", This confusing title, the same page can be used to create new routine or edit existing routine. And also same page cabe used to create/edit Task and Goals by toggeling the tabs. So we need to change the title based on the action.
