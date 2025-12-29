@@ -93,6 +93,12 @@ export default function ParentDashboard() {
 
     // Require PIN verification on page load for parent profiles
     useEffect(() => {
+        // Check if we're in forgot PIN flow - if so, skip PIN verification
+        const resetPinForProfile = localStorage.getItem('resetPinForProfile');
+        if (resetPinForProfile && activeProfile?.id === resetPinForProfile) {
+            return; // Allow access to show Set PIN modal
+        }
+
         // Check if we have a parent profile active
         if (activeProfile?.type === 'parent') {
             // Check if PIN was verified in this session
