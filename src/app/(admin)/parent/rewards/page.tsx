@@ -74,7 +74,7 @@ export default function ParentRewardsPage() {
                 rightAction={
                     <button
                         onClick={() => router.push('/parent/purchases')}
-                        className="px-3 py-1.5 bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
+                        className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
                     >
                         <History className="w-3.5 h-3.5" />
                         History
@@ -146,7 +146,7 @@ export default function ParentRewardsPage() {
                         {rewards && rewards.length > 0 && (
                             <button
                                 onClick={() => router.push('/parent/rewards/add?returnUrl=/parent/rewards')}
-                                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm"
+                                className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm"
                             >
                                 <Plus className="w-4 h-4" />
                                 Add Reward
@@ -168,7 +168,7 @@ export default function ParentRewardsPage() {
                                             e.stopPropagation();
                                             router.push(`/parent/rewards/edit?id=${reward.id}`);
                                         }}
-                                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-violet-100 text-slate-600 hover:text-violet-600 flex items-center justify-center transition"
+                                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-primary/10 text-slate-600 hover:text-primary flex items-center justify-center transition"
                                     >
                                         <Edit className="w-3.5 h-3.5" />
                                     </button>
@@ -191,7 +191,7 @@ export default function ParentRewardsPage() {
                                     {/* Assignment Badge */}
                                     <div className="mb-3">
                                         {reward.assignedProfileIds && reward.assignedProfileIds.length > 0 ? (
-                                            <span className="text-[10px] font-semibold text-violet-700 bg-violet-50 px-2 py-1 rounded-md border border-violet-100">
+                                            <span className="text-[10px] font-semibold text-primary bg-primary/5 px-2 py-1 rounded-md border border-primary/10">
                                                 Assigned to {reward.assignedProfileIds.length}
                                             </span>
                                         ) : (
@@ -217,7 +217,7 @@ export default function ParentRewardsPage() {
                                 <p className="text-sm text-slate-500 mb-4">Create rewards for your children to redeem with their stars</p>
                                 <button
                                     onClick={() => router.push('/parent/rewards/add?returnUrl=/parent/rewards')}
-                                    className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm"
+                                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm"
                                 >
                                     <Plus className="w-4 h-4" />
                                     Create First Reward
