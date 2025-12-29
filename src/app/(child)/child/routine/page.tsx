@@ -573,12 +573,32 @@ function RoutinePlayerContent() {
                     <ArrowLeft className="w-6 h-6" />
                 </button>
 
-                {/* Avatar Badge (Hidden to save space or made smaller?) - Keep for context but simplified */}
-                <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 mb-4 mt-2">
-                    <div className="w-5 h-5 rounded-full bg-yellow-100 overflow-hidden">
-                        <img src={avatarSrc} className="w-full h-full object-cover" alt="Avatar" />
+                {/* Avatar Badge */}
+                <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 mb-4 mt-2 max-w-[80%]">
+                    <div className="w-6 h-6 rounded-full bg-yellow-100 border border-white shadow-sm flex items-center justify-center text-sm shrink-0">
+                        {(() => {
+                            // Inline helper or use effect, but better to just switch here or duplicate helper
+                            const aid = activeProfile.avatarId;
+                            switch (aid) {
+                                case 'boy': return '🧑‍🚀';
+                                case 'girl': return '👩‍🚀';
+                                case 'superhero': return '🦸';
+                                case 'superhero_girl': return '🦸‍♀️';
+                                case 'ninja': return '🥷';
+                                case 'wizard': return '🧙';
+                                case 'princess': return '👸';
+                                case 'pirate': return '🏴‍☠️';
+                                case 'alien': return '👽';
+                                case 'robot': return '🤖';
+                                case 'dinosaur': return '🦖';
+                                case 'unicorn': return '🦄';
+                                case 'dragon': return '🐉';
+                                case 'rocket': return '🚀';
+                                default: return '👶';
+                            }
+                        })()}
                     </div>
-                    <span className="text-xs font-bold text-gray-600 truncate max-w-[150px]">{routine.title}</span>
+                    <span className="text-xs font-bold text-gray-600 leading-tight text-left line-clamp-2">{routine.title}</span>
                 </div>
 
                 {/* Progress Circle Container (Smaller) */}
