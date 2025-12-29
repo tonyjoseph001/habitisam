@@ -11,12 +11,15 @@ function LoginPageContent() {
     const { user, signInWithGoogle, signInAsDev, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
 
     // Redirect logic
     useEffect(() => {
         async function checkRouting() {
-            if (!loading && user) {
+            if (!loading && user && !isRedirecting) {
+                setIsRedirecting(true); // Show loading immediately
+
                 // Check if this is a forgot PIN flow
                 const pendingReset = localStorage.getItem('pendingPinReset');
                 if (pendingReset) {
@@ -39,7 +42,7 @@ function LoginPageContent() {
             }
         }
         checkRouting();
-    }, [user, loading, router]);
+    }, [user, loading, router, isRedirecting]);
 
 
 
@@ -50,6 +53,18 @@ function LoginPageContent() {
             console.error("Login failed", err);
         }
     };
+
+    // Show loading screen during redirect
+    if (isRedirecting) {
+        return (
+            <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-[#2E1065] to-[#0B0F19]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <p className="text-white/60 text-sm">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen w-full flex flex-col items-center justify-between bg-gradient-to-b from-[#2E1065] to-[#0B0F19] text-white overflow-hidden relative">
