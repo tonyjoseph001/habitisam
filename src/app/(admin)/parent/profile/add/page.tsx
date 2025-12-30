@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChevronLeft, Save, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 // Avatar Options
 const AVATARS = [
@@ -68,13 +69,14 @@ export default function AddChildProfilePage() {
         };
 
         await db.profiles.add(newProfile as any);
+        toast.success("Profile created successfully!");
         router.push('/parent/dashboard');
     };
 
     return (
         <div className="min-h-screen bg-slate-100 pb-20 font-sans">
             {/* Header */}
-            <header className="px-4 py-3 bg-white shadow-sm sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200">
+            <header className="px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] bg-white shadow-sm sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200">
                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-0 hover:bg-transparent text-slate-500">
                     <ChevronLeft className="w-6 h-6" />
                 </Button>
@@ -125,12 +127,13 @@ export default function AddChildProfilePage() {
                         <div className="flex flex-col gap-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">PIN (Required)</label>
                             <Input
-                                type="password"
                                 value={pin}
-                                onChange={e => setPin(e.target.value)}
+                                onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                 placeholder="Enter 4-digit PIN"
-                                maxLength={6}
                                 className="bg-white h-10 border-slate-200"
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={4}
                             />
                             <p className="text-xs text-slate-500">This PIN will be used to access the parent dashboard</p>
                         </div>
@@ -153,8 +156,8 @@ export default function AddChildProfilePage() {
                 {/* 3. Avatar Selection (Child Only) */}
                 {profileType === 'child' && (
                     <div className="bg-white rounded-xl mx-4 p-4 shadow-sm border border-slate-200 flex flex-col gap-3">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Choose Avatar</label>
-                        <div className="grid grid-cols-5 gap-3">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Avatar</label>
+                        <div className="flex gap-3 overflow-x-auto pb-1 px-1 scrollbar-hide">
                             {AVATARS.map(avatar => {
                                 const isSelected = selectedAvatar === avatar.id;
                                 return (
@@ -162,7 +165,7 @@ export default function AddChildProfilePage() {
                                         key={avatar.id}
                                         onClick={() => setSelectedAvatar(avatar.id)}
                                         className={cn(
-                                            "flex-shrink-0 w-full aspect-square rounded-xl flex items-center justify-center text-3xl bg-white border-2 transition-all relative",
+                                            "flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border-2 transition-all relative",
                                             isSelected
                                                 ? "border-violet-600 shadow-md scale-105"
                                                 : "border-slate-200 opacity-70 hover:opacity-100"
@@ -170,8 +173,8 @@ export default function AddChildProfilePage() {
                                     >
                                         {avatar.icon}
                                         {isSelected && (
-                                            <div className="absolute -top-1 -right-1 bg-violet-600 text-white rounded-full p-1 border-2 border-white">
-                                                <Check className="w-3 h-3" />
+                                            <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-0.5 border-2 border-white">
+                                                <Check className="w-2 h-2" />
                                             </div>
                                         )}
                                     </button>
@@ -200,3 +203,4 @@ export default function AddChildProfilePage() {
         </div>
     );
 }
+

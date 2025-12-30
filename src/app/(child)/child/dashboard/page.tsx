@@ -179,8 +179,9 @@ export default function MissionControlPage() {
     };
 
     // Helper to determine status for list items
-    const getTaskStatus = (task: any): 'completed' | 'locked' | 'active' | 'expired' | 'overdue' => {
+    const getTaskStatus = (task: any): 'completed' | 'locked' | 'active' | 'expired' | 'overdue' | 'missed' => {
         if (completedTaskIds.has(task.id)) return 'completed';
+        if (processedTaskIds.has(task.id)) return 'missed';
 
         try {
             const now = new Date();
@@ -193,7 +194,8 @@ export default function MissionControlPage() {
             const unlockTime = addMinutes(taskTime, -flexMinutes);
             // If "Anytime Today", unlockTime is basically start of day, so it's technically always unlocked if today
             // But let's respect the specific logic:
-            if (isBefore(now, unlockTime)) return 'locked';
+            // FIX: One-time tasks (Quick Tasks) are "Due By", so they should be unlocked immediately
+            if (task.type !== 'one-time' && isBefore(now, unlockTime)) return 'locked';
 
             // 2. Check Expiration (Too Late)
             if (task.expires === 'End of Day') {
@@ -201,6 +203,9 @@ export default function MissionControlPage() {
             } else if (expireMinutes !== null) {
                 const expirationTime = addMinutes(taskTime, expireMinutes);
                 if (isAfter(now, expirationTime)) return 'expired';
+            } else if (task.type === 'one-time') {
+                // For one-time tasks without explicit expires, the timeOfDay IS the expiry
+                if (isAfter(now, taskTime)) return 'expired';
             }
 
             // 3. Check Overdue (Standard logic, maybe redundant if expires is handled, but good for UI text)
@@ -225,13 +230,13 @@ export default function MissionControlPage() {
             const todayStr = format(now, 'yyyy-MM-dd');
 
             for (const r of routines) {
-                // Only for one-time tasks assigned for today
+                // Only for one-time tasks assigned for today (Quick Tasks)
                 if (r.type === 'one-time' && r.date === todayStr && !processedTaskIds.has(r.id)) {
                     if (r.timeOfDay) {
                         try {
                             const dueTime = parse(r.timeOfDay, 'HH:mm', now);
-                            // If passed by more than 1 minute (buffer), mark as missed
-                            if (differenceInMinutes(now, dueTime) > 1) {
+                            // If passed by more than 0 minute (immediate expiry), mark as missed
+                            if (isAfter(now, dueTime)) {
                                 console.log('Marking task as missed:', r.title);
                                 await db.activityLogs.add({
                                     id: crypto.randomUUID(),
@@ -309,15 +314,32 @@ export default function MissionControlPage() {
     const handleClaimReward = async (reward: any) => {
         if (!activeProfile) return;
         try {
-            // 1. Mark as Claimed
-            await db.inboxRewards.update(reward.id, {
-                status: 'claimed',
-                claimedAt: new Date()
-            });
+            await db.transaction('rw', db.inboxRewards, db.profiles, db.activityLogs, async () => {
+                // 1. Mark as Claimed
+                await db.inboxRewards.update(reward.id, {
+                    status: 'claimed',
+                    claimedAt: new Date()
+                });
 
-            // 2. Add Stars
-            await db.profiles.update(activeProfile.id, {
-                stars: (activeProfile.stars || 0) + reward.amount
+                // 2. Add Stars
+                await db.profiles.update(activeProfile.id, {
+                    stars: (activeProfile.stars || 0) + reward.amount
+                });
+
+                // 3. Log Activity
+                await db.activityLogs.add({
+                    id: crypto.randomUUID(),
+                    accountId: activeProfile.accountId,
+                    profileId: activeProfile.id,
+                    activityId: 'manual_reward',
+                    date: new Date().toISOString(),
+                    status: 'completed',
+                    starsEarned: reward.amount,
+                    metadata: {
+                        reason: reward.message || "Reward Claimed",
+                        type: "manual_award"
+                    }
+                });
             });
 
             // 3. Animation/Toast
@@ -374,13 +396,8 @@ export default function MissionControlPage() {
 
         if (todayNext) return { routine: todayNext, isTomorrow: false };
 
-        // 2. Try Tomorrow (First routine of the day)
-        if (tomorrowRoutines.length > 0) {
-            return { routine: tomorrowRoutines[0], isTomorrow: true };
-        }
-
         return null;
-    }, [todayRoutines, tomorrowRoutines, processedTaskIds]);
+    }, [todayRoutines, processedTaskIds]);
 
     const upNextRoutine = upNextContext?.routine;
     const isTomorrow = upNextContext?.isTomorrow;
@@ -480,536 +497,542 @@ export default function MissionControlPage() {
     };
 
     return (
-        <main className="w-full max-w-5xl mx-auto pb-6">
-
-            {/* Reusable Header */}
-            <ChildHeader />
-
-            {/* Task Confirmation Modal */}
-            <AnimatePresence>
-                {confirmTask && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                            onClick={() => setConfirmTask(null)}
-                        />
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white w-full max-w-sm rounded-[2rem] p-6 text-center relative z-10 shadow-2xl"
-                        >
-                            <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                                <Check className="w-8 h-8" strokeWidth={4} />
-                            </div>
-                            <h3 className="text-xl font-black text-gray-800 mb-2">Did you finish it?</h3>
-                            <p className="text-gray-500 font-medium mb-6">
-                                You are about to complete <br />
-                                <span className="text-blue-500 font-bold">"{confirmTask.title}"</span>
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setConfirmTask(null)}
-                                    className="flex-1 py-3.5 rounded-xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        handleQuickComplete(confirmTask);
-                                        setConfirmTask(null);
-                                    }}
-                                    className="flex-1 py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg shadow-green-200 transition"
-                                >
-                                    Yes, I did!
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* NEW STATS SECTION (Colorful) */}
-            <div className="px-6 mb-8 space-y-6">
-                {/* 1. Today's Mission Card */}
-                <div className="bg-gradient-to-r from-[#6366F1] via-[#8B5CF6] to-[#2DD4BF] rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-200 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px]"></div>
-                    <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
-                    <div className="absolute bottom-[-20px] left-[-20px] w-24 h-24 bg-purple-500/30 rounded-full blur-xl"></div>
-
-                    <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-sm font-bold text-indigo-100 uppercase tracking-widest">Today's Mission</h2>
-                            <div className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold border border-white/20 backdrop-blur-md">
-                                {todayRoutines.filter(r => processedTaskIds.has(r.id)).length}/{todayRoutines.length} Done
-                            </div>
-                        </div>
-
-                        <div className="flex items-end gap-3 mb-4">
-                            <span className="text-6xl font-black tracking-tight leading-none drop-shadow-sm">
-                                {Math.max(0, todayRoutines.length - todayRoutines.filter(r => processedTaskIds.has(r.id)).length)}
-                            </span>
-                            <span className="text-lg font-bold text-indigo-100 mb-1">Tasks Left</span>
-                        </div>
-
-                        <div className="w-full bg-black/20 rounded-full h-3 overflow-hidden">
-                            <div
-                                className="bg-white h-full rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-1000 ease-out text-right pr-2"
-                                style={{ width: `${todayRoutines.length > 0 ? (todayRoutines.filter(r => processedTaskIds.has(r.id)).length / todayRoutines.length) * 100 : 0}%` }}
-                            >
-                            </div>
-                        </div>
-
-
-                    </div>
-                </div>
-
-                {/* 2. Grid for Streak & Stars */}
-                <div className="grid grid-cols-2 gap-4">
-                    {/* Streak Card */}
-                    <div className="bg-[#FF8B3D] rounded-[2rem] p-4 text-white shadow-lg shadow-orange-200 relative overflow-hidden group hover:scale-[1.02] transition flex flex-col items-center text-center justify-center min-h-[140px]">
-                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/20 rounded-full blur-md"></div>
-
-                        <Flame className="w-12 h-12 mb-2 text-orange-50 fill-orange-50 drop-shadow-sm" />
-                        <span className="text-4xl font-black tracking-tight">{currentStreak}</span>
-                        <span className="text-[10px] font-bold text-orange-100 uppercase tracking-widest mt-1">Days</span>
-                    </div>
-
-                    {/* Stars Card */}
-                    <div className="bg-[#FACC15] rounded-[2rem] p-4 text-yellow-900 shadow-lg shadow-yellow-200 relative overflow-hidden group hover:scale-[1.02] transition flex flex-col items-center text-center justify-center min-h-[140px]">
-                        <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-white/30 rounded-full blur-md"></div>
-
-                        <Star className="w-12 h-12 mb-2 text-yellow-50 fill-yellow-50 drop-shadow-sm" />
-                        <span className="text-3xl font-black tracking-tight">{displayProfile.stars?.toLocaleString() || 0}</span>
-                        <span className="text-[10px] font-bold text-yellow-800/60 uppercase tracking-widest mt-1">Stars</span>
-                    </div>
+        <div className="h-full w-full flex flex-col overflow-hidden bg-[#EEF2FF]">
+            <div className="flex-none z-50 bg-[#EEF2FF]">
+                <div className="w-full max-w-5xl mx-auto">
+                    <ChildHeader />
                 </div>
             </div>
+            <div className="flex-1 overflow-y-auto w-full pt-4">
+                <main className="w-full max-w-5xl mx-auto pb-32">
 
-            {/* Responsive Grid layout for Main Content */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6 pb-24">
-
-                {/* LEFT COLUMN: UPCOMING TASK */}
-                <div className="flex flex-col h-full">
-                    {/* PENDING REWARDS STACK (New - Compact) */}
-                    {inboxRewards.length > 0 && (
-                        <div className="mb-6 relative w-full h-auto min-h-[100px]">
-                            <AnimatePresence>
-                                {inboxRewards.map((reward: any, index: number) => {
-                                    // Show max 3 cards visually
-                                    if (index > 2) return null;
-
-                                    return (
-                                        <motion.div
-                                            key={reward.id}
-                                            initial={{ scale: 0.9, y: 20, opacity: 0 }}
-                                            animate={{
-                                                scale: 1 - (index * 0.03),
-                                                y: index * 4, // Tighter stack
-                                                zIndex: 30 - index,
-                                                opacity: 1
-                                            }}
-                                            exit={{ scale: 1.1, opacity: 0, x: 100 }}
-                                            className="absolute inset-x-0 bg-gradient-to-r from-pink-500 to-rose-400 rounded-2xl p-4 shadow-lg shadow-pink-200 text-white flex items-center gap-4 border border-white/20"
-                                            style={{ top: 0 }}
+                    {/* Task Confirmation Modal */}
+                    <AnimatePresence>
+                        {confirmTask && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                                    onClick={() => setConfirmTask(null)}
+                                />
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                    className="bg-white w-full max-w-sm rounded-[2rem] p-6 text-center relative z-10 shadow-2xl"
+                                >
+                                    <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                                        <Check className="w-8 h-8" strokeWidth={4} />
+                                    </div>
+                                    <h3 className="text-xl font-black text-gray-800 mb-2">Did you finish it?</h3>
+                                    <p className="text-gray-500 font-medium mb-6">
+                                        You are about to complete <br />
+                                        <span className="text-blue-500 font-bold">"{confirmTask.title}"</span>
+                                    </p>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setConfirmTask(null)}
+                                            className="flex-1 py-3.5 rounded-xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition"
                                         >
-                                            {/* Icon */}
-                                            <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm border border-white/10 shrink-0">
-                                                <Gift className="w-6 h-6 text-white" />
-                                            </div>
-
-                                            {/* Text */}
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-bold text-lg leading-tight">Gift!</h3>
-                                                <p className="text-pink-100 text-xs font-medium truncate">
-                                                    {reward.message || "Good job!"}
-                                                </p>
-                                            </div>
-
-                                            {/* Action */}
-                                            <button
-                                                onClick={() => handleClaimReward(reward)}
-                                                className="bg-white text-pink-600 font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-pink-50 active:scale-95 transition-all text-sm shrink-0 flex items-center gap-1"
-                                            >
-                                                <Star className="w-3.5 h-3.5 fill-pink-600" />
-                                                <span>Claim {reward.amount}</span>
-                                            </button>
-
-                                            {/* Stack Indicator */}
-                                            {inboxRewards.length > 1 && index === 0 && (
-                                                <div className="absolute -top-2 -right-2 bg-rose-600 text-white border-2 border-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm z-10">
-                                                    +{inboxRewards.length - 1}
-                                                </div>
-                                            )}
-                                        </motion.div>
-                                    );
-                                })}
-                            </AnimatePresence>
-                        </div>
-                    )}
-
-
-
-
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="p-1.5 bg-blue-100 rounded-full text-blue-500">
-                            <Bell className="w-4 h-4 fill-current" />
-                        </div>
-                        <h2 className="text-lg font-bold text-gray-800">Upcoming Task</h2>
-                    </div>
-
-                    {upNextRoutine ? (() => {
-                        const idx = todayRoutines.findIndex(r => r.id === upNextRoutine.id);
-                        const i = idx !== -1 ? idx : 0;
-                        const paletteColor = TASK_PALETTE[i % TASK_PALETTE.length];
-
-                        return (
-                            <div
-                                className="rounded-[2rem] p-5 shadow-lg shadow-indigo-200/50 relative overflow-hidden group text-white transition-all"
-                                style={{ background: paletteColor }}
-                            >
-                                {/* Glossy Overlay matches list cards */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
-
-                                {/* Timer Badge (Absolute Left - Relative) */}
-                                <div className="absolute top-4 left-4 z-10">
-                                    <div className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-lg text-xs font-bold border border-white/20 flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        <span>{timeStatus?.text}</span>
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleQuickComplete(confirmTask);
+                                                setConfirmTask(null);
+                                            }}
+                                            className="flex-1 py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg shadow-green-200 transition"
+                                        >
+                                            Yes, I did!
+                                        </button>
                                     </div>
-                                </div>
-
-                                {/* Timer Badge (Absolute Right - Actual Time) */}
-                                <div className="absolute top-4 right-4 z-10">
-                                    <div className="font-bold text-orange-300 text-xs">
-                                        {timeStatus?.formatted}
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4 mb-4 mt-8">
-                                    <div className="flex-shrink-0 flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/10 text-white shadow-sm">
-                                        <RenderIcon name={upNextRoutine.icon} className="w-10 h-10 text-white" />
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <h3 className="font-black text-white text-2xl leading-tight w-3/4">{upNextRoutine.title}</h3>
-
-                                        <div className="flex items-center gap-3 mt-2 text-indigo-100 font-bold text-xs uppercase tracking-wide">
-                                            <div className="flex items-center gap-1">
-                                                <Timer className="w-3 h-3" />
-                                                <span>{upNextRoutine.steps.reduce((acc: number, s: any) => acc + (s.duration || 0), 0)}m</span>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Steps - Only for Routine */}
-                                {upNextRoutine.type !== 'one-time' && (
-                                    <div className="mb-5">
-                                        <div className="flex items-center gap-2 bg-black/10 p-2 rounded-xl overflow-x-auto scrollbar-hide backdrop-blur-[2px]">
-                                            {upNextRoutine.steps.slice(0, 3).map((step: any, i: number) => (
-                                                <React.Fragment key={step.id || i}>
-                                                    <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white border border-white/10 shadow-sm flex-shrink-0">
-                                                        <RenderIcon name={step.icon} className="w-4 h-4" />
-                                                    </div>
-                                                    {i < Math.min(upNextRoutine.steps.length, 3) - 1 && (
-                                                        <div className="text-indigo-200/50 text-[10px]">➜</div>
-                                                    )}
-                                                </React.Fragment>
-                                            ))}
-                                            {upNextRoutine.steps.length > 3 && (
-                                                <div className="ml-auto text-xs font-bold text-indigo-200 pl-2">+{upNextRoutine.steps.length - 3}</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* INLINED PORTAL MODAL */}
-                                {mounted && isStampModalOpen && (
-                                    (() => {
-                                        return createPortal(
-                                            <div
-                                                className="fixed inset-0 flex items-end justify-center sm:items-center pointer-events-none"
-                                                style={{ zIndex: 999999 }}
-                                            >
-                                                {/* Backdrop */}
-                                                <div
-                                                    className="absolute inset-0 bg-black/60 pointer-events-auto transition-opacity duration-300 backdrop-blur-[2px]"
-                                                    onClick={() => setIsStampModalOpen(false)}
-                                                />
-
-                                                {/* Bottom Sheet Drawer */}
-                                                <div className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] relative overflow-hidden flex flex-col pointer-events-auto animate-in slide-in-from-bottom duration-300">
-                                                    {/* Header */}
-                                                    <div className="px-8 pt-4 pb-2 flex items-center justify-between">
-                                                        <h2 className="text-xl font-extrabold text-[#1F2937]">Select Buddy</h2>
-                                                        <Link href="/child/rewards" className="text-xs font-bold text-gray-400 hover:text-indigo-500 transition-colors">
-                                                            Get more in Rewards
-                                                        </Link>
-                                                    </div>
-
-                                                    {/* Stamp Grid */}
-                                                    <div className="p-8 grid grid-cols-3 gap-6 overflow-y-auto max-h-[50vh]">
-                                                        {(displayProfile.unlockedStamps?.length ? displayProfile.unlockedStamps : ['star', 'rocket', 'planet', 'bear', 'robot', 'dino']).map((stampId) => {
-                                                            const asset = STAMP_ASSETS[stampId] || STAMP_ASSETS['star'];
-                                                            const isActive = displayProfile.activeStamp === stampId;
-
-                                                            return (
-                                                                <button
-                                                                    key={stampId}
-                                                                    onClick={() => handleSelectStamp(stampId)}
-                                                                    className={`relative aspect-square rounded-full flex items-center justify-center text-4xl transition-all ${isActive ? 'scale-110' : 'hover:scale-105 active:scale-95'}`}
-                                                                >
-                                                                    <div className={`absolute inset-0 rounded-full opacity-20 ${isActive ? 'bg-indigo-500' : 'bg-gray-100'}`}></div>
-                                                                    <div className="relative z-10 drop-shadow-sm">{asset.emoji}</div>
-                                                                    {isActive && (
-                                                                        <div className="absolute inset-0 rounded-full border-[3px] border-indigo-500">
-                                                                            <div className="absolute top-0 right-0 bg-indigo-500 text-white rounded-full p-1 shadow-sm transform translate-x-1/4 -translate-y-1/4">
-                                                                                <Check className="w-2.5 h-2.5" strokeWidth={4} />
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-
-                                                    {/* Footer Button */}
-                                                    <div className="p-6 pt-2 pb-8">
-                                                        <button onClick={() => setIsStampModalOpen(false)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-4 rounded-2xl transition-colors active:scale-95">Close</button>
-                                                    </div>
-                                                </div>
-                                            </div>,
-                                            document.body
-                                        );
-                                    })()
-                                )}
-
-                                {(() => {
-                                    const status = getTaskStatus(upNextRoutine);
-                                    if (status === 'locked') {
-                                        return (
-                                            <button disabled className="w-full bg-black/20 text-white/50 font-bold py-3.5 rounded-2xl cursor-not-allowed flex items-center justify-center gap-2 backdrop-blur-sm border border-white/5">
-                                                <Lock className="w-5 h-5" />
-                                                Locked until {format(addMinutes(parse(upNextRoutine.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(upNextRoutine.flexWindow)), 'h:mm a')}
-                                            </button>
-                                        );
-                                    }
-                                    if (upNextRoutine.type === 'one-time') {
-                                        return (
-                                            <button onClick={() => setConfirmTask(upNextRoutine)} className="w-full bg-white text-green-600 font-bold py-3.5 rounded-2xl shadow-lg shadow-green-900/10 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                                <Check className="w-5 h-5" strokeWidth={3} />
-                                                Mark Complete
-                                            </button>
-                                        );
-                                    }
-                                    return (
-                                        <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
-                                            <button className="w-full bg-white text-indigo-600 font-extrabold py-3.5 rounded-2xl shadow-lg shadow-indigo-900/10 hover:bg-indigo-50 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                                <Play className="w-5 h-5 fill-current" />
-                                                Start
-                                            </button>
-                                        </Link>
-                                    );
-                                })()}
-
+                                </motion.div>
                             </div>
-                        );
-                    })() : (
-                        <div className="text-center py-8 text-gray-400 bg-white rounded-[2rem] shadow-sm">
-                            <p className="font-bold">✨ All caught up!</p>
-                            <p className="text-xs mt-1">Great job!</p>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </AnimatePresence>
 
-                {/* RIGHT COLUMN: ASSIGNED TASKS */}
-                <div>
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="p-1.5 bg-purple-100 rounded-full text-purple-500">
-                            <Clock className="w-4 h-4" />
+                    {/* NEW STATS SECTION - Custom Design */}
+                    {/* NEW STATS SECTION - Custom Design */}
+                    <div className="px-6 mb-8 w-full">
+                        <div
+                            className="w-full rounded-[28px] p-6 text-white relative overflow-hidden shadow-[0_18px_40px_rgba(0,0,0,0.25)] flex flex-col gap-6"
+                            style={{
+                                backgroundImage: 'url("/assets/card-bg.png")',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat',
+                                minHeight: '220px'
+                            }}
+                        >
+                            {/* Top Row: Title & Count */}
+                            <div>
+                                <div className="flex items-center gap-2 text-[13px] font-semibold tracking-wide opacity-95">
+                                    <span>🚀</span> <span>TODAY'S MISSION</span>
+                                </div>
+                                <div className="mt-3">
+                                    {Math.max(0, todayRoutines.length - todayRoutines.filter(r => processedTaskIds.has(r.id)).length) === 0 ? (
+                                        <span className="text-4xl font-extrabold">All Done!</span>
+                                    ) : (
+                                        <div className="flex flex-row items-baseline gap-2">
+                                            <span className="text-6xl font-extrabold leading-none tracking-tight">
+                                                {Math.max(0, todayRoutines.length - todayRoutines.filter(r => processedTaskIds.has(r.id)).length)}
+                                            </span>
+                                            <span className="text-xl font-bold opacity-90">Tasks Left</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Middle Section: Progress Bar */}
+                            <div className="w-full">
+                                <div className="flex justify-between text-xs font-semibold opacity-90 mb-2">
+                                    <span>DAILY PROGRESS</span>
+                                    <span>{Math.round((todayRoutines.length > 0 ? (todayRoutines.filter(r => processedTaskIds.has(r.id)).length / todayRoutines.length) * 100 : 0))}%</span>
+                                </div>
+                                <div className="h-3 rounded-full bg-black/25 overflow-hidden backdrop-blur-sm">
+                                    <div
+                                        className="h-full bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.4)] transition-all duration-1000 ease-out"
+                                        style={{ width: `${todayRoutines.length > 0 ? (todayRoutines.filter(r => processedTaskIds.has(r.id)).length / todayRoutines.length) * 100 : 0}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Bottom Row: Stats (Below Progress Bar) */}
+                            <div className="flex gap-3">
+                                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[15px] font-bold bg-white/20 backdrop-blur-md border border-white/10 shadow-sm flex-1 justify-center">
+                                    <span className="drop-shadow-sm">⭐</span> <span>{displayProfile.stars?.toLocaleString() || 0}</span>
+                                </div>
+                                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[15px] font-bold bg-white/20 backdrop-blur-md border border-white/10 shadow-sm flex-1 justify-center">
+                                    <span className="drop-shadow-sm">🔥</span> <span>{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</span>
+                                </div>
+                            </div>
                         </div>
-                        <h2 className="text-lg font-bold text-gray-800">Today's Tasks ({assignedTasks.length})</h2>
                     </div>
 
-                    <div className="space-y-6">
-                        {assignedTasks.length === 0 && <p className="text-slate-400 text-sm text-center">All caught up!</p>}
+                    {/* Responsive Grid layout for Main Content */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-6 pb-24">
 
-                        {/* RENDER GROUPS (Morning, Afternoon, Evening) */}
-                        {[
-                            { id: 'Morning', label: 'Morning', icon: Sun, color: 'text-orange-500', gradient: 'bg-gradient-to-r from-orange-400 to-rose-400', tasks: groupedAssignedTasks.Morning },
-                            { id: 'Afternoon', label: 'Afternoon', icon: Sunset, color: 'text-blue-500', gradient: 'bg-gradient-to-r from-cyan-400 to-blue-500', tasks: groupedAssignedTasks.Afternoon },
-                            { id: 'Evening', label: 'Evening', icon: Moon, color: 'text-indigo-500', gradient: 'bg-gradient-to-r from-indigo-500 to-violet-500', tasks: groupedAssignedTasks.Evening },
-                        ].map(group => {
-                            if (group.tasks.length === 0) return null;
-
-                            return (
-                                <div key={group.id} className="space-y-3">
-                                    <h3 className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wider ${group.color} px-2`}>
-                                        <group.icon className="w-4 h-4" />
-                                        {group.label}
-                                    </h3>
-
-                                    <div className="space-y-3">
-                                        {group.tasks.map((task: any) => {
-                                            const i = task._globalIndex;
-                                            const status = getTaskStatus(task);
-                                            const isExpanded = expandedTaskId === task.id;
-
-                                            // Restore User Palette Logic
-                                            const isCompleted = status === 'completed';
-                                            const paletteColor = TASK_PALETTE[i % TASK_PALETTE.length];
-
-                                            // Dynamic Styles based on status
-                                            const cardStyle = isCompleted
-                                                ? { background: '#dcfce7' } // green-100/200ish
-                                                : { background: paletteColor };
-
-                                            const totalDuration = task.steps?.reduce((acc: number, step: any) => acc + (step.duration || 0), 0) || 0;
+                        {/* LEFT COLUMN: UPCOMING TASK */}
+                        <div className="flex flex-col h-full">
+                            {/* PENDING REWARDS STACK (New - Compact) */}
+                            {inboxRewards.length > 0 && (
+                                <div className="mb-6 relative w-full h-auto min-h-[100px]">
+                                    <AnimatePresence>
+                                        {inboxRewards.map((reward: any, index: number) => {
+                                            // Show max 3 cards visually
+                                            if (index > 2) return null;
 
                                             return (
-                                                <div
-                                                    key={task.id}
-                                                    className={`block relative group rounded-3xl shadow-sm transition-all overflow-hidden ${isCompleted ? 'opacity-80 grayscale-[0.2]' : ''}`}
-                                                    style={cardStyle}
+                                                <motion.div
+                                                    key={reward.id}
+                                                    initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                                                    animate={{
+                                                        scale: 1 - (index * 0.03),
+                                                        y: index * 4, // Tighter stack
+                                                        zIndex: 30 - index,
+                                                        opacity: 1
+                                                    }}
+                                                    exit={{ scale: 1.1, opacity: 0, x: 100 }}
+                                                    className="absolute inset-x-0 bg-gradient-to-r from-pink-500 to-rose-400 rounded-2xl p-4 shadow-lg shadow-pink-200 text-white flex items-center gap-4 border border-white/20"
+                                                    style={{ top: 0 }}
                                                 >
-                                                    {/* Glossy Overlay (Gradient) to give it the "Style" without changing color code */}
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
-
-                                                    {/* Status Badge */}
-                                                    {status === 'active' && <div className="absolute top-0 right-0 bg-white/20 backdrop-blur-md text-white border-l border-b border-white/10 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20 shadow-sm drop-shadow-sm">ACTIVE</div>}
-                                                    {status === 'overdue' && <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20 shadow-sm">OVERDUE</div>}
-                                                    {status === 'locked' && <div className="absolute top-0 right-0 bg-black/20 text-white/60 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">LOCKED</div>}
-                                                    {status === 'expired' && <div className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">MISSED</div>}
-                                                    {status === 'completed' && <div className="absolute top-0 right-0 bg-emerald-600/10 text-emerald-700 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">COMPLETED</div>}
-
-                                                    <div
-                                                        onClick={() => toggleExpand(task.id)}
-                                                        className="relative z-10 p-4 flex items-center gap-4 cursor-pointer"
-                                                    >
-                                                        {/* Icon - Darkened Glass for contrast on light BG */}
-                                                        <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 rounded-2xl backdrop-blur-sm shadow-sm ${isCompleted ? 'bg-emerald-600/20 border border-emerald-600/10' : 'bg-white/20 border border-white/10'}`}>
-                                                            {status === 'completed'
-                                                                ? <Check className="w-6 h-6 text-emerald-700" strokeWidth={4} />
-                                                                : <RenderIcon name={task.icon} className="w-6 h-6 text-white drop-shadow-md" />
-                                                            }
-                                                        </div>
-
-                                                        {/* Content */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className={`font-bold text-lg leading-tight line-clamp-2 drop-shadow-md ${isCompleted ? 'text-emerald-900 line-through decoration-emerald-900/40' : 'text-white'}`}>{task.title}</h4>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                {isCompleted ? (
-                                                                    <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs bg-emerald-600/10 px-2 py-1 rounded-lg">
-                                                                        <Check className="w-3 h-3" />
-                                                                        <span>Done {(() => {
-                                                                            const log = completedLogMap.get(task.id);
-                                                                            return log ? format(new Date(log.date), 'h:mm a') : 'today';
-                                                                        })()}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="flex items-center gap-1.5 text-white/90 font-bold text-xs bg-white/20 px-2 py-1 rounded-lg border border-white/10 shadow-sm">
-                                                                            <Clock className="w-3 h-3 drop-shadow-sm" />
-                                                                            <span className="drop-shadow-sm">{format(parse(task.timeOfDay, 'HH:mm', new Date()), 'h:mm a')}</span>
-                                                                        </div>
-                                                                        {totalDuration > 0 && (
-                                                                            <div className="flex items-center gap-1.5 text-white/90 font-bold text-xs bg-white/20 px-2 py-1 rounded-lg border border-white/10 shadow-sm">
-                                                                                <Timer className="w-3 h-3 drop-shadow-sm" />
-                                                                                <span className="drop-shadow-sm">{totalDuration}m</span>
-                                                                            </div>
-                                                                        )}
-
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Expand Chevron */}
-                                                        <div className="flex flex-col items-end gap-1">
-                                                            {status !== 'completed' && (
-                                                                <div className="text-white/70 drop-shadow-md">
-                                                                    {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                    {/* Icon */}
+                                                    <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm border border-white/10 shrink-0">
+                                                        <Gift className="w-6 h-6 text-white" />
                                                     </div>
 
-                                                    {/* Expanded Content */}
-                                                    {isExpanded && status !== 'completed' && (
-                                                        <div className={`px-4 pb-4 pt-2 animate-in slide-in-from-top-1 flex flex-col gap-4 relative z-10`}>
-                                                            {/* Description */}
-                                                            {task.description && (
-                                                                <div className="bg-white/10 border border-white/5 p-3 rounded-xl backdrop-blur-sm">
-                                                                    <p className="text-white/90 text-sm font-medium leading-relaxed">
-                                                                        {task.description}
-                                                                    </p>
-                                                                </div>
-                                                            )}
+                                                    {/* Text */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-lg leading-tight">Gift!</h3>
+                                                        <p className="text-pink-100 text-xs font-medium truncate">
+                                                            {reward.message || "Good job!"}
+                                                        </p>
+                                                    </div>
 
-                                                            {/* Steps Preview */}
-                                                            <div className="space-y-2">
-                                                                {task.steps?.map((step: any, n: number) => (
-                                                                    <div key={n} className={`flex items-center gap-3 bg-white/10 border border-white/5 p-2 rounded-xl text-sm shadow-sm backdrop-blur-[2px]`}>
-                                                                        <div className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-white/20 flex-shrink-0`}>
-                                                                            {n + 1}
-                                                                        </div>
-                                                                        <span className="flex-1 text-white font-medium truncate">{step.title}</span>
+                                                    {/* Action */}
+                                                    <button
+                                                        onClick={() => handleClaimReward(reward)}
+                                                        className="bg-white text-pink-600 font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-pink-50 active:scale-95 transition-all text-sm shrink-0 flex items-center gap-1"
+                                                    >
+                                                        <Star className="w-3.5 h-3.5 fill-pink-600" />
+                                                        <span>Claim {reward.amount}</span>
+                                                    </button>
 
-                                                                        {step.duration > 0 && (
-                                                                            <span className="flex items-center gap-1 text-[10px] font-bold text-white/80 bg-white/10 px-1.5 py-0.5 rounded flex-shrink-0">
-                                                                                <Timer className="w-3 h-3" /> {step.duration}m
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-
-                                                            {/* Actions */}
-                                                            <div className="flex gap-2">
-                                                                {status === 'locked' ? (
-                                                                    <button disabled className="w-full bg-black/20 text-white/50 font-bold py-3 rounded-xl cursor-not-allowed flex items-center justify-center gap-2 backdrop-blur-sm border border-white/5">
-                                                                        <Lock className="w-4 h-4" />
-                                                                        Locked until {format(addMinutes(parse(task.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(task.flexWindow)), 'h:mm a')}
-                                                                    </button>
-                                                                ) : task.type === 'one-time' ? (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleQuickComplete(task);
-                                                                        }}
-                                                                        className="flex-1 bg-white text-green-600 font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
-                                                                    >
-                                                                        <Check className="w-4 h-4" />
-                                                                        Complete
-                                                                    </button>
-                                                                ) : (
-                                                                    <Link href={`/child/routine?id=${task.id}`} className="flex-1 block">
-                                                                        <button className="w-full bg-white text-indigo-600 font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
-                                                                            <Play className="w-4 h-4 fill-current" />
-                                                                            Start
-                                                                        </button>
-                                                                    </Link>
-                                                                )}
-                                                            </div>
+                                                    {/* Stack Indicator */}
+                                                    {inboxRewards.length > 1 && index === 0 && (
+                                                        <div className="absolute -top-2 -right-2 bg-rose-600 text-white border-2 border-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm z-10">
+                                                            +{inboxRewards.length - 1}
                                                         </div>
                                                     )}
-                                                </div>
+                                                </motion.div>
                                             );
                                         })}
-                                    </div>
+                                    </AnimatePresence>
                                 </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
+                            )}
 
-            <style jsx global>{`
+
+
+
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="p-1.5 bg-blue-100 rounded-full text-blue-500">
+                                    <Bell className="w-4 h-4 fill-current" />
+                                </div>
+                                <h2 className="text-lg font-bold text-gray-800">Upcoming Task</h2>
+                            </div>
+
+                            {upNextRoutine ? (() => {
+                                const idx = todayRoutines.findIndex(r => r.id === upNextRoutine.id);
+                                const i = idx !== -1 ? idx : 0;
+                                const paletteColor = TASK_PALETTE[i % TASK_PALETTE.length];
+
+                                return (
+                                    <div
+                                        className="rounded-[2rem] p-4 shadow-lg shadow-indigo-200/50 relative overflow-hidden group text-white transition-all"
+                                        style={{ background: paletteColor }}
+                                    >
+                                        {/* Glossy Overlay matches list cards */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
+
+                                        {/* Timer Badge (Absolute Left - Relative) */}
+                                        <div className="absolute top-3 left-3 z-10">
+                                            <div className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-lg text-xs font-bold border border-white/20 flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                <span>{timeStatus?.text}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Timer Badge (Absolute Right - Actual Time) */}
+                                        <div className="absolute top-3 right-3 z-10">
+                                            <div className="font-bold text-orange-300 text-xs">
+                                                {timeStatus?.formatted}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4 mb-3 mt-10">
+                                            <div className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/10 text-white shadow-sm">
+                                                <RenderIcon name={upNextRoutine.icon} className="w-7 h-7 text-white" />
+                                            </div>
+
+                                            <div className="flex-1">
+                                                <h3 className="font-black text-white text-lg leading-tight w-3/4">{upNextRoutine.title}</h3>
+
+                                                <div className="flex items-center gap-3 mt-2 text-indigo-100 font-bold text-xs uppercase tracking-wide">
+                                                    <div className="flex items-center gap-1">
+                                                        <Timer className="w-3 h-3" />
+                                                        <span>{upNextRoutine.steps.reduce((acc: number, s: any) => acc + (s.duration || 0), 0)}m</span>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Steps - Only for Routine */}
+                                        {upNextRoutine.type !== 'one-time' && (
+                                            <div className="mb-5">
+                                                <div className="flex items-center gap-2 bg-black/10 p-2 rounded-xl overflow-x-auto scrollbar-hide backdrop-blur-[2px]">
+                                                    {upNextRoutine.steps.slice(0, 3).map((step: any, i: number) => (
+                                                        <React.Fragment key={step.id || i}>
+                                                            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white border border-white/10 shadow-sm flex-shrink-0">
+                                                                <RenderIcon name={step.icon} className="w-4 h-4" />
+                                                            </div>
+                                                            {i < Math.min(upNextRoutine.steps.length, 3) - 1 && (
+                                                                <div className="text-indigo-200/50 text-[10px]">➜</div>
+                                                            )}
+                                                        </React.Fragment>
+                                                    ))}
+                                                    {upNextRoutine.steps.length > 3 && (
+                                                        <div className="ml-auto text-xs font-bold text-indigo-200 pl-2">+{upNextRoutine.steps.length - 3}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* INLINED PORTAL MODAL */}
+                                        {mounted && isStampModalOpen && (
+                                            (() => {
+                                                return createPortal(
+                                                    <div
+                                                        className="fixed inset-0 flex items-end justify-center sm:items-center pointer-events-none"
+                                                        style={{ zIndex: 999999 }}
+                                                    >
+                                                        {/* Backdrop */}
+                                                        <div
+                                                            className="absolute inset-0 bg-black/60 pointer-events-auto transition-opacity duration-300 backdrop-blur-[2px]"
+                                                            onClick={() => setIsStampModalOpen(false)}
+                                                        />
+
+                                                        {/* Bottom Sheet Drawer */}
+                                                        <div className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] relative overflow-hidden flex flex-col pointer-events-auto animate-in slide-in-from-bottom duration-300">
+                                                            {/* Header */}
+                                                            <div className="px-8 pt-4 pb-2 flex items-center justify-between">
+                                                                <h2 className="text-xl font-extrabold text-[#1F2937]">Select Buddy</h2>
+                                                                <Link href="/child/rewards" className="text-xs font-bold text-gray-400 hover:text-indigo-500 transition-colors">
+                                                                    Get more in Rewards
+                                                                </Link>
+                                                            </div>
+
+                                                            {/* Stamp Grid */}
+                                                            <div className="p-8 grid grid-cols-3 gap-6 overflow-y-auto max-h-[50vh]">
+                                                                {(displayProfile.unlockedStamps?.length ? displayProfile.unlockedStamps : ['star', 'rocket', 'planet', 'bear', 'robot', 'dino']).map((stampId) => {
+                                                                    const asset = STAMP_ASSETS[stampId] || STAMP_ASSETS['star'];
+                                                                    const isActive = displayProfile.activeStamp === stampId;
+
+                                                                    return (
+                                                                        <button
+                                                                            key={stampId}
+                                                                            onClick={() => handleSelectStamp(stampId)}
+                                                                            className={`relative aspect-square rounded-full flex items-center justify-center text-4xl transition-all ${isActive ? 'scale-110' : 'hover:scale-105 active:scale-95'}`}
+                                                                        >
+                                                                            <div className={`absolute inset-0 rounded-full opacity-20 ${isActive ? 'bg-indigo-500' : 'bg-gray-100'}`}></div>
+                                                                            <div className="relative z-10 drop-shadow-sm">{asset.emoji}</div>
+                                                                            {isActive && (
+                                                                                <div className="absolute inset-0 rounded-full border-[3px] border-indigo-500">
+                                                                                    <div className="absolute top-0 right-0 bg-indigo-500 text-white rounded-full p-1 shadow-sm transform translate-x-1/4 -translate-y-1/4">
+                                                                                        <Check className="w-2.5 h-2.5" strokeWidth={4} />
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+
+                                                            {/* Footer Button */}
+                                                            <div className="p-6 pt-2 pb-8">
+                                                                <button onClick={() => setIsStampModalOpen(false)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-4 rounded-2xl transition-colors active:scale-95">Close</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>,
+                                                    document.body
+                                                );
+                                            })()
+                                        )}
+
+                                        {(() => {
+                                            const status = getTaskStatus(upNextRoutine);
+                                            if (status === 'locked') {
+                                                return (
+                                                    <button disabled className="w-full bg-black/20 text-white/50 font-bold py-3 rounded-2xl cursor-not-allowed flex items-center justify-center gap-2 backdrop-blur-sm border border-white/5">
+                                                        <Lock className="w-5 h-5" />
+                                                        Locked until {format(addMinutes(parse(upNextRoutine.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(upNextRoutine.flexWindow)), 'h:mm a')}
+                                                    </button>
+                                                );
+                                            }
+                                            if (upNextRoutine.type === 'one-time') {
+                                                return (
+                                                    <button onClick={() => setConfirmTask(upNextRoutine)} className="w-full bg-white text-green-600 font-bold py-3 rounded-2xl shadow-lg shadow-green-900/10 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                                        <Check className="w-5 h-5" strokeWidth={3} />
+                                                        Mark Complete
+                                                    </button>
+                                                );
+                                            }
+                                            return (
+                                                <Link href={`/child/routine?id=${upNextRoutine.id}`} className="block">
+                                                    <button className="w-full bg-white text-indigo-600 font-extrabold py-3 rounded-2xl shadow-lg shadow-indigo-900/10 hover:bg-indigo-50 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                                        <Play className="w-5 h-5 fill-current" />
+                                                        Start
+                                                    </button>
+                                                </Link>
+                                            );
+                                        })()}
+
+                                    </div>
+                                );
+                            })() : (
+                                <div className="text-center py-8 text-gray-400 bg-white rounded-[2rem] shadow-sm">
+                                    <p className="font-bold">✨ All caught up!</p>
+                                    <p className="text-xs mt-1">Great job!</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* RIGHT COLUMN: ASSIGNED TASKS */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="p-1.5 bg-purple-100 rounded-full text-purple-500">
+                                    <Clock className="w-4 h-4" />
+                                </div>
+                                <h2 className="text-lg font-bold text-gray-800">Today's Tasks ({assignedTasks.length})</h2>
+                            </div>
+
+                            <div className="space-y-6">
+                                {assignedTasks.length === 0 && <p className="text-slate-400 text-sm text-center">All caught up!</p>}
+
+                                {/* RENDER GROUPS (Morning, Afternoon, Evening) */}
+                                {[
+                                    { id: 'Morning', label: 'Morning', icon: Sun, color: 'text-orange-500', gradient: 'bg-gradient-to-r from-orange-400 to-rose-400', tasks: groupedAssignedTasks.Morning },
+                                    { id: 'Afternoon', label: 'Afternoon', icon: Sunset, color: 'text-blue-500', gradient: 'bg-gradient-to-r from-cyan-400 to-blue-500', tasks: groupedAssignedTasks.Afternoon },
+                                    { id: 'Evening', label: 'Evening', icon: Moon, color: 'text-indigo-500', gradient: 'bg-gradient-to-r from-indigo-500 to-violet-500', tasks: groupedAssignedTasks.Evening },
+                                ].map(group => {
+                                    if (group.tasks.length === 0) return null;
+
+                                    return (
+                                        <div key={group.id} className="space-y-3">
+                                            <h3 className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wider ${group.color} px-2`}>
+                                                <group.icon className="w-4 h-4" />
+                                                {group.label}
+                                            </h3>
+
+                                            <div className="space-y-3">
+                                                {group.tasks.map((task: any) => {
+                                                    const i = task._globalIndex;
+                                                    const status = getTaskStatus(task);
+                                                    const isExpanded = expandedTaskId === task.id;
+
+                                                    // Restore User Palette Logic
+                                                    const isCompleted = status === 'completed';
+                                                    const isMissed = status === 'missed';
+                                                    const paletteColor = TASK_PALETTE[i % TASK_PALETTE.length];
+
+                                                    // Dynamic Styles based on status
+                                                    const cardStyle = (isCompleted || isMissed)
+                                                        ? { background: '#f1f5f9' } // slate-100 for completed/missed
+                                                        : { background: paletteColor };
+
+                                                    const totalDuration = task.steps?.reduce((acc: number, step: any) => acc + (step.duration || 0), 0) || 0;
+
+                                                    return (
+                                                        <div
+                                                            key={task.id}
+                                                            className={`block relative group rounded-3xl shadow-sm transition-all overflow-hidden ${(isCompleted || isMissed) ? 'opacity-70 grayscale-[0.8]' : ''}`}
+                                                            style={cardStyle}
+                                                        >
+                                                            {/* Glossy Overlay (Gradient) to give it the "Style" without changing color code */}
+                                                            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
+
+                                                            {/* Status Badge */}
+                                                            {status === 'active' && <div className="absolute top-0 right-0 bg-white/20 backdrop-blur-md text-white border-l border-b border-white/10 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20 shadow-sm drop-shadow-sm">ACTIVE</div>}
+                                                            {status === 'overdue' && <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20 shadow-sm">OVERDUE</div>}
+                                                            {status === 'locked' && <div className="absolute top-0 right-0 bg-black/20 text-white/60 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">LOCKED</div>}
+                                                            {(status === 'expired' || status === 'missed') && <div className="absolute top-0 right-0 bg-red-500/80 text-white text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">MISSED</div>}
+                                                            {status === 'completed' && <div className="absolute top-0 right-0 bg-emerald-600/10 text-emerald-700 text-[10px] font-extrabold px-3 py-1.5 rounded-bl-2xl rounded-tr-3xl z-20">COMPLETED</div>}
+
+                                                            <div
+                                                                onClick={() => toggleExpand(task.id)}
+                                                                className="relative z-10 p-4 flex items-center gap-4 cursor-pointer"
+                                                            >
+                                                                {/* Icon - Darkened Glass for contrast on light BG */}
+                                                                <div className={`w-12 h-12 flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 rounded-2xl backdrop-blur-sm shadow-sm ${isCompleted ? 'bg-emerald-600/20 border border-emerald-600/10' : 'bg-white/20 border border-white/10'}`}>
+                                                                    {status === 'completed'
+                                                                        ? <Check className="w-6 h-6 text-emerald-700" strokeWidth={4} />
+                                                                        : <RenderIcon name={task.icon} className="w-6 h-6 text-white drop-shadow-md" />
+                                                                    }
+                                                                </div>
+
+                                                                {/* Content */}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className={`font-bold text-base leading-tight line-clamp-2 drop-shadow-md ${isCompleted ? 'text-emerald-900 line-through decoration-emerald-900/40' : 'text-white'}`}>{task.title}</h4>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        {isCompleted ? (
+                                                                            <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs bg-emerald-600/10 px-2 py-1 rounded-lg">
+                                                                                <Check className="w-3 h-3" />
+                                                                                <span>Done {(() => {
+                                                                                    const log = completedLogMap.get(task.id);
+                                                                                    return log ? format(new Date(log.date), 'h:mm a') : 'today';
+                                                                                })()}</span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="flex items-center gap-1.5 text-white/90 font-bold text-xs bg-white/20 px-2 py-1 rounded-lg border border-white/10 shadow-sm">
+                                                                                    <Clock className="w-3 h-3 drop-shadow-sm" />
+                                                                                    <span className="drop-shadow-sm">{format(parse(task.timeOfDay, 'HH:mm', new Date()), 'h:mm a')}</span>
+                                                                                </div>
+                                                                                {totalDuration > 0 && (
+                                                                                    <div className="flex items-center gap-1.5 text-white/90 font-bold text-xs bg-white/20 px-2 py-1 rounded-lg border border-white/10 shadow-sm">
+                                                                                        <Timer className="w-3 h-3 drop-shadow-sm" />
+                                                                                        <span className="drop-shadow-sm">{totalDuration}m</span>
+                                                                                    </div>
+                                                                                )}
+
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Expand Chevron */}
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    {status !== 'completed' && (
+                                                                        <div className="text-white/70 drop-shadow-md">
+                                                                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Expanded Content */}
+                                                            {isExpanded && status !== 'completed' && (
+                                                                <div className={`px-4 pb-4 pt-2 animate-in slide-in-from-top-1 flex flex-col gap-4 relative z-10`}>
+                                                                    {/* Description */}
+                                                                    {task.description && (
+                                                                        <div className="bg-white/10 border border-white/5 p-3 rounded-xl backdrop-blur-sm">
+                                                                            <p className="text-white/90 text-sm font-medium leading-relaxed">
+                                                                                {task.description}
+                                                                            </p>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Steps Preview */}
+                                                                    <div className="space-y-2">
+                                                                        {task.steps?.map((step: any, n: number) => (
+                                                                            <div key={n} className={`flex items-center gap-3 bg-white/10 border border-white/5 p-2 rounded-xl text-sm shadow-sm backdrop-blur-[2px]`}>
+                                                                                <div className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-white/20 flex-shrink-0`}>
+                                                                                    {n + 1}
+                                                                                </div>
+                                                                                <span className="flex-1 text-white font-medium truncate">{step.title}</span>
+
+                                                                                {step.duration > 0 && (
+                                                                                    <span className="flex items-center gap-1 text-[10px] font-bold text-white/80 bg-white/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                                                                                        <Timer className="w-3 h-3" /> {step.duration}m
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+
+                                                                    {/* Actions */}
+                                                                    <div className="flex gap-2">
+                                                                        {status === 'locked' ? (
+                                                                            <button disabled className="w-full bg-black/20 text-white/50 font-bold py-3 rounded-xl cursor-not-allowed flex items-center justify-center gap-2 backdrop-blur-sm border border-white/5">
+                                                                                <Lock className="w-4 h-4" />
+                                                                                Locked until {format(addMinutes(parse(task.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(task.flexWindow)), 'h:mm a')}
+                                                                            </button>
+                                                                        ) : task.type === 'one-time' ? (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleQuickComplete(task);
+                                                                                }}
+                                                                                className="flex-1 bg-white text-green-600 font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                                            >
+                                                                                <Check className="w-4 h-4" />
+                                                                                Complete
+                                                                            </button>
+                                                                        ) : (
+                                                                            <Link href={`/child/routine?id=${task.id}`} className="flex-1 block">
+                                                                                <button className="w-full bg-white text-indigo-600 font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                                                                                    <Play className="w-4 h-4 fill-current" />
+                                                                                    Start
+                                                                                </button>
+                                                                            </Link>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    <style jsx global>{`
                 @keyframes bounce-slow {
                     0%, 100% { transform: translateY(-5%); }
                     50% { transform: translateY(5%); }
@@ -1018,6 +1041,8 @@ export default function MissionControlPage() {
                     animation: bounce-slow 3s infinite ease-in-out;
                 }
             `}</style>
-        </main >
+                </main >
+            </div>
+        </div>
     );
 }

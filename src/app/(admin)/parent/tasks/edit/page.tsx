@@ -10,7 +10,9 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { addMinutes, format, isSameDay } from 'date-fns';
 
-export default function EditTaskPage() {
+import { Suspense } from 'react';
+
+function EditTaskContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const taskId = searchParams?.get('id');
@@ -325,5 +327,13 @@ export default function EditTaskPage() {
                 </button>
             </div>
         </div >
+    );
+}
+
+export default function EditTaskPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EditTaskContent />
+        </Suspense>
     );
 }

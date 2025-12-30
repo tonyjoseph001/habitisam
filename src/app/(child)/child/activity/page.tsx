@@ -120,49 +120,47 @@ export default function ChildActivityPage() {
     const groupKeys = Object.keys(groupedActivities);
 
     return (
-        <div className="min-h-screen bg-[#EEF2FF] text-[#2B2D42] pb-32 select-none relative font-sans">
+        <div className="h-full w-full flex flex-col overflow-hidden bg-[#EEF2FF] text-[#2B2D42] select-none font-sans">
 
             {/* Header & Filters */}
-            <ChildHeader />
+            <div className="flex-none bg-[#EEF2FF] z-50">
+                <ChildHeader title="My Activity" />
 
-            <div className="px-5 pt-2 pb-2 sticky top-0 bg-[#EEF2FF] z-20">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-extrabold text-gray-800">My Activity</h1>
-                </div>
-
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-                    <button
-                        onClick={() => setFilter('all')}
-                        className={cn(
-                            "px-5 py-2 rounded-xl text-xs font-bold shadow-md whitespace-nowrap transition-all",
-                            filter === 'all' ? "bg-gray-800 text-white" : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
-                        )}
-                    >
-                        All Activity
-                    </button>
-                    <button
-                        onClick={() => setFilter('earned')}
-                        className={cn(
-                            "px-5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
-                            filter === 'earned' ? "bg-white border-green-200 text-green-600 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
-                        )}
-                    >
-                        🏆 Earned
-                    </button>
-                    <button
-                        onClick={() => setFilter('spent')}
-                        className={cn(
-                            "px-5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
-                            filter === 'spent' ? "bg-white border-red-200 text-red-500 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
-                        )}
-                    >
-                        🛍️ Spent
-                    </button>
+                <div className="px-5 pb-4 pt-2">
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none justify-center">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={cn(
+                                "px-5 py-2 rounded-xl text-xs font-bold shadow-md whitespace-nowrap transition-all",
+                                filter === 'all' ? "bg-gray-800 text-white" : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
+                            )}
+                        >
+                            All Activity
+                        </button>
+                        <button
+                            onClick={() => setFilter('earned')}
+                            className={cn(
+                                "px-5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+                                filter === 'earned' ? "bg-white border-green-200 text-green-600 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                            )}
+                        >
+                            🏆 Earned
+                        </button>
+                        <button
+                            onClick={() => setFilter('spent')}
+                            className={cn(
+                                "px-5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+                                filter === 'spent' ? "bg-white border-red-200 text-red-500 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                            )}
+                        >
+                            🛍️ Spent
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Activity List */}
-            <div className="px-5 mt-2 space-y-6">
+            <div className="flex-1 overflow-y-auto px-5 mt-2 space-y-6 pb-32">
 
                 {groupKeys.length === 0 && (
                     <div className="text-center py-10 opacity-50">

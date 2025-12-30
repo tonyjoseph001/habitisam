@@ -91,26 +91,20 @@ export default function ParentDashboard() {
         }
     }, [activeProfile]);
 
-    // Require PIN verification on page load for parent profiles
+    // Require PIN verification - DISABLED to prevent flicker loop
+    /*
     useEffect(() => {
-        // Check if we're in forgot PIN flow - if so, skip PIN verification
         const resetPinForProfile = localStorage.getItem('resetPinForProfile');
-        if (resetPinForProfile && activeProfile?.id === resetPinForProfile) {
-            return; // Allow access to show Set PIN modal
-        }
+        if (resetPinForProfile && activeProfile?.id === resetPinForProfile) return;
 
-        // Check if we have a parent profile active
         if (activeProfile?.type === 'parent') {
-            // Check if PIN was verified in this session
             const pinVerified = sessionStorage.getItem('parentPinVerified_' + activeProfile.id);
-
             if (!pinVerified) {
-                // Not verified - need to show profile switcher to enter PIN
-                // Redirect to a page that will show the profile switcher
-                router.push('/');
+                // router.push('/'); // Causing flicker loop
             }
         }
     }, [activeProfile, router]);
+    */
 
     const handleSetPin = async () => {
         if (!newPin.trim()) return alert('Please enter a PIN');
@@ -244,12 +238,111 @@ export default function ParentDashboard() {
         );
     };
 
+    // Lock State
+    const [isLocked, setIsLocked] = useState(false);
+    const [pin, setPin] = useState("");
+    const [error, setError] = useState("");
+
+    // Check Lock Status on Mount/Profile Change
+    useEffect(() => {
+        if (activeProfile?.type === 'parent') {
+            const isVerified = sessionStorage.getItem('parentPinVerified_' + activeProfile.id);
+            if (!isVerified) {
+                setIsLocked(true);
+            } else {
+                setIsLocked(false);
+            }
+        } else {
+            setIsLocked(false);
+        }
+    }, [activeProfile]);
+
+    const handleUnlock = () => {
+        if (!activeProfile) return;
+        if (activeProfile.pin === pin) {
+            sessionStorage.setItem('parentPinVerified_' + activeProfile.id, 'true');
+            setIsLocked(false);
+            setPin("");
+            setError("");
+        } else {
+            setError("Incorrect PIN");
+            setPin("");
+        }
+    };
+
+    const handlePinInput = (num: string) => {
+        if (pin.length < 4) {
+            setPin(prev => prev + num);
+            setError("");
+        }
+    };
+
+    const handleBackspace = () => {
+        setPin(prev => prev.slice(0, -1));
+    };
+
     const RenderIcon = ({ name, className }: { name: string, className?: string }) => {
         // @ts-ignore
         const LucideIcon = Icons[name];
         if (LucideIcon) return <LucideIcon className={className} />;
         return <span className={cn(className?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none")}>{name}</span>;
     };
+
+    // --- PIN LOCK OVERLAY ---
+    if (isLocked && activeProfile?.type === 'parent') {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+                <div className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl text-center animate-in zoom-in-95 duration-300">
+                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-4xl mb-4 mx-auto shadow-inner">
+                        👤
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-800 mb-2">Welcome Back!</h2>
+                    <p className="text-slate-500 mb-6 font-medium">Enter PIN for {activeProfile.name}</p>
+
+                    <div className="flex justify-center gap-3 mb-8">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className={cn(
+                                "w-4 h-4 rounded-full transition-all duration-300",
+                                pin.length > i ? "bg-indigo-600 scale-110" : "bg-slate-200"
+                            )} />
+                        ))}
+                    </div>
+
+                    {error && <p className="text-red-500 text-sm font-bold mb-4 animate-pulse">{error}</p>}
+
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                            <button
+                                key={num}
+                                onClick={() => handlePinInput(num.toString())}
+                                className="h-14 rounded-2xl bg-slate-50 border-2 border-slate-100 shadow-sm text-xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-white hover:border-indigo-100"
+                            >
+                                {num}
+                            </button>
+                        ))}
+                        <div />
+                        <button onClick={() => handlePinInput("0")} className="h-14 rounded-2xl bg-slate-50 border-2 border-slate-100 shadow-sm text-xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-white hover:border-indigo-100">0</button>
+                        <button onClick={handleBackspace} className="h-14 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"><Icons.Delete className="w-6 h-6" /></button>
+                    </div>
+
+                    <Button
+                        onClick={handleUnlock}
+                        disabled={pin.length < 4}
+                        className="w-full h-14 text-lg font-bold rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 active:scale-95 transition-all"
+                    >
+                        Unlock Dashboard
+                    </Button>
+
+                    <button
+                        onClick={() => router.push('/login')}
+                        className="mt-6 text-xs text-slate-400 font-bold hover:text-slate-600"
+                    >
+                        Switch Account / Forgot PIN
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     const getAvatarIcon = (avatarId?: string) => {
         switch (avatarId) {
@@ -325,176 +418,179 @@ export default function ParentDashboard() {
         }
     };
 
+
+
     return (
         <div className="min-h-screen bg-slate-100 pb-20 font-sans">
             {/* 1. Header Bar: Using Standard Component */}
             <ParentHeader title="Dashboard" />
 
             <main className="py-4 flex flex-col gap-6 max-w-screen-md mx-auto">
-                {/* ... Main Content ... */}
+                {/* Loading State for Content Only */}
+                {(!childProfiles || !allRoutines) ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                        <p className="text-slate-400 text-sm font-medium">Loading dashboard...</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* 2. Quick Stats Card: Compact with margins */}
+                        <StatsCard />
 
-
-
-                {/* 2. Quick Stats Card: Compact with margins */}
-                <StatsCard />
-
-                {/* 2. Approvals Section */}
-                {pendingGoals && pendingGoals.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center px-5">
-                            <h3 className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                                Approvals Needed
-                            </h3>
-                        </div>
-                        <div className="flex flex-col gap-2 px-4">
-                            {pendingGoals.map(goal => {
-                                const child = getChild(goal.profileId);
-                                return (
-                                    <div key={goal.id} className="bg-white rounded-xl p-3 shadow-md border border-orange-200 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-2xl border-2 border-white shadow-sm">
-                                                {getAvatarIcon(child?.avatarId)}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <h4 className="font-bold text-slate-800 text-sm">{goal.title}</h4>
-                                                <div className="flex items-center gap-1 text-[10px] text-slate-500">
-                                                    <span className="font-bold text-violet-600">{child?.name}</span>
-                                                    <span>•</span>
-                                                    <span>Target: {goal.target} {goal.unit || 'units'}</span>
+                        {/* 2. Approvals Section */}
+                        {pendingGoals && pendingGoals.length > 0 && (
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-between items-center px-5">
+                                    <h3 className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1">
+                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                                        Approvals Needed
+                                    </h3>
+                                </div>
+                                <div className="flex flex-col gap-2 px-4">
+                                    {pendingGoals.map(goal => {
+                                        const child = getChild(goal.profileId);
+                                        return (
+                                            <div key={goal.id} className="bg-white rounded-xl p-3 shadow-md border border-orange-200 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-2xl border-2 border-white shadow-sm">
+                                                        {getAvatarIcon(child?.avatarId)}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <h4 className="font-bold text-slate-800 text-sm">{goal.title}</h4>
+                                                        <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                                                            <span className="font-bold text-violet-600">{child?.name}</span>
+                                                            <span>•</span>
+                                                            <span>Target: {goal.target} {goal.unit || 'units'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleRejectClick(goal)}
+                                                        className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleApproveClick(goal)}
+                                                        className="w-8 h-8 rounded-full bg-green-100 text-green-600 hover:bg-green-200 hover:scale-110 flex items-center justify-center transition-all shadow-sm"
+                                                    >
+                                                        <CheckCheck className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => handleRejectClick(goal)}
-                                                className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-colors"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleApproveClick(goal)}
-                                                className="w-8 h-8 rounded-full bg-green-100 text-green-600 hover:bg-green-200 hover:scale-110 flex items-center justify-center transition-all shadow-sm"
-                                            >
-                                                <CheckCheck className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* 4. Quick Actions: Smaller */}
-                <div className="flex flex-col gap-2">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-5">Quick Actions</h3>
-                    <div className="flex justify-between gap-3 px-4">
-                        <button
-                            onClick={() => router.push('/parent/routines/new')}
-                            className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-violet-200 transition-colors"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 mb-1">
-                                <Plus className="w-5 h-5" />
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-700">New Routine</span>
-                        </button>
-
-                        <button
-                            onClick={() => router.push('/parent/stars/add')}
-                            className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-blue-200 transition-colors">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-1">
-                                <Star className="w-5 h-5 fill-current" />
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-700">Add Stars</span>
-                        </button>
-
-                        <button
-                            onClick={() => router.push('/parent/tasks/quick')}
-                            className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-teal-200 transition-colors"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 mb-1">
-                                <Zap className="w-5 h-5 fill-current" />
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-700">Quick Task</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* 5. Today's Routines: Slim scale */}
-                <div className="flex flex-col gap-2">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-5">Today's Routines</h3>
-
-                    <div className="flex flex-col gap-2 px-4">
-                        {filteredRoutines?.length === 0 && (
-                            <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-slate-100 shadow-sm border-dashed">
-                                No routines for selected children.
+                                        )
+                                    })}
+                                </div>
                             </div>
                         )}
 
-                        {filteredRoutines?.map(routine => {
-                            return (
-                                <div
-                                    key={routine.id}
-                                    onClick={() => {
-                                        if (routine.type === 'one-time') {
-                                            router.push(`/parent/tasks/edit?id=${routine.id}`);
-                                        } else {
-                                            // Assuming existing editor supports ID param or path
-                                            // Based on routes, it seems to be /parent/routines/edit
-                                            router.push(`/parent/routines/edit?id=${routine.id}`);
-                                        }
-                                    }}
-                                    className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between border border-slate-200 cursor-pointer hover:border-slate-300 transition active:scale-[0.99]"
+                        {/* 4. Quick Actions: Smaller */}
+                        <div className="flex flex-col gap-2">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-5">Quick Actions</h3>
+                            <div className="flex justify-between gap-3 px-4">
+                                <button
+                                    onClick={() => router.push('/parent/routines/new')}
+                                    className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-violet-200 transition-colors"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 flex-shrink-0">
-                                            <RenderIcon name={routine.icon || 'Star'} className="w-5 h-5" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <h4 className="font-bold text-slate-800 text-sm">{routine.title}</h4>
+                                    <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 mb-1">
+                                        <Plus className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-700">New Routine</span>
+                                </button>
 
-                                            {/* Child Icons */}
-                                            <div className="flex items-center gap-1 mt-1">
-                                                {routine.profileIds.map((pid: string) => {
-                                                    const child = getChild(pid);
-                                                    if (!child) return null;
-                                                    const colorMap: Record<string, string> = {
-                                                        cyan: 'bg-cyan-100 text-cyan-700',
-                                                        purple: 'bg-violet-100 text-violet-700',
-                                                        green: 'bg-emerald-100 text-emerald-700',
-                                                        orange: 'bg-orange-100 text-orange-700'
-                                                    };
-                                                    const colorClass = colorMap[child.colorTheme || 'cyan'] || 'bg-slate-100';
-                                                    return (
-                                                        <div key={pid} className={cn("flex items-center gap-1.5 px-1.5 py-0.5 rounded-full", colorClass)}>
-                                                            <span className="text-xs leading-none">{getAvatarIcon(child.avatarId)}</span>
-                                                            <span className="text-[10px] font-bold leading-none">{child.name}</span>
+                                <button
+                                    onClick={() => router.push('/parent/stars/add')}
+                                    className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-blue-200 transition-colors">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-1">
+                                        <Star className="w-5 h-5 fill-current" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-700">Add Stars</span>
+                                </button>
+
+                                <button
+                                    onClick={() => router.push('/parent/tasks/quick')}
+                                    className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center gap-1 shadow-sm flex-1 hover:border-teal-200 transition-colors"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 mb-1">
+                                        <Zap className="w-5 h-5 fill-current" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-700">Quick Task</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 5. Today's Routines: Slim scale */}
+                        <div className="flex flex-col gap-2">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-5">Today's Routines</h3>
+
+                            <div className="flex flex-col gap-2 px-4">
+                                {filteredRoutines?.length === 0 && (
+                                    <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-slate-100 shadow-sm border-dashed">
+                                        No routines for selected children.
+                                    </div>
+                                )}
+
+                                {filteredRoutines?.map(routine => {
+                                    return (
+                                        <div
+                                            key={routine.id}
+                                            onClick={() => {
+                                                if (routine.type === 'one-time') {
+                                                    router.push(`/parent/tasks/edit?id=${routine.id}`);
+                                                } else {
+                                                    router.push(`/parent/routines/edit?id=${routine.id}`);
+                                                }
+                                            }}
+                                            className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between border border-slate-200 cursor-pointer hover:border-slate-300 transition active:scale-[0.99]"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 flex-shrink-0">
+                                                    <RenderIcon name={routine.icon || 'Star'} className="w-5 h-5" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <h4 className="font-bold text-slate-800 text-sm">{routine.title}</h4>
+
+                                                    {/* Child Icons */}
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        {routine.profileIds.map((pid: string) => {
+                                                            const child = getChild(pid);
+                                                            if (!child) return null;
+                                                            const colorMap: Record<string, string> = {
+                                                                cyan: 'bg-cyan-100 text-cyan-700',
+                                                                purple: 'bg-violet-100 text-violet-700',
+                                                                green: 'bg-emerald-100 text-emerald-700',
+                                                                orange: 'bg-orange-100 text-orange-700'
+                                                            };
+                                                            const colorClass = colorMap[child.colorTheme || 'cyan'] || 'bg-slate-100';
+                                                            return (
+                                                                <div key={pid} className={cn("flex items-center gap-1.5 px-1.5 py-0.5 rounded-full", colorClass)}>
+                                                                    <span className="text-xs leading-none">{getAvatarIcon(child.avatarId)}</span>
+                                                                    <span className="text-[10px] font-bold leading-none">{child.name}</span>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                        <div className="w-px h-3 bg-slate-200 mx-1"></div>
+                                                        <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                                            <Clock className="w-3 h-3" />
+                                                            <span>{routine.timeOfDay}</span>
                                                         </div>
-                                                    )
-                                                })}
-                                                <div className="w-px h-3 bg-slate-200 mx-1"></div>
-                                                <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                                    <Clock className="w-3 h-3" />
-                                                    <span>{routine.timeOfDay}</span>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            {/* Status: Compact */}
+                                            <div className="flex items-center gap-1 text-slate-300">
+                                                <Clock className="w-4 h-4" />
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    {/* Status: Compact */}
-                                    <div className="flex items-center gap-1 text-slate-300">
-                                        <Clock className="w-4 h-4" />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )}
             </main>
-
-            <ParentNavBar />
 
             {/* APPROVAL MODAL */}
             {approvingGoal && (

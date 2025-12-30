@@ -556,44 +556,47 @@ function RoutinePlayerContent() {
             <div className="flex flex-col h-full w-full relative z-10">
 
                 {/* 1. Yellow Header Bar */}
-                <div className="h-16 bg-[#FFF4C3] flex items-center justify-between px-4 sticky top-0 z-50 shadow-sm flex-shrink-0">
-                    <button
-                        onClick={() => router.back()}
-                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm active:scale-95"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
+                {/* 1. Yellow Header Bar */}
+                <div className="bg-[#FFF4C3] sticky top-0 z-50 shadow-sm flex-shrink-0 pt-[env(safe-area-inset-top)]">
+                    <div className="h-16 flex items-center justify-between px-4 w-full">
+                        <button
+                            onClick={() => router.back()}
+                            className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm active:scale-95"
+                        >
+                            <ArrowLeft className="w-6 h-6" />
+                        </button>
 
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-white border-2 border-white overflow-hidden shadow-sm flex items-center justify-center text-lg">
-                            {(() => {
-                                const aid = activeProfile?.avatarId;
-                                switch (aid) {
-                                    case 'boy': return '🧑‍🚀';
-                                    case 'girl': return '👩‍🚀';
-                                    case 'superhero': return '🦸';
-                                    case 'superhero_girl': return '🦸‍♀️';
-                                    case 'ninja': return '🥷';
-                                    case 'wizard': return '🧙';
-                                    case 'princess': return '👸';
-                                    case 'pirate': return '🏴‍☠️';
-                                    case 'alien': return '👽';
-                                    case 'robot': return '🤖';
-                                    case 'dinosaur': return '🦖';
-                                    case 'unicorn': return '🦄';
-                                    case 'dragon': return '🐉';
-                                    case 'rocket': return '🚀';
-                                    default: return '👶';
-                                }
-                            })()}
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-white border-2 border-white overflow-hidden shadow-sm flex items-center justify-center text-lg">
+                                {(() => {
+                                    const aid = activeProfile?.avatarId;
+                                    switch (aid) {
+                                        case 'boy': return '🧑‍🚀';
+                                        case 'girl': return '👩‍🚀';
+                                        case 'superhero': return '🦸';
+                                        case 'superhero_girl': return '🦸‍♀️';
+                                        case 'ninja': return '🥷';
+                                        case 'wizard': return '🧙';
+                                        case 'princess': return '👸';
+                                        case 'pirate': return '🏴‍☠️';
+                                        case 'alien': return '👽';
+                                        case 'robot': return '🤖';
+                                        case 'dinosaur': return '🦖';
+                                        case 'unicorn': return '🦄';
+                                        case 'dragon': return '🐉';
+                                        case 'rocket': return '🚀';
+                                        default: return '👶';
+                                    }
+                                })()}
+                            </div>
+                            <h1 className="font-extrabold text-gray-800 text-lg truncate max-w-[150px]">{routine.title}</h1>
                         </div>
-                        <h1 className="font-extrabold text-gray-800 text-lg truncate max-w-[150px]">{routine.title}</h1>
-                    </div>
 
-                    <div className="bg-orange-100/50 px-3 py-1 rounded-full border border-orange-100">
-                        <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
-                            Task {currentStepIndex + 1}/{routine.steps.length}
-                        </span>
+                        <div className="bg-orange-100/50 px-3 py-1 rounded-full border border-orange-100">
+                            <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
+                                Task {currentStepIndex + 1}/{routine.steps.length}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

@@ -125,7 +125,7 @@ export default function QuickTaskPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-32 font-sans">
             {/* Header */}
-            <header className="bg-white sticky top-0 z-50 px-6 py-4 flex items-center gap-4 border-b border-slate-100">
+            <header className="bg-white sticky top-0 z-50 px-6 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] flex items-center gap-4 border-b border-slate-100">
                 <button
                     onClick={() => router.back()}
                     className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition active:scale-95"
@@ -152,8 +152,8 @@ export default function QuickTaskPage() {
                                     <div className={cn(
                                         "relative w-16 h-16 rounded-full p-1 transition-all duration-300 transform",
                                         isSelected
-                                            ? "bg-blue-500 shadow-lg shadow-blue-200 scale-105"
-                                            : "bg-white border-2 border-slate-100 opacity-60 hover:opacity-100 hover:border-blue-200"
+                                            ? "bg-primary shadow-lg shadow-primary/30 scale-105"
+                                            : "bg-white border-2 border-slate-100 opacity-60 hover:opacity-100 hover:border-primary/50"
                                     )}>
                                         <div className={cn(
                                             "w-full h-full rounded-full flex items-center justify-center text-3xl transition-colors",
@@ -162,14 +162,14 @@ export default function QuickTaskPage() {
                                             {getAvatarEmoji(child.avatarId)}
                                         </div>
                                         {isSelected && (
-                                            <div className="absolute top-0 right-0 w-5 h-5 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white">
+                                            <div className="absolute top-0 right-0 w-5 h-5 bg-primary border-2 border-white rounded-full flex items-center justify-center text-primary-foreground">
                                                 <Check className="w-2.5 h-2.5" strokeWidth={4} />
                                             </div>
                                         )}
                                     </div>
                                     <span className={cn(
                                         "text-xs font-bold transition-colors",
-                                        isSelected ? "text-blue-600" : "text-slate-500"
+                                        isSelected ? "text-primary" : "text-slate-500"
                                     )}>{child.name}</span>
                                 </button>
                             );
@@ -187,9 +187,9 @@ export default function QuickTaskPage() {
                             value={taskName}
                             onChange={(e) => setTaskName(e.target.value)}
                             placeholder="e.g. Put away toys..."
-                            className="w-full bg-white p-4 pr-12 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg text-slate-700 placeholder-slate-300 transition shadow-sm"
+                            className="w-full bg-white p-4 pr-12 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary font-bold text-lg text-slate-700 placeholder-slate-300 transition shadow-sm"
                         />
-                        <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-500">
+                        <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary">
                             <Mic className="w-5 h-5" />
                         </button>
                     </div>
@@ -204,8 +204,8 @@ export default function QuickTaskPage() {
                                     className={cn(
                                         "px-4 py-2 rounded-xl text-sm font-bold border transition flex items-center gap-2",
                                         isSelected
-                                            ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200"
-                                            : "bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-500"
+                                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/30"
+                                            : "bg-white border-slate-200 text-slate-600 hover:border-primary/50 hover:text-primary"
                                     )}
                                 >
                                     <span>{preset.icon}</span> {preset.label}
@@ -219,7 +219,7 @@ export default function QuickTaskPage() {
                 <section className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Deadline</h2>
-                        <span className="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">Required</span>
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">Required</span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
@@ -293,15 +293,15 @@ export default function QuickTaskPage() {
             </main>
 
             {/* Footer Action */}
-            <div className="fixed bottom-6 left-0 w-full px-6 max-w-md mx-auto right-0">
+            <div className="fixed bottom-24 left-0 w-full px-6 max-w-md mx-auto right-0 z-[60]">
                 <button
                     onClick={handleAssign}
                     disabled={isSubmitting || !!successProfileName}
                     className={cn(
-                        "w-full py-4 rounded-2xl font-black text-lg shadow-xl flex items-center justify-center gap-2 transition-all transform",
+                        "w-full py-4 rounded-full font-black text-lg shadow-xl flex items-center justify-center gap-2 transition-all transform",
                         successProfileName
                             ? "bg-green-500 shadow-green-200 text-white"
-                            : "bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700 active:scale-95"
+                            : "bg-primary text-primary-foreground shadow-slate-300 hover:scale-[1.02] active:scale-95"
                     )}
                 >
                     {successProfileName ? (

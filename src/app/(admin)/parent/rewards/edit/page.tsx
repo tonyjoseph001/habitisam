@@ -12,7 +12,9 @@ import { cn } from '@/lib/utils';
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
 import { Modal } from '@/components/ui/modal';
 
-export default function EditRewardPage() {
+import { Suspense } from 'react';
+
+function EditRewardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
@@ -259,5 +261,13 @@ export default function EditRewardPage() {
                 </div>
             </Modal>
         </div>
+    );
+}
+
+export default function EditRewardPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EditRewardContent />
+        </Suspense>
     );
 }

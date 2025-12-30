@@ -15,6 +15,7 @@ import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { Modal } from '@/components/ui/modal';
 import * as Icons from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
+import { toast } from 'sonner';
 
 // Day Selector Options
 const DAYS = [
@@ -198,8 +199,44 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                         await db.goals.add(goalData);
                     }
                 }
+                toast.success(isEditMode ? "Goal updated!" : "Goal created!");
             } else {
                 if (steps.length === 0) return alert("Please add at least one step.");
+
+                // CLEANUP: If removing a child, delete their future/incomplete logs
+                if (isEditMode && initialRoutineId) {
+                    try {
+                        const oldActivity = await db.activities.get(initialRoutineId);
+                        if (oldActivity && oldActivity.profileIds) {
+                            const removedIds = oldActivity.profileIds.filter(id => !assignedChildIds.includes(id));
+                            if (removedIds.length > 0) {
+                                const todayStr = new Date().toISOString().split('T')[0];
+
+                                // We can't use complex query in delete() easily, so fetch IDs first
+                                await db.transaction('rw', db.activityLogs, async () => {
+                                    const logs = await db.activityLogs
+                                        .where('activityId')
+                                        .equals(initialRoutineId)
+                                        .toArray();
+
+                                    const logsToDelete = logs.filter(l =>
+                                        removedIds.includes(l.profileId) &&
+                                        (l.date > todayStr || (l.date === todayStr && l.status !== 'completed'))
+                                    );
+
+                                    if (logsToDelete.length > 0) {
+                                        await db.activityLogs.bulkDelete(logsToDelete.map(l => l.id));
+                                        console.log(`Cleaned up ${logsToDelete.length} logs for removed children.`);
+                                    }
+                                });
+                            }
+                        }
+                    } catch (cleanupErr) {
+                        console.error("Cleanup error:", cleanupErr);
+                        // Don't block save
+                    }
+                }
+
                 const activityData: Activity = {
                     id: initialRoutineId || uuidv4(),
                     accountId: user.uid,
@@ -219,11 +256,16 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     isActive: true,
                     createdAt: new Date()
                 };
-                if (isEditMode) await db.activities.put(activityData);
-                else await db.activities.add(activityData);
+                if (isEditMode) {
+                    await db.activities.put(activityData);
+                    toast.success("Routine updated!");
+                } else {
+                    await db.activities.add(activityData);
+                    toast.success(editorType === 'one-time' ? "Task created!" : "Routine created!");
+                }
             }
             router.push('/parent/routines');
-        } catch (e) { console.error(e); showError("Failed to save."); }
+        } catch (e) { console.error(e); showError("Failed to save."); toast.error("Failed to save."); }
     };
 
     const openAddStep = () => { setEditingStep(undefined); setIsStepModalOpen(true); };
@@ -252,7 +294,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-28 font-sans">
             {/* Header */}
-            <header className="px-4 py-3 bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between border-b border-slate-200">
+            <header className="px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] bg-white shadow-sm sticky top-0 z-30 flex items-center justify-between border-b border-slate-200">
                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="w-10 h-10 p-0 text-slate-500 hover:bg-slate-100 rounded-full">
                     <ChevronLeft className="w-6 h-6" />
                 </Button>
@@ -670,7 +712,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
             </main>
 
             {/* FIXED BOTTOM SAVE BAR */}
-            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 pb-8 z-40 flex justify-center">
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 pb-8 z-50 flex justify-center">
                 <div className="max-w-screen-md w-full flex gap-3">
                     <Button variant="ghost" onClick={() => router.back()} className="flex-1 text-slate-500 font-bold">Cancel</Button>
                     <Button onClick={handleSave} className="flex-[2] bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl text-base shadow-lg shadow-slate-200">

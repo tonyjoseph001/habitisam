@@ -258,11 +258,13 @@ export default function ChildTasksPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#EEF2FF] text-[#2B2D42] pb-32 select-none relative font-sans">
+        <div className="h-full w-full flex flex-col overflow-hidden bg-[#EEF2FF] select-none font-sans text-[#2B2D42]">
 
-            <ChildHeader />
+            <div className="flex-none bg-[#EEF2FF] z-50">
+                <ChildHeader title="My Tasks" />
+            </div>
 
-            <div className="px-5 pt-2 pb-4">
+            <div className="flex-1 overflow-y-auto px-5 pt-4 pb-32">
                 {/* Premium Progress Card */}
                 <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl mb-6">
                     {/* Dark Gradient Background */}

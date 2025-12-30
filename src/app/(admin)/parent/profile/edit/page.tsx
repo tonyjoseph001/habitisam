@@ -30,15 +30,11 @@ const AVATARS = [
     { id: 'rocket', label: 'Rocket', icon: '🚀' },
 ];
 
-// Theme Options
-const THEMES = [
-    { id: 'cyan', label: 'Cyan', color: 'bg-cyan-400' },
-    { id: 'purple', label: 'Purple', color: 'bg-violet-500' },
-    { id: 'green', label: 'Green', color: 'bg-emerald-400' },
-    { id: 'orange', label: 'Orange', color: 'bg-orange-400' },
-];
 
-export default function EditProfilePage() {
+
+import { Suspense } from 'react';
+
+function EditProfileContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const profileId = searchParams.get('id');
@@ -50,6 +46,7 @@ export default function EditProfilePage() {
 
     const [name, setName] = useState('');
     const [dob, setDob] = useState('');
+    const [pin, setPin] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState('boy');
     const [selectedTheme, setSelectedTheme] = useState('cyan');
     const [isLoaded, setIsLoaded] = useState(false);
@@ -59,6 +56,7 @@ export default function EditProfilePage() {
         if (profile && !isLoaded) {
             setName(profile.name);
             setDob(profile.dob || '');
+            setPin(profile.pin || '');
             setSelectedAvatar(profile.avatarId);
             setSelectedTheme(profile.colorTheme || 'cyan');
             setIsLoaded(true);
@@ -72,6 +70,7 @@ export default function EditProfilePage() {
         await db.profiles.update(profileId, {
             name: name.trim(),
             dob: dob || undefined,
+            pin: pin || undefined,
             avatarId: selectedAvatar,
             colorTheme: selectedTheme,
         });
@@ -125,18 +124,35 @@ export default function EditProfilePage() {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Date of Birth</label>
-                        <div className="relative">
+                    {profile?.type === 'parent' && (
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Security PIN (4 Digits)</label>
                             <Input
-                                type="date"
-                                value={dob}
-                                onChange={e => setDob(e.target.value)}
-                                className="bg-white h-10 border-slate-200 block w-full"
-                                onClick={(e) => e.currentTarget.showPicker()}
+                                value={pin}
+                                onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                placeholder="Enter 4-digit PIN"
+                                className="bg-white h-10 border-slate-200"
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={4}
                             />
                         </div>
-                    </div>
+                    )}
+
+                    {profile?.type !== 'parent' && (
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Date of Birth</label>
+                            <div className="relative">
+                                <Input
+                                    type="date"
+                                    value={dob}
+                                    onChange={e => setDob(e.target.value)}
+                                    className="bg-white h-10 border-slate-200 block w-full"
+                                    onClick={(e) => e.currentTarget.showPicker()}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* 2. Avatar Selection */}
@@ -168,35 +184,7 @@ export default function EditProfilePage() {
                     </div>
                 </div>
 
-                {/* 3. Theme Selection */}
-                <div className="bg-white rounded-xl mx-4 p-4 shadow-sm border border-slate-200 flex flex-col gap-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Color Theme</label>
-                    <div className="flex gap-4 items-center">
-                        {THEMES.map(theme => {
-                            const isSelected = selectedTheme === theme.id;
-                            return (
-                                <button
-                                    key={theme.id}
-                                    onClick={() => setSelectedTheme(theme.id)}
-                                    className={cn(
-                                        "w-10 h-10 rounded-full transition-all relative",
-                                        theme.color,
-                                        isSelected
-                                            ? "ring-2 ring-offset-2 ring-violet-400 scale-110 shadow-md"
-                                            : "opacity-80 hover:opacity-100"
-                                    )}
-                                    aria-label={theme.label}
-                                >
-                                    {isSelected && (
-                                        <div className="absolute inset-0 flex items-center justify-center text-white/90">
-                                            <Check className="w-5 h-5 drop-shadow-sm" />
-                                        </div>
-                                    )}
-                                </button>
-                            )
-                        })}
-                    </div>
-                </div>
+
 
                 {/* Read Only Info */}
                 {profile?.type === 'parent' && (
@@ -262,8 +250,14 @@ export default function EditProfilePage() {
                     </div>
                 </div>
             )}
-
-            <ParentNavBar />
         </div>
+    );
+}
+
+export default function EditProfilePage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EditProfileContent />
+        </Suspense>
     );
 }

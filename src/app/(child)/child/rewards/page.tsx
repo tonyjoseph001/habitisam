@@ -120,11 +120,13 @@ export default function ChildShopPage() {
     const pendingIds = new Set(pendingRequests?.map(r => r.rewardSnapshot.id) || []);
 
     return (
-        <div className="min-h-screen bg-[#EEF2FF] pb-32 select-none relative font-sans text-[#2B2D42]">
+        <div className="h-full w-full flex flex-col overflow-hidden bg-[#EEF2FF] select-none font-sans text-[#2B2D42]">
 
-            <ChildHeader showBack={true} />
+            <div className="flex-none bg-[#EEF2FF] z-50">
+                <ChildHeader title="Rewards" />
+            </div>
 
-            <div className="px-5 pt-2 pb-4">
+            <div className="flex-1 overflow-y-auto px-5 pt-2 pb-32">
                 {/* Premium Wallet Card */}
                 <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl mb-6 group">
                     {/* Animated Gradient Background - Darker Colors */}
@@ -312,19 +314,23 @@ export default function ChildShopPage() {
 
             {/* Confirmation Modal */}
             {mounted && isConfirmOpen && selectedReward && createPortal(
-                <>
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         onClick={handleCloseModal}
                     />
+
+                    {/* Content */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="fixed left-4 right-4 top-1/2 -translate-y-1/2 bg-white rounded-3xl p-6 z-50 shadow-2xl max-w-sm mx-auto overflow-hidden"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full relative overflow-hidden z-10"
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-pink-500"></div>
 
@@ -403,7 +409,7 @@ export default function ChildShopPage() {
                             </div>
                         )}
                     </motion.div>
-                </>,
+                </div>,
                 document.body
             )}
         </div>

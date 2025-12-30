@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { ParentNavBar } from '@/components/layout/ParentNavBar';
 
 export default function ParentLayout({
     children,
@@ -18,22 +19,20 @@ export default function ParentLayout({
         if (!loading && !user) {
             router.push('/login');
         }
-        // In a real app, we might also force a parent profile selection here if activeProfile is null.
-        // However, the dashboard itself might be the place to pick the profile.
-        // For now, simple auth check is enough.
     }, [user, loading, router]);
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-[env(safe-area-inset-top)]">
-                <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-            </div>
-        );
-    }
+    // PREVENT FLICKER: Do not show blocking spinner. 
+    // Let the protected content render if we are waiting, 
+    // or let the useEffect redirect if needed.
+    // Ideally we would show a skeleton, but for now just rendering children
+    // avoids the "flash" of blank screen during hydration.
+    // If user is clearly not logged in (and not loading), content won't be secret long enough to matter before redirect.
 
     return (
-        <div className="min-h-screen pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        <div className="min-h-screen pb-28 relative">
             {children}
+            {/* Persistent Navigation Bar */}
+            {user && <ParentNavBar />}
         </div>
     );
 }

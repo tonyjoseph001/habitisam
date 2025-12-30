@@ -129,19 +129,19 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                         {error && <p className="text-red-500 text-sm mt-2 font-bold animate-pulse">{error}</p>}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 w-full max-w-[280px]">
+                    <div className="grid grid-cols-3 gap-3 w-full max-w-[240px]">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                             <button
                                 key={num}
                                 onClick={() => handlePinInput(num.toString())}
-                                className="h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-2xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-slate-50 hover:border-violet-100"
+                                className="h-14 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-slate-50 hover:border-violet-100"
                             >
                                 {num}
                             </button>
                         ))}
-                        <button onClick={() => { setShowPinPad(false); setPin(""); }} className="h-16 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 font-bold text-xs uppercase tracking-wider">Back</button>
-                        <button onClick={() => handlePinInput("0")} className="h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-2xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-slate-50 hover:border-violet-100">0</button>
-                        <button onClick={handleBackspace} className="h-16 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-red-500"><ChevronLeft className="w-6 h-6" /></button>
+                        <button onClick={() => { setShowPinPad(false); setPin(""); }} className="h-14 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 font-bold text-[10px] uppercase tracking-wider">Back</button>
+                        <button onClick={() => handlePinInput("0")} className="h-14 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-xl font-bold text-slate-700 active:scale-95 transition-all hover:bg-slate-50 hover:border-violet-100">0</button>
+                        <button onClick={handleBackspace} className="h-14 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-red-500"><ChevronLeft className="w-5 h-5" /></button>
                     </div>
 
                     <div className="flex flex-col items-center gap-4 w-full">

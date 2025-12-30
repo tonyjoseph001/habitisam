@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Quicksand } from 'next/font/google';
+import { ChildNavBar } from '@/components/layout/ChildNavBar';
+import { NotificationScheduler } from '@/components/providers/NotificationScheduler';
 
 // Font setup (if Next.js 13+ optimizations allow, otherwise fallback to sans)
 const quicksand = Quicksand({ subsets: ['latin'], weight: ['500', '600', '700'] });
@@ -80,36 +82,16 @@ export default function ChildLayout({
     const showNav = !pathname.includes('/child/routine');
 
     return (
-        <div className={cn(`min-h-screen relative flex flex-col ${bgClass} text-[#2B2D42] transition-colors duration-500 selection:bg-orange-100 pt-[env(safe-area-inset-top)]`, quicksand.className)}>
+        <div className={cn(`h-screen overflow-hidden relative flex flex-col ${bgClass} text-[#2B2D42] transition-colors duration-500 selection:bg-orange-100 pb-[env(safe-area-inset-bottom)]`, quicksand.className)}>
+            <NotificationScheduler />
+
             {/* Dynamic Content */}
-            <div className={cn("relative z-10 flex-1 flex flex-col", showNav && "pb-24")}>
+            <div className={cn("relative z-10 flex-1 flex flex-col overflow-hidden", showNav && "")}>
                 {children}
             </div>
 
-            {/* Floating Bottom Navigation Bar (HTML Match) */}
-            {showNav && (
-                <div className="fixed bottom-6 w-full flex justify-center z-50 pointer-events-none">
-                    <div className="bg-white rounded-3xl px-1 py-2 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.15)] border border-white flex justify-between items-center w-full max-w-sm pointer-events-auto">
-                        <NavLink href="/child/dashboard" icon={<Home className="w-6 h-6" />} label="Home" isActive={pathname === '/child/dashboard'} />
-                        <NavLink href="/child/tasks" icon={<ClipboardList className="w-6 h-6" />} label="Tasks" isActive={pathname === '/child/tasks'} />
-                        <NavLink href="/child/goals" icon={<Target className="w-6 h-6" />} label="Goals" isActive={pathname === '/child/goals'} />
-                        <NavLink href="/child/rewards" icon={<Gift className="w-6 h-6" />} label="Rewards" isActive={pathname === '/child/rewards'} />
-                        <NavLink href="/child/activity" icon={<Clock className="w-6 h-6" />} label="Activity" isActive={pathname === '/child/activity'} />
-                    </div>
-                </div>
-            )}
+            {/* Fixed Bottom Navigation Bar */}
+            {showNav && <ChildNavBar />}
         </div>
-    );
-}
-
-function NavLink({ href, icon, label, isActive }: { href: string; icon: React.ReactNode; label: string; isActive: boolean }) {
-    return (
-        <Link href={href} className={cn("flex flex-col items-center gap-1 p-2 flex-1 transition-colors group relative", isActive ? "text-[#4F46E5]" : "text-gray-400 hover:text-[#FF9F1C]", "select-none")}>
-            {isActive && <div className="absolute -top-1 w-1 h-1 bg-[#4F46E5] rounded-full left-1/2 transform -translate-x-1/2"></div>}
-            <div className={`transition-transform pb-0.5 ${isActive ? "" : "group-active:scale-95"}`}>
-                {icon}
-            </div>
-            <span className="text-[9px] font-bold">{label}</span>
-        </Link>
     );
 }

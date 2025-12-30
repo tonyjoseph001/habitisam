@@ -40,7 +40,7 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
 
     return (
         <>
-            <header className="px-4 py-3 flex items-center justify-between bg-white shadow-sm sticky top-0 z-30 border-b border-slate-200">
+            <header className="px-4 pt-[calc(max(env(safe-area-inset-top),25px)+0.75rem)] pb-3 flex items-center justify-between bg-white shadow-sm sticky top-0 z-30 border-b border-slate-200">
                 {/* Left: Profile Switcher */}
                 <button
                     onClick={() => setIsSwitcherOpen(true)}

@@ -49,6 +49,9 @@ export interface Profile {
     activeStamp?: string; // ID of currently displayed stamp
     unlockedStamps?: string[]; // IDs of owned stamps
 
+    // Runtime Props (Not persisted)
+    pendingRewardCount?: number;
+
     createdAt: Date;
 }
 

@@ -18,12 +18,11 @@ export function StatusBarProvider() {
 
         const initializeStatusBar = async () => {
             try {
-                // Set status bar to dark background with light text/icons
-                await StatusBar.setStyle({ style: Style.Dark });
-                await StatusBar.setBackgroundColor({ color: '#1e293b' });
+                // Set status bar to transparent with dark text/icons (Style.Light = Dark Content)
+                await StatusBar.setStyle({ style: Style.Light });
 
-                // Don't overlay the webview - push content down instead
-                await StatusBar.setOverlaysWebView({ overlay: false });
+                // Overlay webview for full-screen effect (transparent background)
+                await StatusBar.setOverlaysWebView({ overlay: true });
 
                 console.log('StatusBar initialized successfully');
             } catch (error) {

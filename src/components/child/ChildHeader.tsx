@@ -8,14 +8,27 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 
-export default function ChildHeader({ showBack = false }: { showBack?: boolean }) {
+export default function ChildHeader({ showBack = false, title }: { showBack?: boolean; title?: string }) {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
-    // Live Profile Data to catch Star updates
+    // Live Profile Data to catch Star updates AND Pending Rewards
     const liveProfile = useLiveQuery(
-        async () => activeProfile ? await db.profiles.get(activeProfile.id) : null,
+        async () => {
+            if (!activeProfile) return null;
+            const profile = await db.profiles.get(activeProfile.id);
+            if (!profile) return null;
+
+            // Fetch pending rewards count
+            const pendingCount = await db.inboxRewards
+                .where('profileId')
+                .equals(activeProfile.id)
+                .filter(r => r.status === 'pending')
+                .count();
+
+            return { ...profile, pendingRewardCount: pendingCount };
+        },
         [activeProfile?.id]
     );
 
@@ -47,18 +60,10 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
 
     return (
         <>
-            <div className="px-6 pt-8 pb-4 flex justify-between items-center bg-transparent z-20 relative">
+            <div className="w-full z-50 px-6 pt-[calc(max(env(safe-area-inset-top),25px)+1rem)] pb-4 flex justify-between items-center bg-[#EEF2FF] backdrop-blur-sm transition-all">
                 {/* Left: Back + Avatar/Switcher */}
+                {/* Left: Avatar/Switcher (Always Visible) */}
                 <div className="flex items-center gap-2">
-                    {showBack && (
-                        <button
-                            onClick={() => router.back()}
-                            className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-50 shadow-sm transition-colors active:scale-95"
-                        >
-                            <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
-                        </button>
-                    )}
-
                     <button
                         onClick={() => setIsProfileSwitcherOpen(true)}
                         className="flex items-center gap-3 bg-white pl-1 pr-4 py-1 rounded-full shadow-sm active:scale-95 transition-transform"
@@ -67,20 +72,32 @@ export default function ChildHeader({ showBack = false }: { showBack?: boolean }
                             {avatarEmoji}
                         </div>
                         <div>
-
                             <div className="text-sm font-bold text-gray-800 leading-none">{displayProfile.name}</div>
                         </div>
                     </button>
                 </div>
 
+                {/* Center: Title (Optional) */}
+                {title && (
+                    <div className="absolute left-1/2 -translate-x-1/2">
+                        <h1 className="text-lg font-black text-slate-800 tracking-tight">{title}</h1>
+                    </div>
+                )}
+
                 {/* Right: Notifications */}
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => router.push('/child/notifications')}
-                        className="bg-white p-2.5 rounded-full shadow-sm text-gray-500 relative transition-transform active:scale-95"
+                        className="bg-white p-2.5 rounded-full shadow-sm text-gray-500 relative transition-transform active:scale-95 group"
                     >
-                        <Bell className="w-6 h-6" />
-                        {/* We could allow passing "notificationCount" prop if needed later */}
+                        <Bell className="w-6 h-6 group-hover:text-indigo-500 transition-colors" />
+
+                        {/* Notification Counter */}
+                        {(displayProfile.pendingRewardCount || 0) > 0 && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm">
+                                {(displayProfile.pendingRewardCount || 0)}
+                            </div>
+                        )}
                     </button>
                 </div>
             </div>

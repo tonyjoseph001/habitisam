@@ -451,18 +451,13 @@ export default function ChildGoalsPage() {
     if (!activeProfile) return null;
 
     return (
-        <main className="bg-[#EEF2FF] min-h-screen pb-32 select-none relative font-sans">
-
+        <div className="h-full w-full flex flex-col overflow-hidden bg-[#EEF2FF] select-none font-sans text-[#2B2D42]">
             {/* Header */}
-            <ChildHeader />
-
-            <div className="px-5 pt-2 pb-2 bg-[#EEF2FF] z-20">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-extrabold text-gray-800">My Goals</h1>
-                </div>
+            <div className="flex-none bg-[#EEF2FF] z-50">
+                <ChildHeader title="My Goals" />
             </div>
 
-            <div className="px-5 pb-8 space-y-8">
+            <div className="flex-1 overflow-y-auto px-5 pb-32 space-y-8 pt-6">
                 {/* Active Section */}
                 <div>
                     <div className="flex items-center gap-2 mb-4 ml-1">
@@ -723,6 +718,7 @@ export default function ChildGoalsPage() {
                     </div>
                 )}
             </AnimatePresence >
-        </main >
+        </div >
+
     );
 }

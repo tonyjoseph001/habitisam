@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
+import { toast } from 'sonner';
 
-export default function AddRewardPage() {
+import { Suspense } from 'react';
+
+function AddRewardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const returnUrl = searchParams.get('returnUrl') || '/parent/rewards';
@@ -77,13 +80,14 @@ export default function AddRewardPage() {
             createdAt: new Date()
         });
 
+        toast.success("Reward created successfully!");
         router.push(returnUrl);
     };
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-safe-bottom font-sans text-slate-800">
             {/* Header */}
-            <header className="bg-white sticky top-0 z-50 px-6 py-4 flex items-center justify-between border-b border-slate-100 shadow-sm">
+            <header className="bg-white sticky top-0 z-50 px-6 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] flex items-center justify-between border-b border-slate-100 shadow-sm">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => router.back()}
@@ -205,5 +209,13 @@ export default function AddRewardPage() {
 
             </main>
         </div>
+    );
+}
+
+export default function AddRewardPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <AddRewardContent />
+        </Suspense>
     );
 }

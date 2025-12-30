@@ -192,6 +192,12 @@ export default function RoutinesPage() {
                         <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
                             {goal.profileId && <RenderProfileBadge profileId={goal.profileId} />}
                             <span className="text-slate-400">Target: {goal.target} {goal.unit}</span>
+                            {goal.createdAt && (
+                                <>
+                                    <span className="text-slate-300 mx-1">•</span>
+                                    <span className="text-[10px] text-slate-400 font-medium leading-none">Created: {new Date(goal.createdAt).toLocaleDateString()}</span>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -267,6 +273,12 @@ export default function RoutinesPage() {
                                                             {routine.profileIds?.map(pid => (
                                                                 <RenderProfileBadge key={pid} profileId={pid} />
                                                             ))}
+                                                            {routine.createdAt && (
+                                                                <>
+                                                                    <span className="text-slate-300 mx-1">•</span>
+                                                                    <span className="text-[10px] text-slate-400 font-medium leading-none">Created: {new Date(routine.createdAt).toLocaleDateString()}</span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

@@ -68,6 +68,9 @@ export default function GiveStarsPage() {
             });
 
             // Log Activity (Optional but good for history)
+            // Log Activity (Optional but good for history)
+            // MOVED TO CHILD SIDE: Log is created when child claims the reward
+            /* 
             await db.activityLogs.add({
                 id: crypto.randomUUID(),
                 accountId: selectedChild?.accountId || 'unknown', // Critical for syncing
@@ -81,6 +84,7 @@ export default function GiveStarsPage() {
                     type: "manual_award"
                 }
             });
+            */
 
             // Show Success
             setIsSuccess(true);
@@ -109,11 +113,11 @@ export default function GiveStarsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-24 font-sans">
+        <div className="min-h-screen bg-[#F8FAFC] text-slate-800 pb-48 font-sans">
             {isSuccess && <Confetti width={width} height={height} numberOfPieces={200} recycle={false} />}
 
             {/* Header */}
-            <header className="bg-white sticky top-0 z-50 px-6 py-4 flex items-center gap-4 border-b border-slate-100">
+            <header className="bg-white sticky top-0 z-50 px-6 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] flex items-center gap-4 border-b border-slate-100">
                 <button
                     onClick={() => router.back()}
                     className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition active:scale-95"
@@ -141,8 +145,8 @@ export default function GiveStarsPage() {
                                     <div className={cn(
                                         "relative w-16 h-16 rounded-full p-1 transition-all duration-300 transform",
                                         isSelected
-                                            ? "bg-blue-500 shadow-lg shadow-blue-200 scale-105"
-                                            : "bg-white border-2 border-slate-100 opacity-60 hover:opacity-100 hover:border-blue-200"
+                                            ? "bg-indigo-500 shadow-lg shadow-indigo-200 scale-105"
+                                            : "bg-white border-2 border-slate-100 opacity-60 hover:opacity-100 hover:border-indigo-200"
                                     )}>
                                         <div className={cn(
                                             "w-full h-full rounded-full flex items-center justify-center text-4xl transition-colors",
@@ -155,7 +159,7 @@ export default function GiveStarsPage() {
                                             <motion.div
                                                 initial={{ scale: 0 }}
                                                 animate={{ scale: 1 }}
-                                                className="absolute top-0 right-0 w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white"
+                                                className="absolute top-0 right-0 w-6 h-6 bg-indigo-600 border-2 border-white rounded-full flex items-center justify-center text-white"
                                             >
                                                 <Check className="w-3 h-3" strokeWidth={4} />
                                             </motion.div>
@@ -163,7 +167,7 @@ export default function GiveStarsPage() {
                                     </div>
                                     <span className={cn(
                                         "text-sm font-bold transition-colors",
-                                        isSelected ? "text-blue-600" : "text-slate-500"
+                                        isSelected ? "text-indigo-600" : "text-slate-500"
                                     )}>{child.name}</span>
                                 </button>
                             );
@@ -233,8 +237,8 @@ export default function GiveStarsPage() {
                                     className={cn(
                                         "px-4 py-2 rounded-full text-sm font-bold shadow-sm border transition flex items-center gap-2 active:scale-95",
                                         isActive
-                                            ? "bg-blue-50 border-blue-500 text-blue-600"
-                                            : "bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-500"
+                                            ? "bg-indigo-50 border-indigo-500 text-indigo-600"
+                                            : "bg-white border-slate-200 text-slate-600 hover:border-indigo-400 hover:text-indigo-500"
                                     )}
                                 >
                                     <span>{tag.emoji}</span> {tag.label}
@@ -252,7 +256,7 @@ export default function GiveStarsPage() {
                                 if (e.target.value) setSelectedReason(null);
                             }}
                             placeholder="Or type a custom reason..."
-                            className="w-full bg-white p-4 pr-10 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 placeholder-slate-300 transition"
+                            className="w-full bg-white p-4 pr-10 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 placeholder-slate-300 transition"
                         />
                         <PenLine className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5" />
                     </div>
@@ -261,11 +265,11 @@ export default function GiveStarsPage() {
             </main>
 
             {/* Footer Action */}
-            <div className="fixed bottom-6 left-0 w-full px-6 max-w-md mx-auto right-0">
+            <div className="fixed bottom-28 left-0 w-full px-6 max-w-md mx-auto right-0 z-10 w-full px-4 fixed-bottom-safe">
                 <button
                     onClick={handleSend}
                     disabled={isSuccess}
-                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-slate-300 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition disabled:opacity-80 disabled:cursor-not-allowed"
+                    className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition disabled:opacity-80 disabled:cursor-not-allowed"
                 >
                     <Star className="w-6 h-6 fill-yellow-400 text-yellow-400" />
                     {isSuccess ? 'Sent!' : 'Send Reward'}

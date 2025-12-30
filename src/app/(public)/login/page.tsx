@@ -37,6 +37,31 @@ function LoginPageContent() {
                 if (profiles.length === 0) {
                     router.push("/setup");
                 } else {
+                    // 1. Try to restore last active profile
+                    try {
+                        const stored = localStorage.getItem('habitisim-session-storage');
+                        if (stored) {
+                            const parsed = JSON.parse(stored);
+                            const lastProfile = parsed?.state?.activeProfile;
+
+                            // Verify it belongs to this user
+                            if (lastProfile && lastProfile.accountId === user.uid) {
+                                if (lastProfile.type === 'child') {
+                                    router.push("/child/dashboard");
+                                    return;
+                                } else if (lastProfile.type === 'parent') {
+                                    // SECURITY: Do NOT auto-verify parent PIN
+                                    router.push("/parent/dashboard");
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to restore session", e);
+                    }
+
+                    // 2. Fallback: Default to Parent (Locked)
+                    const parentProfile = profiles.find(p => p.type === 'parent');
                     router.push("/parent/dashboard");
                 }
             }
@@ -67,74 +92,61 @@ function LoginPageContent() {
     }
 
     return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-between bg-gradient-to-b from-[#2E1065] to-[#0B0F19] text-white overflow-hidden relative">
-            <div className="relative w-full flex-1 flex items-center justify-center p-6">
-                <div className="animate-float relative z-10 max-w-md w-full aspect-square">
+        <div className="min-h-screen w-full flex items-center justify-center bg-[#f0eff5] lg:py-10">
+            {/* Device Container: Full screen on mobile, Framed on Tablet/Desktop */}
+            <div className="relative w-full h-[100vh] lg:w-[480px] lg:h-[844px] lg:max-h-[90vh] lg:rounded-[3rem] lg:border-[12px] lg:border-white lg:shadow-2xl overflow-hidden flex flex-col items-center">
+
+                {/* Background Image */}
+                <div className="absolute inset-0 z-0">
                     <Image
-                        src="/hero-cosmic.png"
-                        alt="Parent and Child Astronaut High-Five"
+                        src="/img3.png"
+                        alt="Background"
                         fill
-                        className="object-contain drop-shadow-2xl"
+                        className="object-cover object-bottom"
                         priority
                     />
                 </div>
-            </div>
 
-            <div className="text-center z-10 px-4 -mt-10 mb-8">
-                <h1 className="font-heading font-bold text-5xl mb-2 text-white drop-shadow-[0_0_15px_rgba(124,58,237,0.8)]">
-                    Cosmic Routine
-                </h1>
-                <p className="font-sans font-medium text-[#94A3B8] text-lg">
-                    Blast off to stress-free mornings.
-                </p>
-            </div>
+                {/* Content Overlay */}
+                <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-end pb-12 px-8">
 
-            <div className="w-full bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20 animate-slide-up">
-                <div className="max-w-sm mx-auto flex flex-col gap-4">
-                    <Button
-                        variant="google"
-                        size="lg"
-                        onClick={handleLogin}
-                        className="w-full h-14 text-base font-medium flex items-center gap-3"
-                        disabled={loading}
-                    >
-                        <svg viewBox="0 0 24 24" className="w-6 h-6" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                        </svg>
-                        Continue with Google
-                    </Button>
+                    {/* Main Sign Up Button */}
+                    <div className="w-full space-y-4 animate-in slide-in-from-bottom-10 fade-in duration-700">
+                        <Button
+                            variant="default" // Reset to default or custom
+                            onClick={handleLogin}
+                            disabled={loading}
+                            className="w-full h-14 rounded-full bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/50 text-slate-900 font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95"
+                        >
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-6 h-6" />
+                            Sign up with Google
+                        </Button>
 
-                    <p className="text-center text-xs text-[#64748B]">
-                        No password needed. Secure signup via Google.
-                    </p>
-
-                    <div className="relative flex py-2 items-center">
-                        <div className="flex-grow border-t border-slate-200"></div>
-                        <span className="flex-shrink-0 mx-4 text-slate-300 text-xs">DEV TOOLS</span>
-                        <div className="flex-grow border-t border-slate-200"></div>
+                        <p className="text-center text-sm font-medium text-slate-600/90 leading-relaxed px-4">
+                            Start your family's adventure! We will create your account and securely link it to Google.
+                        </p>
                     </div>
 
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => signInAsDev()}
-                        className="w-full text-slate-400 hover:text-violet-600 hover:bg-violet-50"
-                        disabled={loading}
-                    >
-                        🕵️ Bypass Login (Dev Mode)
-                    </Button>
-                </div>
+                    {/* Footer / Terms */}
+                    <div className="mt-8 text-center space-y-4">
+                        <p className="text-[11px] text-slate-500 font-medium">
+                            By signing up, you agree to our<br />
+                            <a href="#" className="underline decoration-slate-400 hover:text-slate-800">Privacy Policy</a> &amp; <a href="#" className="underline decoration-slate-400 hover:text-slate-800">Terms of Service</a>
+                        </p>
 
-                <div className="mt-8 flex justify-center gap-6 text-xs text-[#94A3B8]">
-                    <a href="#" className="hover:underline">Privacy Policy</a>
-                    <a href="#" className="hover:underline">Terms of Service</a>
+                        {/* Dev Bypass (Subtle) */}
+                        <div className="pt-4 border-t border-slate-200/30 w-full max-w-[200px] mx-auto">
+                            <button
+                                onClick={() => signInAsDev()}
+                                disabled={loading}
+                                className="text-[10px] uppercase tracking-widest text-slate-400/70 hover:text-indigo-600 font-bold transition-colors"
+                            >
+                                Dev Bypass 🕵️
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-
         </div>
     );
 }
