@@ -2,8 +2,6 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { Plus, History, Star, Gift, Trash, Edit, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,26 +9,19 @@ import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { ParentHeader } from '@/components/layout/ParentHeader';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRewards } from '@/lib/hooks/useRewards';
+import { toast } from 'sonner';
 
 export default function ParentRewardsPage() {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [deleteRewardId, setDeleteRewardId] = useState<string | null>(null);
 
-    // Fetch children profiles
-    const children = useLiveQuery(async () => {
-        if (!activeProfile?.accountId) return [];
-        return await db.profiles
-            .where('accountId').equals(activeProfile.accountId)
-            .filter(p => p.type === 'child')
-            .toArray();
-    }, [activeProfile?.accountId]);
+    const { profiles } = useProfiles();
+    const { rewards, deleteReward } = useRewards();
 
-    // Fetch rewards
-    const rewards = useLiveQuery(async () => {
-        if (!activeProfile?.accountId) return [];
-        return await db.rewards.where('accountId').equals(activeProfile.accountId).toArray();
-    }, [activeProfile?.accountId]);
+    const children = profiles ? profiles.filter(p => p.type === 'child') : [];
 
     const handleDeleteClick = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -39,7 +30,13 @@ export default function ParentRewardsPage() {
 
     const confirmDelete = async () => {
         if (deleteRewardId) {
-            await db.rewards.delete(deleteRewardId);
+            try {
+                await deleteReward(deleteRewardId);
+                toast.success("Reward deleted");
+            } catch (error) {
+                console.error("Failed to delete reward", error);
+                toast.error("Failed to delete reward");
+            }
             setDeleteRewardId(null);
         }
     };

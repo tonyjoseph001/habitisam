@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, Activity } from '@/lib/db';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import { addMinutes, parse, format, getDay } from 'date-fns';
+import { useRoutines } from '@/lib/hooks/useRoutines';
 
 export function NotificationScheduler() {
     const { activeProfile } = useSessionStore();
@@ -15,14 +14,17 @@ export function NotificationScheduler() {
     const prevRoutinesRef = useRef<string>('');
 
     // Fetch routines for current child
-    const routines = useLiveQuery(async () => {
-        if (!activeProfile || activeProfile.type !== 'child') return [];
-        return await db.activities
-            .where('profileIds')
-            .equals(activeProfile.id)
-            .filter(a => a.isActive === true) // Only active routines
-            .toArray();
-    }, [activeProfile?.id]);
+    // Fetch routines for current child
+    const { routines: allRoutines } = useRoutines();
+
+    // Filter active routines
+    const routines = useMemo(() => {
+        if (!allRoutines || !activeProfile || activeProfile.type !== 'child') return [];
+        return allRoutines
+            .filter(r => r.isActive !== false)
+            // Filter by profile (if routine is assigned to specific profiles)
+            .filter(r => !r.profileIds || r.profileIds.length === 0 || r.profileIds.includes(activeProfile.id));
+    }, [allRoutines, activeProfile]);
 
     useEffect(() => {
         // Only run on native platforms to avoid "Not implemented on web" errors

@@ -4,8 +4,6 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { ParentHeader } from '@/components/layout/ParentHeader';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { Bell } from 'lucide-react';
 import * as Icons from 'lucide-react';
@@ -13,6 +11,39 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+
+// Hooks & Services
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useGoals } from '@/lib/hooks/useGoals';
+import { usePurchases } from '@/lib/hooks/usePurchases';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
+import { useRoutines } from '@/lib/hooks/useRoutines';
+import { GoalService } from '@/lib/firestore/goals.service';
+import { PurchaseService } from '@/lib/firestore/purchases.service';
+import { LogService } from '@/lib/firestore/logs.service';
+import { useMemo } from 'react';
+
+// Helper to safely parse dates from Firestore/String/Number
+const safeDate = (input: any): Date => {
+    if (!input) return new Date();
+    if (input instanceof Date && !isNaN(input.getTime())) return input;
+    if (typeof input === 'string') {
+        const d = new Date(input);
+        return isNaN(d.getTime()) ? new Date() : d;
+    }
+    if (typeof input === 'number') {
+        const d = new Date(input);
+        return isNaN(d.getTime()) ? new Date() : d;
+    }
+    // Firestore Timestamp check
+    if (input && typeof input.toDate === 'function') {
+        try { return input.toDate(); } catch (e) { return new Date(); }
+    }
+    if (input && typeof input.seconds === 'number') {
+        return new Date(input.seconds * 1000);
+    }
+    return new Date();
+};
 
 // Helper to render icon (emoji or Lucide component)
 const RenderIcon = ({ name, className }: { name?: string; className?: string }) => {
@@ -39,115 +70,89 @@ export default function ParentNotificationsPage() {
     const { activeProfile } = useSessionStore();
     const accountId = user?.uid || activeProfile?.accountId;
 
+    const { profiles } = useProfiles();
+    const { goals } = useGoals();
+    const { purchases } = usePurchases();
+    const { logs } = useActivityLogs();
+    const { routines } = useRoutines();
+
+    // Helper to get profile info
+    const getProfile = (id: string) => profiles.find(p => p.id === id);
+
     // Pending Goal Approvals
-    const pendingGoals = useLiveQuery(async () => {
-        if (!accountId) return [];
-
-        const goals = await db.goals
-            .where('status')
-            .equals('pending_approval')
-            .toArray();
-
-        const enrichedGoals = await Promise.all(goals.map(async (goal) => {
-            const profile = await db.profiles.get(goal.profileId);
-            return {
-                ...goal,
-                profileName: profile?.name,
-                profileAvatarId: profile?.avatarId,
-            };
-        }));
-
-        return enrichedGoals;
-    }, [accountId]);
+    const pendingGoals = useMemo(() => {
+        if (!goals) return [];
+        return goals
+            .filter(g => g.status === 'pending_approval')
+            .map(goal => {
+                const profile = getProfile(goal.profileId);
+                return {
+                    ...goal,
+                    profileName: profile?.name,
+                    profileAvatarId: profile?.avatarId,
+                    // Try to find an icon if it exists metadata or routine
+                    icon: (goal as any).icon || '🎯'
+                };
+            });
+    }, [goals, profiles]);
 
     // Pending Purchase Requests
-    const pendingPurchases = useLiveQuery(async () => {
-        if (!accountId) return [];
-
-        const purchases = await db.purchaseLogs
-            .where({ accountId, status: 'pending' })
-            .reverse()
-            .sortBy('purchasedAt');
-
-        const enrichedPurchases = await Promise.all(purchases.map(async (purchase) => {
-            const profile = await db.profiles.get(purchase.profileId);
-            return {
-                ...purchase,
-                profileName: profile?.name,
-                profileAvatarId: profile?.avatarId,
-            };
-        }));
-
-        return enrichedPurchases;
-    }, [accountId]);
+    const pendingPurchases = useMemo(() => {
+        if (!purchases) return [];
+        return purchases
+            .filter(p => p.status === 'pending')
+            .map(purchase => {
+                const profile = getProfile(purchase.profileId);
+                return {
+                    ...purchase,
+                    profileName: profile?.name,
+                    profileAvatarId: profile?.avatarId
+                };
+            })
+            .sort((a, b) => {
+                const dateA = new Date(a.purchasedAt).getTime();
+                const dateB = new Date(b.purchasedAt).getTime();
+                return dateB - dateA;
+            });
+    }, [purchases, profiles]);
 
     // Recent Task Completions (unseen)
-    const recentCompletions = useLiveQuery(async () => {
-        if (!accountId) return [];
-
-        const completions = await db.activityLogs
-            .where('accountId')
-            .equals(accountId)
+    const recentCompletions = useMemo(() => {
+        if (!logs) return [];
+        return logs
             .filter(log => log.status === 'completed' && !log.seenByParent)
-            .reverse()
-            .limit(10)
-            .toArray();
-
-        const enrichedCompletions = await Promise.all(completions.map(async (log) => {
-            const profile = await db.profiles.get(log.profileId);
-            const activity = await db.activities.get(log.activityId);
-            return {
-                ...log,
-                profileName: profile?.name,
-                activityTitle: activity?.title || log.metadata?.title || 'Task',
-                activityIcon: activity?.icon || '✅',
-            };
-        }));
-
-        return enrichedCompletions;
-    }, [accountId]);
+            .sort((a, b) => {
+                const dateA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
+                const dateB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
+                return dateB - dateA;
+            })
+            .slice(0, 10)
+            .map(log => {
+                const profile = getProfile(log.profileId);
+                const routine = routines?.find(r => r.id === log.activityId);
+                return {
+                    ...log,
+                    profileName: profile?.name,
+                    activityTitle: routine?.title || log.metadata?.title || 'Task',
+                    activityIcon: routine?.icon || '✅',
+                };
+            });
+    }, [logs, profiles, routines]);
 
     // Mark completions as seen when user leaves the page
     useEffect(() => {
         return () => {
-            // Cleanup function runs when component unmounts (user leaves page)
             if (recentCompletions && recentCompletions.length > 0) {
-                const markAsSeen = async () => {
-                    await Promise.all(
-                        recentCompletions.map(completion =>
-                            db.activityLogs.update(completion.id, { seenByParent: true })
-                        )
-                    );
-                };
-                markAsSeen();
+                recentCompletions.forEach(completion => {
+                    LogService.update(completion.id, { seenByParent: true }).catch(console.error);
+                });
             }
         };
     }, [recentCompletions]);
 
     const handleApproveGoal = async (goal: any) => {
         try {
-            const profile = await db.profiles.get(goal.profileId);
-            if (!profile) return;
-
-            // Award stars and mark as completed
-            await db.transaction('rw', db.goals, db.profiles, db.activityLogs, async () => {
-                await db.goals.update(goal.id, { status: 'completed' });
-                await db.profiles.update(profile.id, {
-                    stars: (profile.stars || 0) + goal.stars
-                });
-
-                // Log the reward
-                await db.activityLogs.add({
-                    id: crypto.randomUUID(),
-                    accountId: profile.accountId,
-                    profileId: profile.id,
-                    activityId: goal.id,
-                    status: 'completed',
-                    date: new Date().toISOString(),
-                    starsEarned: goal.stars,
-                    metadata: { type: 'goal_completion', goalTitle: goal.title }
-                });
-            });
+            await GoalService.approve(goal, goal.stars);
         } catch (e) {
             console.error(e);
             alert('Failed to approve goal');
@@ -156,11 +161,7 @@ export default function ParentNotificationsPage() {
 
     const handleRejectGoal = async (goal: any) => {
         try {
-            await db.goals.update(goal.id, {
-                status: 'active',
-                current: 0,
-                completedAt: undefined
-            });
+            await GoalService.reject(goal);
         } catch (e) {
             console.error(e);
             alert('Failed to reject goal');
@@ -169,19 +170,7 @@ export default function ParentNotificationsPage() {
 
     const handleApprovePurchase = async (purchase: any) => {
         try {
-            const profile = await db.profiles.get(purchase.profileId);
-            if (!profile) return;
-
-            const cost = purchase.rewardSnapshot.cost;
-            const newStars = Math.max(0, (profile.stars || 0) - cost);
-
-            await db.transaction('rw', db.profiles, db.purchaseLogs, async () => {
-                await db.profiles.update(profile.id, { stars: newStars });
-                await db.purchaseLogs.update(purchase.id, {
-                    status: 'approved',
-                    processedAt: new Date()
-                });
-            });
+            await PurchaseService.approve(purchase);
         } catch (e) {
             console.error(e);
             alert('Failed to approve purchase');
@@ -190,10 +179,7 @@ export default function ParentNotificationsPage() {
 
     const handleRejectPurchase = async (purchase: any) => {
         try {
-            await db.purchaseLogs.update(purchase.id, {
-                status: 'rejected',
-                processedAt: new Date()
-            });
+            await PurchaseService.reject(purchase);
         } catch (e) {
             console.error(e);
             alert('Failed to reject purchase');
@@ -240,7 +226,7 @@ export default function ParentNotificationsPage() {
                                                     </span>
                                                     <h3 className="font-bold text-slate-900 text-sm">{completion.activityTitle}</h3>
                                                     <span className="text-[10px] text-slate-400 font-medium">
-                                                        {completion.completedAt && formatDistanceToNow(completion.completedAt, { addSuffix: true })}
+                                                        {completion.completedAt && formatDistanceToNow(safeDate(completion.completedAt), { addSuffix: true })}
                                                     </span>
                                                 </div>
                                             </div>
@@ -283,7 +269,7 @@ export default function ParentNotificationsPage() {
                                                         +{goal.stars} ⭐
                                                     </div>
                                                     <span className="text-[10px] text-slate-400 font-medium">
-                                                        {goal.completedAt && formatDistanceToNow(goal.completedAt, { addSuffix: true })}
+                                                        {goal.completedAt && formatDistanceToNow(safeDate(goal.completedAt), { addSuffix: true })}
                                                     </span>
                                                 </div>
                                             </div>
@@ -337,7 +323,7 @@ export default function ParentNotificationsPage() {
                                                         {purchase.rewardSnapshot.cost} ⭐
                                                     </div>
                                                     <span className="text-[10px] text-slate-400 font-medium">
-                                                        {formatDistanceToNow(purchase.purchasedAt, { addSuffix: true })}
+                                                        {formatDistanceToNow(safeDate(purchase.purchasedAt), { addSuffix: true })}
                                                     </span>
                                                 </div>
                                             </div>

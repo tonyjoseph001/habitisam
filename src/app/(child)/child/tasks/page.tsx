@@ -3,12 +3,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useRouter } from 'next/navigation';
-import { db } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
 import Link from 'next/link';
 import ChildHeader from '@/components/child/ChildHeader';
 import { ChevronLeft, Gift, CheckSquare, Clock, Home, Check, Play, Sun, Moon, BookOpen, Utensils, BedDouble, Brush, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isSameDay, parse, addDays, startOfDay } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useRoutines } from '@/lib/hooks/useRoutines';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
 import { cn } from '@/lib/utils';
 
 // Simple Icon Mapper
@@ -52,6 +53,9 @@ export default function ChildTasksPage() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
+    const { routines: allRoutines } = useRoutines();
+    const { logs: allLogs } = useActivityLogs(activeProfile?.id);
+
     useEffect(() => {
         setMounted(true);
     }, []);
@@ -71,26 +75,25 @@ export default function ChildTasksPage() {
         });
     }, [selectedDate]);
 
-    const data = useLiveQuery(async () => {
-        if (!activeProfile) return { routines: [], logs: [] };
+    const data = useMemo(() => {
+        if (!activeProfile || !allRoutines || !allLogs) return { routines: [], logs: [], rewards: [] };
 
-        const allRoutines = await db.activities.toArray();
         const myRoutines = allRoutines.filter(r =>
             !r.profileIds ||
             r.profileIds.length === 0 ||
             r.profileIds.includes(activeProfile.id)
         );
 
-        const allLogs = await db.activityLogs
-            .where('profileId').equals(activeProfile.id)
-            .toArray();
+        const dateLogs = allLogs.filter(log => {
+            const logDate = log.date instanceof Date ? log.date : new Date(log.date);
+            return isSameDay(logDate, selectedDate);
+        });
 
-        const dateLogs = allLogs.filter(log => isSameDay(new Date(log.date), selectedDate));
         const rewards = dateLogs.filter(l => l.activityId === 'manual_reward');
         const taskLogs = dateLogs.filter(l => l.activityId !== 'manual_reward');
 
         return { routines: myRoutines, logs: taskLogs, rewards };
-    }, [activeProfile?.id, selectedDate]);
+    }, [activeProfile, allRoutines, allLogs, selectedDate]);
 
     if (!mounted || !activeProfile || !data) return null;
 

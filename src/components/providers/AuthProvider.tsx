@@ -7,15 +7,16 @@ import {
     User,
     signInWithPopup,
     GoogleAuthProvider,
+    signInAnonymously,
     signOut as firebaseSignOut
 } from 'firebase/auth';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
     signInWithGoogle: () => Promise<User>;
+    signInAnonymouslyUser: () => Promise<void>;
     signInAsDev: () => Promise<void>;
     signOut: () => Promise<void>;
 }
@@ -30,19 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                // Sync account to local DB
-                try {
-                    const account = {
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        displayName: firebaseUser.displayName,
-                        photoURL: firebaseUser.photoURL,
-                        lastLoginAt: new Date(),
-                    };
-                    await db.accounts.put(account as any);
-                } catch (error) {
-                    console.error("Failed to sync account to Dexie:", error);
-                }
                 setUser(firebaseUser);
             } else {
                 setUser(null);
@@ -56,6 +44,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // DEV BYPASS: Check for persisted dev session on mount
     useEffect(() => {
         const checkDevMode = () => {
+            // Determine if we are in emulator mode
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const emulatorEnv = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
+            const isEmulator = emulatorEnv === 'true' || (emulatorEnv !== 'false' && isLocalhost);
+
+            // Disable dev bypass in production
+            if (!isEmulator) {
+                if (localStorage.getItem('habitisim_dev_mode')) {
+                    console.warn("⚠️ Production detected: Clearing Dev Mode session");
+                    localStorage.removeItem('habitisim_dev_mode');
+                }
+                return;
+            }
+
             const isDev = localStorage.getItem('habitisim_dev_mode');
             if (isDev === 'true' && !user) {
                 const devUser = {
@@ -99,27 +101,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const signInAnonymouslyUser = async () => {
+        try {
+            await signInAnonymously(auth);
+        } catch (error) {
+            console.error("Error signing in anonymously", error);
+            throw error;
+        }
+    };
+
     const signInAsDev = async () => {
         const devUser = {
             uid: 'dev-user-123',
             email: 'dev@habitisim.app',
             displayName: 'Dev Parent',
             photoURL: null,
+            // ... (rest of object, can be simplified for this specific edit if needed, but safer to replace)
         } as unknown as User;
-
-        try {
-            const account = {
-                uid: devUser.uid,
-                email: devUser.email,
-                displayName: devUser.displayName,
-                photoURL: devUser.photoURL,
-                createdAt: new Date(),
-                lastLoginAt: new Date(),
-            };
-            await db.accounts.put(account as any);
-        } catch (e) {
-            console.error("Dev sync failed", e);
-        }
 
         localStorage.setItem('habitisim_dev_mode', 'true');
         setUser(devUser);
@@ -141,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInAsDev, signOut }}>
+        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInAnonymouslyUser, signInAsDev, signOut }}>
             {children}
         </AuthContext.Provider>
     );

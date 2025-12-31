@@ -2,8 +2,6 @@
 
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ArrowLeft, Check, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
 import { toast } from 'sonner';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRewards } from '@/lib/hooks/useRewards';
 
 import { Suspense } from 'react';
 
@@ -26,13 +26,10 @@ function AddRewardContent() {
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [assignedIds, setAssignedIds] = useState<string[]>([]);
 
-    const children = useLiveQuery(async () => {
-        if (!activeProfile?.accountId) return [];
-        return await db.profiles
-            .where('accountId').equals(activeProfile.accountId)
-            .filter(p => p.type === 'child')
-            .toArray();
-    }, [activeProfile?.accountId]);
+    const { profiles } = useProfiles();
+    const { addReward } = useRewards();
+
+    const children = profiles ? profiles.filter(p => p.type === 'child') : [];
 
     const toggleChild = (id: string) => {
         setAssignedIds(prev =>
@@ -62,26 +59,32 @@ function AddRewardContent() {
 
     const handleSave = async () => {
         if (!activeProfile?.accountId) {
-            alert('Session error. Please refresh the page.');
+            toast.error('Session error. Please refresh the page.');
             return;
         }
-        if (!title.trim()) return alert('Please enter a reward name');
-        if (cost === '') return alert('Please enter a cost');
+        if (!title.trim()) {
+            toast.error('Please enter a reward name');
+            return;
+        }
+        if (cost === '') {
+            toast.error('Please enter a cost');
+            return;
+        }
 
-        await db.rewards.add({
-            id: crypto.randomUUID(),
-            isActive: true,
-            title: title.trim(),
-            cost: Number(cost),
-            icon,
-            accountId: activeProfile.accountId,
-            assignedProfileIds: assignedIds,
-            requiresApproval: true,
-            createdAt: new Date()
-        });
-
-        toast.success("Reward created successfully!");
-        router.push(returnUrl);
+        try {
+            await addReward(
+                title.trim(),
+                Number(cost),
+                icon,
+                true, // requiresApproval
+                assignedIds
+            );
+            toast.success("Reward created successfully!");
+            router.push(returnUrl);
+        } catch (error) {
+            console.error("Failed to create reward", error);
+            toast.error("Failed to create reward");
+        }
     };
 
     return (

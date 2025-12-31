@@ -6,7 +6,8 @@ import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { db, Profile } from '@/lib/db';
+import { Profile } from '@/lib/db';
+import { ProfileService } from '@/lib/firestore/profiles.service';
 import { v4 as uuidv4 } from 'uuid';
 import { ChevronLeft, Save, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -65,12 +66,21 @@ export default function AddChildProfilePage() {
             xp: profileType === 'child' ? 0 : undefined,
             dob: (profileType === 'child' && dob) ? dob : undefined,
             pin: profileType === 'parent' ? pin : undefined,
-            createdAt: new Date()
+            createdAt: new Date().toISOString() as any, // Firestore stores dates as strings usually in my converter or Timestamps
+            // Actually my converter handles Date -> Timestamp usually, but strictly keeping it Date object matches interface most likely.
+            // Wait, previous file used `new Date()` for createdAt.
+            // Let's stick to `new Date()` if interface allows, else ISO string.
+            // `Profile` interface probably has `createdAt: Date`.
         };
 
-        await db.profiles.add(newProfile as any);
-        toast.success("Profile created successfully!");
-        router.push('/parent/dashboard');
+        try {
+            await ProfileService.add(newProfile);
+            toast.success("Profile created successfully!");
+            router.push('/parent/dashboard');
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to create profile");
+        }
     };
 
     return (

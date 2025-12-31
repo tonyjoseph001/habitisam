@@ -1,14 +1,33 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useRouter } from 'next/navigation';
-import { db } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ChevronLeft } from 'lucide-react';
 import ChildHeader from '@/components/child/ChildHeader';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
+import { usePurchases } from '@/lib/hooks/usePurchases';
+import { useRoutines } from '@/lib/hooks/useRoutines';
+
+// Helper to safely parse dates
+const safeDate = (input: any): Date => {
+    if (!input) return new Date();
+    if (input instanceof Date && !isNaN(input.getTime())) return input;
+    if (typeof input === 'string' || typeof input === 'number') {
+        const d = new Date(input);
+        return isNaN(d.getTime()) ? new Date() : d;
+    }
+    // Firestore Timestamp check
+    if (input && typeof input.toDate === 'function') {
+        try { return input.toDate(); } catch (e) { return new Date(); }
+    }
+    if (input && typeof input.seconds === 'number') {
+        return new Date(input.seconds * 1000);
+    }
+    return new Date();
+};
 
 type ActivityItem = {
     id: string;
@@ -25,27 +44,21 @@ export default function ChildActivityPage() {
     const [mounted, setMounted] = useState(false);
     const [filter, setFilter] = useState<'all' | 'earned' | 'spent'>('all');
 
+    const { logs } = useActivityLogs(activeProfile?.id);
+    const { purchases } = usePurchases(activeProfile?.id);
+    const { routines } = useRoutines();
+
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const activities = useLiveQuery(async () => {
-        if (!activeProfile) return [];
+    const activities = useMemo(() => {
+        if (!activeProfile || !logs || !purchases) return [];
 
-        const logs = await db.activityLogs
-            .where('profileId').equals(activeProfile.id)
-            .toArray();
-
-        const purchases = await db.purchaseLogs
-            .where('profileId').equals(activeProfile.id)
-            .toArray();
-
-        // Transform Activities (Earned)
-        const activityIds = logs.map(l => l.activityId);
-        const relatedActivities = await db.activities.where('id').anyOf(activityIds).toArray();
-        const activityMap = new Map(relatedActivities.map(a => [a.id, a]));
+        const activityMap = new Map(routines?.map(r => [r.id, r]) || []);
 
         const earnedItems: ActivityItem[] = [];
+
         for (const log of logs) {
             if (log.status === 'completed') {
                 // SPECIAL CASE: Manual Reward
@@ -55,14 +68,15 @@ export default function ChildActivityPage() {
                         type: 'earned',
                         title: (log.metadata as any)?.reason || 'Reward Received',
                         stars: log.starsEarned || 0,
-                        date: new Date(log.date),
+                        stars: log.starsEarned || 0,
+                        date: safeDate(log.date),
                         icon: '⭐'
                     });
                     continue;
                 }
 
                 const act = activityMap.get(log.activityId);
-                let starsEarned = log.starsEarned || 0; // Use stored value if available
+                let starsEarned = log.starsEarned || 0;
 
                 // Fallback to calculating from steps if not stored (old logs)
                 if (starsEarned === 0 && act && act.steps) {
@@ -78,25 +92,27 @@ export default function ChildActivityPage() {
                     type: 'earned',
                     title: act?.title || metaTitle || 'Unknown Activity',
                     stars: starsEarned,
-                    date: log.completedAt || new Date(log.date),
-                    icon: act?.icon ? undefined : (metaType === 'goal' ? '🏆' : '✅') // Use specific icon for goals if available
+                    title: act?.title || metaTitle || 'Unknown Activity',
+                    stars: starsEarned,
+                    date: safeDate(log.completedAt || log.date),
+                    icon: act?.icon ? undefined : (metaType === 'goal' ? '🏆' : '✅')
                 });
             }
         }
 
-        // Transform Purchases (Spent)
         const spentItems: ActivityItem[] = purchases.map(p => ({
             id: p.id,
             type: 'spent',
             title: p.rewardSnapshot.title,
             stars: p.rewardSnapshot.cost,
-            date: p.purchasedAt,
+            title: p.rewardSnapshot.title,
+            stars: p.rewardSnapshot.cost,
+            date: safeDate(p.purchasedAt),
             icon: p.rewardSnapshot.icon
         }));
 
-        // Merge and Sort
         return [...earnedItems, ...spentItems].sort((a, b) => b.date.getTime() - a.date.getTime());
-    }, [activeProfile?.id]);
+    }, [activeProfile, logs, purchases, routines]);
 
     if (!mounted || !activeProfile) return null;
 

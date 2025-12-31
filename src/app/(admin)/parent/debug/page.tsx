@@ -1,24 +1,37 @@
 "use client";
 
 import React from 'react';
-import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { ProfileService } from '@/lib/firestore/profiles.service';
+import { ActivityService } from '@/lib/firestore/activities.service';
+import { GoalService } from '@/lib/firestore/goals.service';
 
 export default function DebugPage() {
+    const { user } = useAuth();
+
     const handleSeed = async () => {
+        if (!user?.uid) {
+            toast.error("Not authenticated");
+            return;
+        }
+
         try {
-            // 1. Get Account ID (from first parent)
-            const parent = await db.profiles.where('type').equals('parent').first();
+            const accountId = user.uid;
+
+            // Check if parent profile exists (optional, but good practice)
+            const profiles = await ProfileService.getByAccountId(accountId);
+            const parent = profiles.find(p => p.type === 'parent');
             if (!parent) {
-                toast.error("No parent profile found. Please create a parent first.");
+                toast.error("No parent profile found. Please create one first.");
                 return;
             }
-            const accountId = parent.accountId;
+
             const childId = crypto.randomUUID();
 
-            // 2. Create Child Profile
-            await db.profiles.add({
+            // 1. Create Child Profile
+            await ProfileService.add({
                 id: childId,
                 accountId,
                 name: "Test Kid",
@@ -33,8 +46,8 @@ export default function DebugPage() {
                 unlockedStamps: ['dino', 'rocket']
             });
 
-            // 3. Create Routine (Recurring)
-            await db.activities.add({
+            // 2. Create Routine (Recurring)
+            await ActivityService.add({
                 id: crypto.randomUUID(),
                 accountId,
                 profileIds: [childId],
@@ -48,13 +61,13 @@ export default function DebugPage() {
                     { id: crypto.randomUUID(), title: "Brush Teeth", duration: 3, stars: 5, icon: "Brush" },
                     { id: crypto.randomUUID(), title: "Get Dressed", duration: 10, stars: 10, icon: "Sun" }
                 ],
-                isActive: true, // Fix Lint
+                isActive: true,
                 createdAt: new Date()
             });
 
-            // 4. Create Task (One-time, Overdue/Today)
+            // 3. Create Task (One-time, Overdue/Today)
             const today = new Date();
-            await db.activities.add({
+            await ActivityService.add({
                 id: crypto.randomUUID(),
                 accountId,
                 profileIds: [childId],
@@ -67,12 +80,12 @@ export default function DebugPage() {
                     { id: crypto.randomUUID(), title: "Glue planets", duration: 20, stars: 20, icon: "Rocket" },
                     { id: crypto.randomUUID(), title: "Write labels", duration: 15, stars: 15, icon: "Book" }
                 ],
-                isActive: true, // Fix Lint
+                isActive: true,
                 createdAt: new Date()
             });
 
-            // 5. Create Goal (Slider)
-            await db.goals.add({
+            // 4. Create Goal (Slider/Counter)
+            await GoalService.add({
                 id: crypto.randomUUID(),
                 accountId,
                 profileId: childId,
@@ -88,8 +101,8 @@ export default function DebugPage() {
                 createdAt: new Date()
             });
 
-            // 6. Create Goal (Pending Approval)
-            await db.goals.add({
+            // 5. Create Goal (Pending Approval)
+            await GoalService.add({
                 id: crypto.randomUUID(),
                 accountId,
                 profileId: childId,
@@ -99,7 +112,7 @@ export default function DebugPage() {
                 current: 0,
                 unit: "Stars",
                 stars: 0, // Cost
-                icon: "Bicycle", // Assuming fallback
+                icon: "Bicycle",
                 status: "pending_approval",
                 createdAt: new Date()
             });
@@ -111,31 +124,15 @@ export default function DebugPage() {
         }
     };
 
-    const handleClear = async () => {
-        if (confirm("Are you sure? This deletes ALL data.")) {
-            await db.delete();
-            await db.open();
-            toast.success("Database cleared.");
-            window.location.reload();
-        }
-    };
-
     return (
         <div className="p-10 max-w-lg mx-auto flex flex-col gap-6">
             <h1 className="text-3xl font-bold">🛠️ Debug & Testing</h1>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <h2 className="font-bold mb-2">Seed Data</h2>
-                <p className="text-sm text-slate-500 mb-4">Creates a "Test Kid" with sample routines, tasks, and goals.</p>
+                <p className="text-sm text-slate-500 mb-4">Creates a "Test Kid" with sample routines, tasks, and goals in Cloud DB.</p>
                 <Button onClick={handleSeed} className="w-full">
                     Combine DNA & Create 'Test Kid' 🧬
-                </Button>
-            </div>
-
-            <div className="bg-red-50 p-6 rounded-xl border border-red-100">
-                <h2 className="font-bold text-red-700 mb-2">Danger Zone</h2>
-                <Button onClick={handleClear} variant="destructive" className="w-full">
-                    Reset Database 💥
                 </Button>
             </div>
         </div>

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import { db, Profile } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { createPortal } from 'react-dom';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { ProfileService } from '@/lib/firestore/profiles.service';
 
 interface StampModalProps {
     isOpen: boolean;
@@ -29,7 +29,9 @@ const STAMP_ASSETS: Record<string, { label: string, emoji: string, color: string
 export function StampModal({ isOpen, onClose, childProfileId }: StampModalProps) {
     console.log("StampModal Rendered. Open:", isOpen, "ProfileID:", childProfileId);
 
-    const profile = useLiveQuery(() => db.profiles.get(childProfileId), [childProfileId]);
+    const { profiles } = useProfiles();
+    const profile = profiles.find(p => p.id === childProfileId);
+
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -40,8 +42,12 @@ export function StampModal({ isOpen, onClose, childProfileId }: StampModalProps)
     const handleSelectStamp = async (stampId: string) => {
         console.log("Selecting stamp:", stampId);
         if (!profile) return;
-        await db.profiles.update(childProfileId, { activeStamp: stampId });
-        onClose();
+        try {
+            await ProfileService.update(childProfileId, { activeStamp: stampId });
+            onClose();
+        } catch (e) {
+            console.error("Failed to update stamp", e);
+        }
     };
 
     if (!mounted) return null;

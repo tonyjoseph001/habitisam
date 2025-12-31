@@ -1,29 +1,30 @@
-import { useLiveQuery } from "dexie-react-hooks";
-import { db, Activity, Step } from "@/lib/db";
+import { useMemo } from 'react';
+import { Activity, Step } from "@/lib/db";
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useSessionStore } from "@/lib/store/useSessionStore";
+import { ActivityService } from "@/lib/firestore/activities.service";
+import { useFirestoreQuery } from "@/lib/firestore/hooks";
+import { query, where, orderBy } from 'firebase/firestore';
 
 export function useRoutines() {
     const { user } = useAuth();
     const { activeProfile } = useSessionStore();
 
     // Query all activities for the household (account)
-    // We use user.uid as the source of truth for the accountId if available,
-    // falling back to activeProfile if for some reason user is missing but profile exists (rare).
     const accountId = user?.uid || activeProfile?.accountId;
 
-    const routines = useLiveQuery(
-        async () => {
-            if (!accountId) return [];
-            return await db.activities
-                .where("accountId")
-                .equals(accountId)
-                .reverse()
-                .sortBy("createdAt");
-        },
-        [accountId]
-    );
+    // Create Firestore Query
+    const routinesQuery = useMemo(() => {
+        if (!accountId) return null;
+        return query(
+            ActivityService.getCollection(),
+            where("accountId", "==", accountId),
+            orderBy("createdAt", "desc") // Sort by created desc
+        );
+    }, [accountId]);
+
+    const { data: routines, loading, error } = useFirestoreQuery<Activity>(routinesQuery);
 
     const addRoutine = async (
         title: string,
@@ -46,21 +47,22 @@ export function useRoutines() {
             createdAt: new Date(),
         };
 
-        // @ts-ignore
-        await db.activities.add(newActivity);
+        await ActivityService.add(newActivity);
         return newActivity.id;
     };
 
     const updateRoutine = async (id: string, updates: Partial<Activity>) => {
-        await db.activities.update(id, updates);
+        await ActivityService.update(id, updates);
     };
 
     const deleteRoutine = async (id: string) => {
-        await db.activities.delete(id);
+        await ActivityService.delete(id);
     };
 
     return {
         routines,
+        loading,
+        error,
         addRoutine,
         updateRoutine,
         deleteRoutine

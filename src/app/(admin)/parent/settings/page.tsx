@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { db } from '@/lib/db';
+import { ProfileService } from '@/lib/firestore/profiles.service';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,10 +33,15 @@ export default function SettingsPage() {
         if (!newPin.trim()) return alert('Please enter a new PIN');
         if (newPin.length < 4) return alert('PIN must be at least 4 digits');
 
-        await db.profiles.update(activeProfile.id, { pin: newPin });
-        setShowPinModal(false);
-        setNewPin('');
-        alert('PIN updated successfully!');
+        try {
+            await ProfileService.update(activeProfile.id, { pin: newPin });
+            setShowPinModal(false);
+            setNewPin('');
+            alert('PIN updated successfully!');
+        } catch (error) {
+            console.error(error);
+            alert('Failed to update PIN');
+        }
     };
 
     return (

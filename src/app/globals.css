@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide Firebase Emulator Warning */
+.firebase-emulator-warning {
+  display: none !important;
+}
+
 @layer base {
   :root {
     --background: 210 40% 96.1%;

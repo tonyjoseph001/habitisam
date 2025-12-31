@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { ChevronDown, ChevronUp, Rocket, Star, Lock, Home, Gift, CheckSquare, List, Play, Clock, Bell, Check, Flame, Sun, Sunset, Moon, Timer } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import Link from 'next/link';
@@ -14,6 +12,15 @@ import { differenceInMinutes, parse, format, isPast, isToday, addDays, isSameDay
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
+
+import { useRoutines } from '@/lib/hooks/useRoutines';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
+import { useInbox } from '@/lib/hooks/useInbox';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { LogService } from '@/lib/firestore/logs.service';
+import { ProfileService } from '@/lib/firestore/profiles.service';
+import { InboxService } from '@/lib/firestore/inbox.service';
+import { ActivityLog } from '@/lib/db';
 
 // Visual Mapping for Stamps (Duplicate for now, ideally shared)
 const STAMP_ASSETS: Record<string, { emoji: string, color: string }> = {
@@ -35,71 +42,44 @@ export default function MissionControlPage() {
     const [mounted, setMounted] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [confirmTask, setConfirmTask] = useState<any | null>(null);
+    const [processingRewards, setProcessingRewards] = useState<Set<string>>(new Set());
+    const [processingTasks, setProcessingTasks] = useState<Set<string>>(new Set());
+
+    // Streak State
+    const [streakLogs, setStreakLogs] = useState<ActivityLog[]>([]);
+
+    // Firestore Hooks
+    const { routines: fetchedRoutines } = useRoutines(activeProfile?.id);
+    const routines = fetchedRoutines || [];
+
+    // Fix: Pass string date YYYY-MM-DD (Local Time)
+    const { logs } = useActivityLogs(activeProfile?.id, format(new Date(), 'yyyy-MM-dd'));
+
+    // Fix: Destructure correct property and Filter
+    const { inboxItems } = useInbox(activeProfile?.id);
+    const inboxRewards = useMemo(() => inboxItems.filter((i: any) => !i.status || i.status === 'pending'), [inboxItems]);
+
+    // Derived Rewards from logs (Manual Rewards)
+    const rewards = useMemo(() => {
+        return logs.filter(l => l.activityId === 'manual_reward');
+    }, [logs]);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const liveProfile = useLiveQuery(
-        () => db.profiles.get(activeProfile?.id || ''),
-        [activeProfile?.id]
-    );
-
-    const data = useLiveQuery(async () => {
-        if (!activeProfile) return { routines: [], logs: [] };
-        const myRoutines = await db.activities
-            .where('profileIds')
-            .equals(activeProfile.id)
-            .toArray();
-
-        const today = new Date();
-        const myLogs = await db.activityLogs
-            .where('profileId')
-            .equals(activeProfile.id)
-            .filter(l => {
-                const logDate = new Date(l.date);
-                return logDate.getDate() === today.getDate() &&
-                    logDate.getMonth() === today.getMonth() &&
-                    logDate.getFullYear() === today.getFullYear();
-            })
-            .toArray();
-
-        // Check for manual rewards (ad-hoc stars) today
-        const rewards = await db.activityLogs
-            .where('profileId')
-            .equals(activeProfile.id)
-            .filter(l => {
-                const logDate = new Date(l.date);
-                return l.activityId === 'manual_reward' &&
-                    logDate.getDate() === today.getDate() &&
-                    logDate.getMonth() === today.getMonth() &&
-                    logDate.getFullYear() === today.getFullYear();
-            })
-            .toArray();
-
-        // Fetch Pending Inbox Rewards
-        const inboxRewards = await db.inboxRewards
-            .where('profileId')
-            .equals(activeProfile.id)
-            .filter(r => r.status === 'pending')
-            .toArray();
-
-        // Fetch All Completed Logs for Streak Calculation (optimized: just get dates if possible, but for now fetch all)
-        const streakLogs = await db.activityLogs
-            .where('profileId')
-            .equals(activeProfile.id)
-            .filter(l => l.status === 'completed')
-            .toArray();
-
-        return { routines: myRoutines, logs: myLogs, rewards, inboxRewards, streakLogs };
+    // Fetch Full History for Streak Calculation
+    useEffect(() => {
+        async function fetchHistory() {
+            if (activeProfile?.id) {
+                // Optimization: In real app, calculate streak on backend or store in profile
+                // For now, fetch all logs for profile to calculate accurately
+                const allLogs = await LogService.getByProfileId(activeProfile.id);
+                setStreakLogs(allLogs.filter(l => l.status === 'completed'));
+            }
+        }
+        fetchHistory();
     }, [activeProfile?.id]);
-
-    const routines = data?.routines || [];
-    const logs = data?.logs || [];
-
-    const rewards = data?.rewards || [];
-    const inboxRewards = data?.inboxRewards || [];
-    const streakLogs = data?.streakLogs || [];
 
     // Calulate Streak
     const currentStreak = React.useMemo(() => {
@@ -109,23 +89,18 @@ export default function MissionControlPage() {
         if (uniqueDates.length === 0) return 0;
 
         const todayStr = format(new Date(), 'yyyy-MM-dd');
-        const yesterdayStr = format(addDays(new Date(), -1), 'yyyy-MM-dd');
-
-        // If today or yesterday is not in the list, streak might be broken locally, but let's check consecutive days backwards.
-        // Actually, we check backwards from Today (or Yesterday).
 
         let streak = 0;
         let checkDate = new Date();
         let checkStr = format(checkDate, 'yyyy-MM-dd');
 
-        // Note: uniqueDates is sorted Ascending (oldest first). We want to check descending or just check lookup.
         const dateSet = new Set(uniqueDates);
 
         // If today is not done, check if yesterday was done to keep streak alive
         if (!dateSet.has(todayStr)) {
             checkDate = addDays(checkDate, -1);
             checkStr = format(checkDate, 'yyyy-MM-dd');
-            if (!dateSet.has(checkStr)) return 0; // neither today nor yesterday -> 0 streak
+            if (!dateSet.has(checkStr)) return 0;
         }
 
         while (dateSet.has(checkStr)) {
@@ -136,6 +111,7 @@ export default function MissionControlPage() {
 
         return streak;
     }, [streakLogs]);
+
     const completedTaskIds = new Set(logs.filter(l => l.status === 'completed').map(l => l.activityId));
     const completedLogMap = new Map(logs.filter(l => l.status === 'completed').map(l => [l.activityId, l]));
 
@@ -157,8 +133,12 @@ export default function MissionControlPage() {
         }
     }, [rewards.length]);
 
-    // Data for processed tasks (completed OR missed)
-    const processedTaskIds = new Set(logs.filter(l => l.status === 'completed' || l.status === 'missed').map(l => l.activityId));
+    // Data for processed tasks (completed OR missed OR processing)
+    const processedTaskIds = useMemo(() => {
+        const ids = new Set(logs.filter(l => l.status === 'completed' || l.status === 'missed').map(l => l.activityId));
+        processingTasks.forEach(id => ids.add(id));
+        return ids;
+    }, [logs, processingTasks]);
 
     // --- SCHEDULING HELPERS ---
     const getFlexWindowMinutes = (windowString?: string): number => {
@@ -180,6 +160,7 @@ export default function MissionControlPage() {
 
     // Helper to determine status for list items
     const getTaskStatus = (task: any): 'completed' | 'locked' | 'active' | 'expired' | 'overdue' | 'missed' => {
+        if (processingTasks.has(task.id)) return 'completed'; // FIX: Optimistic UI (Hide button immediately)
         if (completedTaskIds.has(task.id)) return 'completed';
         if (processedTaskIds.has(task.id)) return 'missed';
 
@@ -238,12 +219,12 @@ export default function MissionControlPage() {
                             // If passed by more than 0 minute (immediate expiry), mark as missed
                             if (isAfter(now, dueTime)) {
                                 console.log('Marking task as missed:', r.title);
-                                await db.activityLogs.add({
-                                    id: crypto.randomUUID(),
+                                await LogService.add({
+                                    id: `${r.id}_${activeProfile.id}_${todayStr}`, // Deterministic ID for recovery
                                     accountId: activeProfile.accountId,
                                     activityId: r.id,
-                                    profileId: activeProfile?.id || '',
-                                    date: now.toISOString(),
+                                    profileId: activeProfile.id,
+                                    date: todayStr, // Local YYYY-MM-DD
                                     status: 'missed',
                                     stepsCompleted: 0
                                 });
@@ -266,25 +247,36 @@ export default function MissionControlPage() {
 
     // Quick Complete Handler
     const handleQuickComplete = async (task: any) => {
-        if (!activeProfile) return;
+        console.log("Quick Complete Triggered:", { taskId: task.id, title: task.title });
+        if (!activeProfile || processingTasks.has(task.id)) {
+            console.log("Blocked: No Profile or Already Processing", { activeProfile, processing: processingTasks.has(task.id) });
+            return;
+        }
+
+        setProcessingTasks(prev => new Set(prev).add(task.id));
 
         try {
             const points = task.steps?.reduce((acc: number, s: any) => acc + (s.stars || 0), 0) || 0;
+            const dateStr = format(new Date(), 'yyyy-MM-dd'); // Local Time
+            const logId = `${task.id}_${activeProfile.id}_${dateStr}`;
 
-            // 1. Add Log
-            await db.activityLogs.add({
-                id: crypto.randomUUID(),
+            console.log("Generating Log:", { logId, dateStr, accountId: activeProfile.accountId });
+
+            // 1. Add Log with Deterministic ID for Idempotency
+            await LogService.add({
+                id: logId, // Unique per task-user-day
                 accountId: activeProfile.accountId,
                 activityId: task.id,
                 profileId: activeProfile.id,
-                date: new Date().toISOString(),
+                date: dateStr, // FIX: Use YYYY-MM-DD to match query
+                completedAt: new Date(), // Store precise time here
                 status: 'completed',
                 starsEarned: points,
                 stepsCompleted: task.steps?.length || 1
             });
 
             // 2. Add Stars
-            await db.profiles.update(activeProfile.id, {
+            await ProfileService.update(activeProfile.id, {
                 stars: (activeProfile.stars || 0) + points
             });
 
@@ -297,49 +289,58 @@ export default function MissionControlPage() {
             // Close expand if open
             setExpandedTaskId(null);
 
+            // Note: We leave it in processingTasks so it stays hidden/optimistic until real log arrives
+
         } catch (error) {
             console.error(error);
             toast.error("Failed to complete task");
+            setProcessingTasks(prev => {
+                const next = new Set(prev);
+                next.delete(task.id);
+                return next;
+            });
         }
     };
 
     // Stamp Selection Handler
     const handleSelectStamp = async (stampId: string) => {
         if (!activeProfile) return;
-        await db.profiles.update(activeProfile.id, { activeStamp: stampId });
+        await ProfileService.update(activeProfile.id, { activeStamp: stampId });
         setIsStampModalOpen(false);
     };
 
     // Claim Reward Handler
     const handleClaimReward = async (reward: any) => {
-        if (!activeProfile) return;
+        if (!activeProfile || processingRewards.has(reward.id)) return;
+
+        setProcessingRewards(prev => new Set(prev).add(reward.id));
+
         try {
-            await db.transaction('rw', db.inboxRewards, db.profiles, db.activityLogs, async () => {
-                // 1. Mark as Claimed
-                await db.inboxRewards.update(reward.id, {
-                    status: 'claimed',
-                    claimedAt: new Date()
-                });
+            // 1. Mark as Claimed
+            await InboxService.update(reward.id, {
+                status: 'claimed',
+                claimedAt: new Date()
+            });
 
-                // 2. Add Stars
-                await db.profiles.update(activeProfile.id, {
-                    stars: (activeProfile.stars || 0) + reward.amount
-                });
+            // 2. Add Stars
+            await ProfileService.update(activeProfile.id, {
+                stars: (activeProfile.stars || 0) + reward.amount
+            });
 
-                // 3. Log Activity
-                await db.activityLogs.add({
-                    id: crypto.randomUUID(),
-                    accountId: activeProfile.accountId,
-                    profileId: activeProfile.id,
-                    activityId: 'manual_reward',
-                    date: new Date().toISOString(),
-                    status: 'completed',
-                    starsEarned: reward.amount,
-                    metadata: {
-                        reason: reward.message || "Reward Claimed",
-                        type: "manual_award"
-                    }
-                });
+            // 3. Log Activity
+            await LogService.add({
+                // CRITICAL: Use Reward ID as Log ID to prevent duplicates (Idempotency)
+                id: reward.id,
+                accountId: activeProfile.accountId,
+                profileId: activeProfile.id,
+                activityId: 'manual_reward',
+                date: new Date().toISOString(),
+                status: 'completed',
+                starsEarned: reward.amount,
+                metadata: {
+                    reason: reward.message || "Reward Claimed",
+                    type: "manual_award"
+                }
             });
 
             // 3. Animation/Toast
@@ -348,8 +349,14 @@ export default function MissionControlPage() {
                 icon: '🎁',
                 duration: 4000
             });
+            // Don't remove from processing immediately, let it disappear from the list naturally via filter
         } catch (e) {
             console.error("Claim error", e);
+            setProcessingRewards(prev => {
+                const next = new Set(prev);
+                next.delete(reward.id);
+                return next;
+            });
         }
     };
 
@@ -483,8 +490,11 @@ export default function MissionControlPage() {
         }
     }, [upNextRoutine, isTomorrow]);
 
-    if (!activeProfile) return null;
-    const displayProfile = liveProfile || activeProfile;
+    // Sync activeProfile with latest data
+    const { profiles } = useProfiles();
+    const displayProfile = useMemo(() => profiles.find(p => p.id === activeProfile?.id) || activeProfile, [profiles, activeProfile]);
+
+    if (!displayProfile) return null;
     const activeStampId = displayProfile.activeStamp || 'star';
     const stampAsset = STAMP_ASSETS[activeStampId] || STAMP_ASSETS['star'];
 
@@ -654,10 +664,17 @@ export default function MissionControlPage() {
                                                     {/* Action */}
                                                     <button
                                                         onClick={() => handleClaimReward(reward)}
-                                                        className="bg-white text-pink-600 font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-pink-50 active:scale-95 transition-all text-sm shrink-0 flex items-center gap-1"
+                                                        disabled={processingRewards.has(reward.id)}
+                                                        className={`bg-white text-pink-600 font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-pink-50 active:scale-95 transition-all text-sm shrink-0 flex items-center gap-1 ${processingRewards.has(reward.id) ? 'opacity-50 cursor-wait' : ''}`}
                                                     >
-                                                        <Star className="w-3.5 h-3.5 fill-pink-600" />
-                                                        <span>Claim {reward.amount}</span>
+                                                        {processingRewards.has(reward.id) ? (
+                                                            <Icons.Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        ) : (reward.amount > 0 ? (
+                                                            <Star className="w-3.5 h-3.5 fill-pink-600" />
+                                                        ) : (
+                                                            <Icons.Check className="w-3.5 h-3.5" />
+                                                        ))}
+                                                        <span>{processingRewards.has(reward.id) ? 'Claiming...' : (reward.amount > 0 ? `Claim ${reward.amount}` : "Got it!")}</span>
                                                     </button>
 
                                                     {/* Stack Indicator */}
@@ -1041,6 +1058,7 @@ export default function MissionControlPage() {
                     animation: bounce-slow 3s infinite ease-in-out;
                 }
             `}</style>
+
                 </main >
             </div>
         </div>

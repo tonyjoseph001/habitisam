@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ArrowLeft, Check, Star, Users, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +9,10 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
 import { Modal } from '@/components/ui/modal';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRewards } from '@/lib/hooks/useRewards';
+import { RewardService } from "@/lib/firestore/rewards.service";
+import { toast } from 'sonner';
 
 import { Suspense } from 'react';
 
@@ -19,6 +21,9 @@ function EditRewardContent() {
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
     const { activeProfile } = useSessionStore();
+
+    const { profiles } = useProfiles();
+    const { updateReward, deleteReward } = useRewards();
 
     const [title, setTitle] = useState('');
     const [cost, setCost] = useState<number | ''>(10);
@@ -31,24 +36,27 @@ function EditRewardContent() {
     // Fetch existing reward
     useEffect(() => {
         if (!id) return;
-        db.rewards.get(id).then(reward => {
-            if (reward) {
-                setTitle(reward.title);
-                setCost(reward.cost);
-                setIcon(reward.icon);
-                setAssignedIds(reward.assignedProfileIds || []);
+
+        async function loadReward() {
+            try {
+                const reward = await RewardService.get(id!);
+                if (reward) {
+                    setTitle(reward.title);
+                    setCost(reward.cost);
+                    setIcon(reward.icon);
+                    setAssignedIds(reward.assignedProfileIds || []);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error("Failed to load reward");
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
-        });
+        }
+        loadReward();
     }, [id]);
 
-    const children = useLiveQuery(async () => {
-        if (!activeProfile?.accountId) return [];
-        return await db.profiles
-            .where('accountId').equals(activeProfile.accountId)
-            .filter(p => p.type === 'child')
-            .toArray();
-    }, [activeProfile?.accountId]);
+    const children = profiles ? profiles.filter(p => p.type === 'child') : [];
 
     const toggleChild = (id: string) => {
         setAssignedIds(prev =>
@@ -78,17 +86,28 @@ function EditRewardContent() {
 
     const handleSave = async () => {
         if (!id) return;
-        if (!title.trim()) return alert('Please enter a reward name');
-        if (cost === '') return alert('Please enter a cost');
+        if (!title.trim()) {
+            toast.error('Please enter a reward name');
+            return;
+        }
+        if (cost === '') {
+            toast.error('Please enter a cost');
+            return;
+        }
 
-        await db.rewards.update(id, {
-            title: title.trim(),
-            cost: Number(cost),
-            icon,
-            assignedProfileIds: assignedIds
-        });
-
-        router.back();
+        try {
+            await updateReward(id, {
+                title: title.trim(),
+                cost: Number(cost),
+                icon,
+                assignedProfileIds: assignedIds
+            });
+            toast.success("Reward updated");
+            router.back();
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to update reward");
+        }
     };
 
     const handleDeleteClick = () => {
@@ -97,8 +116,14 @@ function EditRewardContent() {
 
     const confirmDelete = async () => {
         if (!id) return;
-        await db.rewards.delete(id);
-        router.back();
+        try {
+            await deleteReward(id);
+            toast.success("Reward deleted");
+            router.back();
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to delete reward");
+        }
     };
 
     if (loading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">Loading...</div>;

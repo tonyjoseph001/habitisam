@@ -1,32 +1,32 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { ParentHeader } from '@/components/layout/ParentHeader';
 import { TrendingUp, Star, AlertTriangle, Clock, Trophy, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
 
 export default function ReportsPage() {
     const { activeProfile } = useSessionStore();
     const [timeRange, setTimeRange] = useState<'Week' | 'Month'>('Week');
     const [selectedChildId, setSelectedChildId] = useState<string>('all');
 
-    const children = useLiveQuery(
-        () => db.profiles.where('type').equals('child').toArray()
-    );
+    const { profiles } = useProfiles();
+    const children = profiles.filter(p => p.type === 'child');
 
-    const logs = useLiveQuery(async () => {
-        if (!activeProfile?.accountId) return [];
+    const { logs: allLogs } = useActivityLogs();
 
-        let collection = db.activityLogs.where('accountId').equals(activeProfile.accountId);
+    const logs = useMemo(() => {
+        if (!allLogs) return [];
+        let filtered = allLogs;
 
-        // Filter by child if selected
+        // Filter by child
         if (selectedChildId !== 'all') {
-            collection = collection.filter(log => log.profileId === selectedChildId);
+            filtered = filtered.filter(log => log.profileId === selectedChildId);
         }
 
         // Date Filtering
@@ -39,8 +39,8 @@ export default function ReportsPage() {
         }
         const pastDateStr = pastDate.toISOString().split('T')[0];
 
-        return await collection.filter(log => log.date >= pastDateStr).toArray();
-    }, [selectedChildId, timeRange, activeProfile?.accountId]);
+        return filtered.filter(log => log.date >= pastDateStr);
+    }, [allLogs, selectedChildId, timeRange]);
 
     // --- Stats Calculation ---
     const totalStars = logs?.reduce((acc, log) => acc + (log.starsEarned || 0), 0) || 0;

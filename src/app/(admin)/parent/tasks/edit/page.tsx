@@ -2,15 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Activity } from '@/lib/db';
-import { ArrowLeft, Check, Minus, Plus, Trash2, Mic } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, Mic } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { addMinutes, format, isSameDay } from 'date-fns';
-
+import { addMinutes, format } from 'date-fns';
 import { Suspense } from 'react';
+
+// Firestore
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRoutines } from '@/lib/hooks/useRoutines';
+import { ActivityService } from '@/lib/firestore/activities.service';
 
 function EditTaskContent() {
     const router = useRouter();
@@ -18,11 +19,11 @@ function EditTaskContent() {
     const taskId = searchParams?.get('id');
 
     // Data
-    const activity = useLiveQuery(
-        async () => taskId ? await db.activities.get(taskId) : undefined,
-        [taskId]
-    );
-    const children = useLiveQuery(() => db.profiles.where('type').equals('child').toArray());
+    const { profiles } = useProfiles();
+    const children = profiles.filter(p => p.type === 'child');
+
+    const { routines } = useRoutines();
+    const activity = routines.find(r => r.id === taskId);
 
     // State
     const [taskName, setTaskName] = useState("");
@@ -50,7 +51,7 @@ function EditTaskContent() {
         }
     }, [activity]);
 
-    if (!activity) return null; // Or loading spinner
+    if (!activity) return <div className="p-8 text-center text-slate-400">Loading task...</div>;
 
     // Handlers
     const handleSave = async () => {
@@ -74,11 +75,12 @@ function EditTaskContent() {
 
             // Update Activity
             if (!taskId) return;
-            await db.activities.update(taskId, {
+
+            await ActivityService.update(taskId, {
                 title: taskName,
                 profileIds: [selectedChildId],
                 timeOfDay: dueTimeStr,
-                steps: activity.steps.map((s: any) => ({ ...s, stars: reward })) // Update reward in steps
+                steps: activity.steps?.map((s: any) => ({ ...s, stars: reward })) || []
             });
 
             toast.success("Task updated!");
@@ -95,7 +97,7 @@ function EditTaskContent() {
         if (confirm("Are you sure you want to delete this task?")) {
             setIsDeleting(true);
             try {
-                await db.activities.delete(taskId);
+                await ActivityService.delete(taskId);
                 toast.success("Task deleted");
                 router.back();
             } catch (error) {

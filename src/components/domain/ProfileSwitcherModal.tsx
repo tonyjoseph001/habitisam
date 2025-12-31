@@ -1,12 +1,11 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { Profile, db } from '@/lib/db';
+import { Profile } from '@/lib/db';
 import { Lock, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useProfiles } from '@/lib/hooks/useProfiles';
 
 interface ProfileSwitcherProps {
     isOpen: boolean;
@@ -17,8 +16,9 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
     const { user } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const router = useRouter();
+    const { profiles } = useProfiles(); // Use Firestore Hook
 
-    const [profiles, setProfiles] = useState<Profile[]>([]);
+    // const [profiles, setProfiles] = useState<Profile[]>([]); // Removed local state
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const [pin, setPin] = useState("");
     const [error, setError] = useState("");
@@ -27,17 +27,17 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
     const [showPinPad, setShowPinPad] = useState(false);
     const [targetProfile, setTargetProfile] = useState<Profile | null>(null);
 
-    // Load profiles
+    // Reset state on open
     useEffect(() => {
-        if (isOpen && user) {
-            db.profiles.where('accountId').equals(user.uid).toArray().then(setProfiles);
+        if (isOpen) {
+            // db.profiles... call removed
             setSelectedProfileId(activeProfile?.id || null);
             setPin("");
             setError("");
             setShowPinPad(false);
             setTargetProfile(null);
         }
-    }, [isOpen, user, activeProfile]);
+    }, [isOpen, activeProfile]); // Removed user dependency as profiles updates automatically
 
     const handleSelect = async (profile: Profile) => {
         setSelectedProfileId(profile.id);

@@ -1,12 +1,17 @@
+
 "use client";
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { db, Activity } from '@/lib/db';
+import { Activity } from '@/lib/db'; // Keep Type Import only
+import { ActivityService } from '@/lib/firestore/activities.service';
+import { LogService } from '@/lib/firestore/logs.service';
+import { ProfileService } from '@/lib/firestore/profiles.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, SkipBack, Volume2, ArrowLeft, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { format } from 'date-fns';
 import { playSound } from '@/lib/sound';
 
 // Initialize directly if possible to avoid flash
@@ -87,7 +92,7 @@ function RoutinePlayerContent() {
     // Fetch Routine
     useEffect(() => {
         if (id) {
-            db.activities.get(id).then(data => {
+            ActivityService.get(id).then(data => {
                 if (data) {
                     setRoutine(data);
                     // Initialize timer for first step
@@ -96,6 +101,8 @@ function RoutinePlayerContent() {
                         setTotalTime(duration);
                         setTimeLeft(duration);
                     }
+                } else {
+                    console.error("Routine not found:", id);
                 }
             });
         }
@@ -184,42 +191,67 @@ function RoutinePlayerContent() {
             audioInstanceRef.current.pause();
             audioInstanceRef.current = null;
         }
+        if (synthRef.current) {
+            synthRef.current.cancel();
+        }
 
         const audioUrl = step.audioUrl;
 
-        // ONLY play if recorded audio exists
         if (audioUrl) {
+            // Priority 1: Play Recorded Audio
             setIsAudioPlaying(true);
             const audio = new Audio(audioUrl);
             audio.onended = () => {
                 setIsAudioPlaying(false);
-                audioInstanceRef.current = null; // Clear ref after playback
+                audioInstanceRef.current = null;
             };
             audio.play().catch(e => {
                 console.warn("Autoplay blocked or failed", e);
                 setIsAudioPlaying(false);
                 audioInstanceRef.current = null;
             });
-            audioInstanceRef.current = audio; // Store the audio instance
+            audioInstanceRef.current = audio;
         } else {
-            setIsAudioPlaying(false); // No audio to play
+            // Priority 2: Text-to-Speech
+            if (!synthRef.current) return;
+
+            const textToRead = `${step.title}. ${step.description || ''}`;
+            if (!textToRead.trim()) return;
+
+            const utterance = new SpeechSynthesisUtterance(textToRead);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.1; // Slightly friendly/child-like
+
+            // Try to find a good voice
+            const voices = synthRef.current.getVoices();
+            // simple heuristic for a decent English voice
+            const preferredVoice = voices.find(v => v.name.includes('Samantha') || v.name.includes('Google US English')) || voices.find(v => v.lang.startsWith('en'));
+            if (preferredVoice) utterance.voice = preferredVoice;
+
+            utterance.onstart = () => setIsAudioPlaying(true);
+            utterance.onend = () => setIsAudioPlaying(false);
+            utterance.onerror = () => setIsAudioPlaying(false);
+
+            synthRef.current.speak(utterance);
         }
     };
 
     const toggleAudio = () => {
-        // Can only toggle if audio actually exists for the current step
+        // Can toggle BOTH recorded audio AND TTS
         if (!routine) return;
-        const step = routine.steps[currentStepIndex];
-        if (!step.audioUrl) return;
 
         if (isAudioPlaying) {
+            // Stop everything
             if (audioInstanceRef.current) {
                 audioInstanceRef.current.pause();
                 audioInstanceRef.current = null;
             }
+            if (synthRef.current) {
+                synthRef.current.cancel();
+            }
             setIsAudioPlaying(false);
         } else {
-            playAudio(); // Re-trigger playAudio, which will handle setting isAudioPlaying
+            playAudio();
         }
     };
 
@@ -250,7 +282,7 @@ function RoutinePlayerContent() {
     const formatTime = (s: number) => {
         const m = Math.floor(s / 60);
         const sec = s % 60;
-        return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        return `${m}:${sec < 10 ? '0' : ''}${sec} `;
     };
 
     const handleStepComplete = async () => {
@@ -421,24 +453,25 @@ function RoutinePlayerContent() {
 
         // 1. Log Completion
         // Use full ISO string to match Dashboard filter logic and preserve local time intent
-        await db.activityLogs.add({
-            id: crypto.randomUUID(),
+        const dateStr = format(new Date(), 'yyyy-MM-dd');
+        await LogService.add({
+            id: `${routine.id}_${activeProfile.id}_${dateStr}`, // Deterministic ID to overwrite 'missed' status
             accountId: routine.accountId,
             profileId: activeProfile.id,
             activityId: routine.id,
-            date: new Date().toISOString(),
+            date: dateStr,
             status: 'completed',
             completedAt: new Date(),
             starsEarned: routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0),
             earnedXP: 50,
-            stepsCompleted: routine.steps.length // Add this explicitly for completeness
+            stepsCompleted: routine.steps.length
         });
 
         // 2. Award Stars/XP to Profile (Fetch fresh to avoid stale state)
-        const freshProfile = await db.profiles.get(activeProfile.id);
+        const freshProfile = await ProfileService.get(activeProfile.id);
         if (freshProfile) {
             const totalStars = routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0);
-            await db.profiles.update(activeProfile.id, {
+            await ProfileService.update(activeProfile.id, {
                 stars: (freshProfile.stars || 0) + totalStars,
                 xp: (freshProfile.xp || 0) + 50
             });
@@ -463,7 +496,7 @@ function RoutinePlayerContent() {
         const timeTakenMs = Date.now() - startTimeRef.current;
         const minutes = Math.floor(timeTakenMs / 60000);
         const seconds = Math.floor((timeTakenMs % 60000) / 1000);
-        const timeString = `${minutes}m ${seconds}s`;
+        const timeString = `${minutes}m ${seconds} s`;
 
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 bg-[#EEF2FF] min-h-screen animate-in fade-in zoom-in duration-500">
@@ -528,7 +561,7 @@ function RoutinePlayerContent() {
     const isActive = true; // Always active in single view
 
     return (
-        <main className="h-screen bg-[#EEF2FF] flex flex-col font-sans overflow-hidden">
+        <main className="h-screen bg-gradient-to-b from-[#0B1120] via-[#111827] to-[#1E293B] flex flex-col font-sans overflow-hidden text-slate-100">
 
             {/* Skip Confirmation Modal */}
             <AnimatePresence>
@@ -537,63 +570,65 @@ function RoutinePlayerContent() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4"
                         onClick={() => setIsSkipModalOpen(false)}
                     >
                         {/* ... modal content ... */}
-                        <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center" onClick={e => e.stopPropagation()}>
-                            <h2 className="text-xl font-bold mb-4">Skip?</h2>
+                        <div className="bg-[#1E293B] border border-slate-700 rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+                            <h2 className="text-xl font-bold mb-4 text-white">Skip this step?</h2>
+                            <p className="text-slate-400 mb-6 text-sm">You won't earn stars for this step.</p>
                             <div className="flex gap-4 justify-center">
-                                <button onClick={() => setIsSkipModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-xl font-bold">Cancel</button>
-                                <button onClick={confirmSkip} className="px-4 py-2 bg-orange-100 text-orange-600 rounded-xl font-bold">Skip</button>
+                                <button onClick={() => setIsSkipModalOpen(false)} className="px-6 py-3 bg-slate-700/50 hover:bg-slate-700 rounded-xl font-bold text-slate-300 transition-colors">Cancel</button>
+                                <button onClick={confirmSkip} className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-bold transition-colors">Skip</button>
                             </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-            {/* NEW PLAYER LAYOUT */}
+
             {/* NEW LAYOUT: Header Bar + Scrollable Body */}
             <div className="flex flex-col h-full w-full relative z-10">
 
-                {/* 1. Yellow Header Bar */}
-                {/* 1. Yellow Header Bar */}
-                <div className="bg-[#FFF4C3] sticky top-0 z-50 shadow-sm flex-shrink-0 pt-[env(safe-area-inset-top)]">
+                {/* 1. Cosmic Header Bar */}
+                <div className="bg-[#0B1120]/80 backdrop-blur-md sticky top-0 z-50 border-b border-white/5 flex-shrink-0 pt-[env(safe-area-inset-top)]">
                     <div className="h-16 flex items-center justify-between px-4 w-full">
                         <button
                             onClick={() => router.back()}
-                            className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm active:scale-95"
+                            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white border border-white/10 shadow-sm active:scale-95 transition-all"
                         >
-                            <ArrowLeft className="w-6 h-6" />
+                            <ArrowLeft className="w-5 h-5" />
                         </button>
 
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-white border-2 border-white overflow-hidden shadow-sm flex items-center justify-center text-lg">
-                                {(() => {
-                                    const aid = activeProfile?.avatarId;
-                                    switch (aid) {
-                                        case 'boy': return '🧑‍🚀';
-                                        case 'girl': return '👩‍🚀';
-                                        case 'superhero': return '🦸';
-                                        case 'superhero_girl': return '🦸‍♀️';
-                                        case 'ninja': return '🥷';
-                                        case 'wizard': return '🧙';
-                                        case 'princess': return '👸';
-                                        case 'pirate': return '🏴‍☠️';
-                                        case 'alien': return '👽';
-                                        case 'robot': return '🤖';
-                                        case 'dinosaur': return '🦖';
-                                        case 'unicorn': return '🦄';
-                                        case 'dragon': return '🐉';
-                                        case 'rocket': return '🚀';
-                                        default: return '👶';
-                                    }
-                                })()}
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-[2px] shadow-lg shadow-purple-500/20">
+                                <div className="w-full h-full bg-[#0B1120] rounded-full flex items-center justify-center text-lg">
+                                    {(() => {
+                                        const aid = activeProfile?.avatarId;
+                                        switch (aid) {
+                                            case 'boy': return '🧑‍🚀';
+                                            case 'girl': return '👩‍🚀';
+                                            case 'superhero': return '🦸';
+                                            case 'superhero_girl': return '🦸‍♀️';
+                                            case 'ninja': return '🥷';
+                                            case 'wizard': return '🧙';
+                                            case 'princess': return '👸';
+                                            case 'pirate': return '🏴‍☠️';
+                                            case 'alien': return '👽';
+                                            case 'robot': return '🤖';
+                                            case 'dinosaur': return '🦖';
+                                            case 'unicorn': return '🦄';
+                                            case 'dragon': return '🐉';
+                                            case 'rocket': return '🚀';
+                                            default: return '👶';
+                                        }
+                                    })()}
+                                </div>
                             </div>
-                            <h1 className="font-extrabold text-gray-800 text-lg truncate max-w-[150px]">{routine.title}</h1>
+                            <h1 className="font-bold text-white text-base tracking-wide truncate max-w-[150px] opacity-90">{routine.title}</h1>
                         </div>
 
-                        <div className="bg-orange-100/50 px-3 py-1 rounded-full border border-orange-100">
-                            <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">
+                        <div className="bg-indigo-500/20 px-3 py-1.5 rounded-full border border-indigo-500/30">
+                            <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
                                 Task {currentStepIndex + 1}/{routine.steps.length}
                             </span>
                         </div>
@@ -603,87 +638,94 @@ function RoutinePlayerContent() {
                 {/* 2. Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center pb-32">
 
-                    {/* Top Section: Progress Dome & Stars */}
-                    <div className="w-full bg-gradient-to-b from-[#FFF4C3] to-[#EEF2FF] rounded-b-[3rem] pb-8 pt-4 flex flex-col items-center relative mb-4">
+                    {/* Top Section: Glowing Progress Dome */}
+                    <div className="w-full relative flex flex-col items-center pt-8 pb-4">
+                        {/* Background Glow */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-64 bg-indigo-600/20 blur-[80px] rounded-full pointer-events-none"></div>
 
                         {/* Progress Dome (Half Circle) */}
-                        <div className="relative w-48 h-24 mt-2">
-                            <svg className="w-full h-full overflow-visible">
+                        <div className="relative w-56 h-32 mt-4 z-10">
+                            <svg className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+                                <defs>
+                                    <linearGradient id="gradientMetrics" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stopColor="#818cf8" />
+                                        <stop offset="100%" stopColor="#c084fc" />
+                                    </linearGradient>
+                                </defs>
                                 {/* Track (Semi Circle) */}
                                 <path
-                                    d="M 10,96 A 86,86 0 0,1 182,96"
+                                    d="M 12,110 A 100,100 0 0,1 212,110"
                                     fill="none"
-                                    stroke="white"
-                                    strokeWidth="12"
+                                    stroke="rgba(255,255,255,0.1)"
+                                    strokeWidth="16"
                                     strokeLinecap="round"
                                 />
                                 {/* Progress (Semi Circle) */}
                                 {isActive && (
                                     <path
-                                        d="M 10,96 A 86,86 0 0,1 182,96"
+                                        d="M 12,110 A 100,100 0 0,1 212,110"
                                         fill="none"
-                                        stroke="#3B82F6"
-                                        strokeWidth="12"
+                                        stroke="url(#gradientMetrics)"
+                                        strokeWidth="16"
                                         strokeLinecap="round"
-                                        strokeDasharray={270} // Approx arc length
-                                        strokeDashoffset={270 - (progressFraction * 270)}
-                                        className="transition-all duration-1000 ease-linear"
+                                        strokeDasharray={314} // Approx arc length for r=100 (PI * 100)
+                                        strokeDashoffset={314 - (progressFraction * 314)}
+                                        className="transition-all duration-1000 ease-out"
                                         id="progress-arc"
                                     />
                                 )}
                             </svg>
 
                             {/* Floating Star Badge on top of Arc */}
-                            <div className="absolute -top-4 right-1/2 translate-x-1/2 w-12 h-12 bg-white rounded-full shadow-md flex flex-col items-center justify-center border-2 border-yellow-100">
-                                <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                                <span className="text-[10px] font-black text-gray-700 leading-none">{accumulatedStars}</span>
+                            <div className="absolute -top-5 right-1/2 translate-x-1/2 w-14 h-14 bg-[#1E293B] rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center border-2 border-[#334155] z-20">
+                                <Star className="w-6 h-6 fill-yellow-400 text-yellow-500 drop-shadow-sm" />
+                                <span className="text-[11px] font-black text-white leading-none mt-0.5">{accumulatedStars}</span>
                             </div>
 
                             {/* Time Display (Inside Dome) */}
-                            <div className="absolute top-8 left-0 right-0 text-center flex flex-col items-center">
-                                <span className="text-4xl font-black text-gray-800 tracking-tight">{isActive ? formatTime(timeLeft) : `${currentStep.duration || 2}:00`}</span>
-                                <span className="text-lg font-bold text-blue-500">{Math.round(progressFraction * 100)}%</span>
+                            <div className="absolute top-10 left-0 right-0 text-center flex flex-col items-center">
+                                <span className={`text-5xl font-black tracking-tight drop-shadow-lg ${timeLeft <= 30 && isRunning ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                    {isActive ? formatTime(timeLeft) : `${currentStep.duration || 2}:00`}
+                                </span>
+                                <span className="text-sm font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">
+                                    {isRunning ? 'Remaining' : 'Time'}
+                                </span>
                             </div>
                         </div>
-
-
-
                     </div>
 
-                    {/* 3. Character & Content */}
-                    <div className="w-full max-w-sm px-6 flex flex-col items-center">
-
-
+                    {/* 3. Character & Content Card */}
+                    <div className="w-full max-w-sm px-6 flex flex-col items-center relative z-10">
 
                         {/* Title */}
-                        <h2 className="text-3xl font-black text-slate-800 text-center mb-2 mt-8 leading-tight flex items-center justify-center gap-3">
-                            <span className="text-4xl filter drop-shadow-sm">
+                        <div className="text-center mb-6 mt-2 animate-in slide-in-from-bottom-5 fade-in duration-500">
+                            <div className="text-5xl mb-3 filter drop-shadow-lg animate-bounce-slow inline-block">
                                 {currentStep.icon?.length < 3 ? currentStep.icon : (currentStep.icon === 'toothbrush' ? '🦷' : '✨')}
-                            </span>
-                            <span>{currentStep.title}</span>
-                        </h2>
+                            </div>
+                            <h2 className="text-3xl font-black text-white leading-tight drop-shadow-md">
+                                {currentStep.title}
+                            </h2>
+                        </div>
 
-                        {/* Instruction List (Split description) */}
-                        <div className="w-full bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6">
-                            <ul className="space-y-2 text-slate-600 font-medium text-sm text-left">
+                        {/* Instruction Card */}
+                        <div className="w-full bg-[#1E293B]/80 backdrop-blur-md rounded-[24px] p-6 shadow-xl border border-white/5 mb-6">
+                            <ul className="space-y-4 text-slate-200 font-medium text-[15px] text-left">
                                 {(currentStep.description || "Follow the steps carefully!").split('. ').map((sentence, i) => (
                                     sentence.trim() && (
-                                        <li key={i} className="flex gap-2 items-start">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0"></div>
-                                            <span>{sentence.trim()}{sentence.trim().endsWith('.') ? '' : '.'}</span>
+                                        <li key={i} className="flex gap-3 items-start">
+                                            <div className="w-2 h-2 rounded-full bg-indigo-400 mt-2 flex-shrink-0 shadow-[0_0_8px_rgba(129,140,248,0.5)]"></div>
+                                            <span className="leading-relaxed opacity-90">{sentence.trim()}{sentence.trim().endsWith('.') ? '' : '.'}</span>
                                         </li>
                                     )
                                 ))}
                             </ul>
                         </div>
 
-                        {/* Audio Controls Box */}
-                        <div className="w-full bg-white rounded-[2rem] p-4 shadow-[0_10px_30px_-5px_rgba(0,0,0,0.05)] border border-slate-50 relative overflow-hidden">
-                            {/* Glossy overlay */}
-                            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent pointer-events-none"></div>
+                        {/* Control Deck */}
+                        <div className="w-full bg-[#0F172A]/60 backdrop-blur-xl rounded-[2rem] p-5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/5 relative overflow-hidden group">
 
                             {/* Controls Row */}
-                            <div className="flex items-center justify-between gap-4 px-2 mb-4 mt-2">
+                            <div className="flex items-center justify-between gap-4 px-2 mb-5 mt-1">
                                 <button
                                     onClick={() => {
                                         if (currentStepIndex > 0) {
@@ -692,16 +734,16 @@ function RoutinePlayerContent() {
                                         }
                                     }}
                                     disabled={currentStepIndex === 0}
-                                    className="p-3 text-slate-300 hover:text-slate-500 disabled:opacity-20 transition-colors"
+                                    className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent transition-all"
                                 >
-                                    <SkipBack className="w-8 h-8 fill-current" />
+                                    <SkipBack className="w-6 h-6 fill-current" />
                                 </button>
 
                                 <button
                                     onClick={toggleTimer}
-                                    className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${isRunning
-                                        ? 'bg-gradient-to-br from-teal-400 to-emerald-500 shadow-emerald-500/30'
-                                        : 'bg-gradient-to-br from-blue-400 to-indigo-500 shadow-blue-500/30'
+                                    className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.3)] transition-all active:scale-95 group-hover:shadow-[0_0_40px_rgba(99,102,241,0.2)] border-4 ${isRunning
+                                        ? 'bg-gradient-to-br from-teal-500 to-emerald-600 border-[#0F172A] shadow-emerald-500/20'
+                                        : 'bg-gradient-to-br from-indigo-500 to-violet-600 border-[#0F172A] shadow-indigo-500/20'
                                         }`}
                                 >
                                     {isRunning ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />}
@@ -709,27 +751,25 @@ function RoutinePlayerContent() {
 
                                 <button
                                     onClick={() => setIsSkipModalOpen(true)}
-                                    className="p-3 text-slate-300 hover:text-slate-500 transition-colors"
+                                    className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
                                 >
-                                    <SkipForward className="w-8 h-8 fill-current" />
+                                    <SkipForward className="w-6 h-6 fill-current" />
                                 </button>
                             </div>
 
                             {/* Timeline */}
-                            <div className="flex items-center gap-3 px-2">
-                                <span className="text-[10px] font-bold text-slate-400 w-8 text-right tabular-nums">
-                                    {formatTime(totalTime - timeLeft)}
-                                </span>
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="relative px-2 pt-2">
+                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-2 tracking-wider uppercase">
+                                    <span>Elapsed</span>
+                                    <span>Total</span>
+                                </div>
+                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden relative">
                                     <motion.div
-                                        className="h-full bg-blue-400 rounded-full"
+                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"
                                         animate={{ width: `${((totalTime - timeLeft) / totalTime) * 100}%` }}
                                         transition={{ duration: 1, ease: 'linear' }}
                                     />
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-400 w-8 tabular-nums">
-                                    {formatTime(totalTime)}
-                                </span>
                             </div>
                         </div>
 
@@ -737,14 +777,16 @@ function RoutinePlayerContent() {
                 </div>
 
                 {/* Sticky Bottom Actions */}
-                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-50 via-slate-50/90 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
+                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0B1120] via-[#0B1120]/95 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
                     <button
                         onClick={handleStepComplete}
                         disabled={isCompleting}
-                        className={`w-full max-w-md bg-[#1E293B] text-white text-lg font-bold py-4 rounded-3xl transition-all flex items-center justify-center gap-2 shadow-xl pointer-events-auto ${isCompleting ? 'opacity-80 scale-95' : 'active:scale-[0.98]'}`}
+                        className={`w-full max-w-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white text-xl font-black py-4 rounded-[2rem] transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.4)] border border-green-400/20 pointer-events-auto ${isCompleting ? 'opacity-80 scale-95' : 'active:scale-[0.98] hover:scale-[1.02]'}`}
                     >
-                        <span>I'm Done!</span>
-                        <Check className="w-6 h-6" />
+                        <span>I Did It!</span>
+                        <div className="bg-white/20 p-1.5 rounded-full">
+                            <Check className="w-5 h-5 stroke-[3]" />
+                        </div>
                     </button>
                 </div>
 
@@ -758,23 +800,24 @@ function RoutinePlayerContent() {
                         initial={{
                             x: star.start.x,
                             y: star.start.y,
-                            scale: 1,
-                            opacity: 1
+                            scale: 0.2, // Start even smaller
+                            opacity: 0
                         }}
                         animate={{
                             x: star.end.x,
                             y: star.end.y,
-                            scale: 0.5,
-                            rotate: 360
+                            scale: [1, 0.5], // Pop then shrink
+                            opacity: 1,
+                            rotate: 720
                         }}
                         exit={{ opacity: 0, scale: 0 }}
                         transition={{
-                            duration: 0.4,
-                            ease: "backIn"
+                            duration: 0.5,
+                            ease: "circOut"
                         }}
-                        className="fixed top-0 left-0 z-[100] w-8 h-8 text-yellow-400 pointer-events-none drop-shadow-xl"
+                        className="fixed top-0 left-0 z-[100] w-10 h-10 pointer-events-none filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]"
                     >
-                        <Star className="w-full h-full fill-yellow-400 stroke-yellow-600" />
+                        <Star className="w-full h-full fill-yellow-300 text-yellow-100" />
                     </motion.div>
                 ))}
             </AnimatePresence>

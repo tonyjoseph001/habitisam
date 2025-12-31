@@ -3,41 +3,45 @@
 import React from 'react';
 import Link from 'next/link';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import React from 'react';
+import Link from 'next/link';
+import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ShoppingBag, Star, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { usePurchases } from '@/lib/hooks/usePurchases';
+import { toast } from 'sonner';
+import { PurchaseLog } from '@/lib/db';
 
 export default function PurchaseHistoryPage() {
     const { user } = useAuth();
     const { activeProfile } = useSessionStore();
     const accountId = user?.uid || activeProfile?.accountId;
 
-    const purchases = useLiveQuery(async () => {
-        if (!accountId) return [];
+    const { profiles } = useProfiles();
+    const { purchases: rawPurchases, approvePurchase, rejectPurchase } = usePurchases();
 
-        const logs = await db.purchaseLogs
-            .where('accountId')
-            .equals(accountId)
-            .reverse()
-            .sortBy('purchasedAt');
-
-        const enrichedLogs = await Promise.all(logs.map(async (log) => {
-            const profile = await db.profiles.get(log.profileId);
-            return {
-                ...log,
-                profileName: profile?.name,
-                profileAvatarId: profile?.avatarId,
-                profileColorTheme: profile?.colorTheme
-            };
-        }));
-
-        return enrichedLogs;
-    }, [accountId]);
+    // Enrich logs with profile data
+    const purchases = rawPurchases.map(log => {
+        const profile = profiles?.find(p => p.id === log.profileId);
+        return {
+            ...log,
+            profileName: profile?.name,
+            profileAvatarId: profile?.avatarId,
+            profileColorTheme: profile?.colorTheme
+        };
+    }).sort((a, b) => {
+        // Sort by purchasedAt descending
+        // purchasedAt can be Timestamp or Date depending on source/converter? 
+        // Converters usually return JS Date for Timestamps.
+        const dateA = a.purchasedAt instanceof Date ? a.purchasedAt : new Date(a.purchasedAt);
+        const dateB = b.purchasedAt instanceof Date ? b.purchasedAt : new Date(b.purchasedAt);
+        return dateB.getTime() - dateA.getTime();
+    });
 
     const pendingPurchases = purchases?.filter(p => p.status === 'pending') || [];
     const historyPurchases = purchases?.filter(p => p.status !== 'pending') || [];
@@ -74,79 +78,22 @@ export default function PurchaseHistoryPage() {
 
     const handleApprove = async (log: any) => {
         try {
-            await db.transaction('rw', db.profiles, db.purchaseLogs, db.inboxRewards, async () => {
-                // 1. Deduct Stars
-                const profile = await db.profiles.get(log.profileId);
-
-                if (!profile) {
-                    // Profile missing logic handled outside or just ignored here for simplicity in transaction
-                    return;
-                    // Note: If profile missing, main catch might trigger, or we just silently fail the transaction constraints? 
-                    // Actually getting undefined is valid JS.
-                }
-
-                const cost = log.rewardSnapshot.cost;
-                const currentStars = profile.stars || 0;
-                const newStars = Math.max(0, currentStars - cost);
-
-                await db.profiles.update(profile.id, { stars: newStars });
-
-                // 2. Update Log
-                await db.purchaseLogs.update(log.id, {
-                    status: 'approved',
-                    processedAt: new Date()
-                });
-
-                // 3. Notify Child
-                await db.inboxRewards.add({
-                    id: crypto.randomUUID(),
-                    accountId: log.accountId,
-                    profileId: log.profileId,
-                    amount: 0, // Information only
-                    message: `Request Approved: ${log.rewardSnapshot.title}`,
-                    senderName: "Parent",
-                    status: 'pending',
-                    createdAt: new Date()
-                });
-            });
-
-            // If profile was missing, we handle it separately? 
-            // The transaction block above assumes profile exists. 
-            // If we want to handle "Profile Not Found", we check it before transaction or inside and throw.
-            // But existing code had a confirm prompt. That's async UI. Cannot be in transaction easily.
-            // For now, I'll stick to the core happy path + notification. 
-            // Cleanup of orphaned logs can be separate.
-
+            // Need to cast log back to PurchaseLog or ensure type compatibility
+            await approvePurchase(log as PurchaseLog);
+            toast.success("Request approved");
         } catch (e) {
             console.error(e);
-            alert("Failed to approve");
+            toast.error("Failed to approve");
         }
     };
 
     const handleReject = async (log: any) => {
         try {
-            await db.transaction('rw', db.profiles, db.purchaseLogs, db.inboxRewards, async () => {
-                // 1. Update Log
-                await db.purchaseLogs.update(log.id, {
-                    status: 'rejected',
-                    processedAt: new Date()
-                });
-
-                // 2. Notify Child
-                await db.inboxRewards.add({
-                    id: crypto.randomUUID(),
-                    accountId: log.accountId,
-                    profileId: log.profileId,
-                    amount: 0, // Information only
-                    message: `Request Rejected: ${log.rewardSnapshot.title}`,
-                    senderName: "Parent",
-                    status: 'pending',
-                    createdAt: new Date()
-                });
-            });
+            await rejectPurchase(log as PurchaseLog);
+            toast.success("Request rejected");
         } catch (e) {
             console.error(e);
-            alert("Failed to reject");
+            toast.error("Failed to reject");
         }
     };
 

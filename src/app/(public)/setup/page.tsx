@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { db, type Profile } from "@/lib/db";
+import { type Profile } from "@/lib/db";
+import { ProfileService } from "@/lib/firestore/profiles.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/store/useSessionStore";
@@ -19,6 +20,13 @@ export default function SetupPage() {
     const [name, setName] = useState("");
     const [pin, setPin] = useState(["", "", "", ""]);
     const [error, setError] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    React.useEffect(() => {
+        if (!loading && !user) {
+            router.push("/login"); // Security redirect
+        }
+    }, [user, loading, router]);
 
     const handlePinChange = (index: number, value: string) => {
         if (!/^\d*$/.test(value)) return; // Only allow digits
@@ -54,9 +62,16 @@ export default function SetupPage() {
             return;
         }
 
-        if (!user) return;
+        if (!user) {
+            setError("Session lost. Please log in again.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError(""); // Clear previous errors
 
         try {
+            console.log("Creating profile for:", user.uid);
             // Create new Parent Profile
             const newProfile: Profile = {
                 id: uuidv4(),
@@ -69,12 +84,18 @@ export default function SetupPage() {
                 createdAt: new Date()
             };
 
-            await db.profiles.add(newProfile as any);
+            // Race Firestore against a timeout to prevent infinite hang
+            await Promise.race([
+                ProfileService.add(newProfile),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Database connection timed out - please try again")), 30000))
+            ]);
             setActiveProfile(newProfile);
+            console.log("Profile created, redirecting...");
             router.push("/parent/dashboard");
         } catch (err) {
             console.error("Setup failed", err);
-            setError("Failed to create profile. Please try again.");
+            setError("Failed to create profile. Please try again. " + (err as Error).message);
+            setIsSubmitting(false);
         }
     };
 
@@ -157,8 +178,10 @@ export default function SetupPage() {
                         size="lg"
                         className="w-full h-14 text-lg font-bold rounded-xl shadow-lg shadow-violet-200 active:scale-95 transition-all"
                         onClick={handleCompleteSetup}
+                        disabled={isSubmitting}
                     >
-                        Complete Setup <ArrowRight className="ml-2 w-5 h-5" />
+                        {isSubmitting ? "Creating Profile..." : "Complete Setup"}
+                        {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
                     </Button>
                 </div>
             </motion.div>

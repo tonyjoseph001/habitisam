@@ -4,26 +4,31 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { useRoutines } from '@/lib/hooks/useRoutines';
+import { useGoals } from '@/lib/hooks/useGoals';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { ProfileService } from '@/lib/firestore/profiles.service';
+import { LogService } from '@/lib/firestore/logs.service';
 import { ParentHeader } from '@/components/layout/ParentHeader';
 import { Plus, Edit2, Trash2, ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 
 export default function RoutinesPage() {
     const router = useRouter();
     const { routines, deleteRoutine } = useRoutines();
+    const { goals: fetchedGoals, deleteGoal, updateGoal } = useGoals();
+    const { profiles: fetchedProfiles } = useProfiles();
+
+    const goals = fetchedGoals || [];
+    const profiles = fetchedProfiles || [];
+
     const [activeTab, setActiveTab] = React.useState<'routines' | 'goals'>('routines');
     const [deletingItem, setDeletingItem] = React.useState<{ id: string, type: 'routine' | 'goal', title: string } | null>(null);
     const [approvingGoal, setApprovingGoal] = React.useState<any | null>(null);
     const [rejectingGoal, setRejectingGoal] = React.useState<any | null>(null);
     const [awardStars, setAwardStars] = React.useState<number>(0);
-
-    const goals = useLiveQuery(() => db.goals.toArray());
-    const profiles = useLiveQuery(() => db.profiles.toArray());
 
     const handleOpenNew = () => {
         router.push('/parent/routines/new');
@@ -44,12 +49,17 @@ export default function RoutinesPage() {
     const confirmDelete = async () => {
         if (!deletingItem) return;
 
-        if (deletingItem.type === 'goal') {
-            await db.goals.delete(deletingItem.id);
-            toast.success("Goal deleted");
-        } else if (deletingItem.type === 'routine') {
-            await deleteRoutine(deletingItem.id);
-            toast.success("Routine deleted");
+        try {
+            if (deletingItem.type === 'goal') {
+                await deleteGoal(deletingItem.id);
+                toast.success("Goal deleted");
+            } else if (deletingItem.type === 'routine') {
+                await deleteRoutine(deletingItem.id);
+                toast.success("Routine deleted");
+            }
+        } catch (error) {
+            console.error("Delete failed", error);
+            toast.error("Failed to delete item");
         }
         setDeletingItem(null);
     };
@@ -64,42 +74,45 @@ export default function RoutinesPage() {
     const handleConfirmApprove = async () => {
         if (!approvingGoal || !approvingGoal.profileId) return;
 
-        // 1. Mark goal completed
-        await db.goals.update(approvingGoal.id, {
-            status: 'completed',
-            completedAt: new Date()
-        });
-
-        // 2. Add stars to profile (use awardStars state)
-        // 2. Add stars to profile (use awardStars state)
-        // Fetch fresh profile to ensure we update correct balance
-        const profile = await db.profiles.get(approvingGoal.profileId);
-
-        if (profile) {
-            const newStars = (profile.stars || 0) + awardStars;
-            await db.profiles.update(profile.id, { stars: newStars });
-
-            // 3. Log Activity for Child Feed
-            await db.activityLogs.add({
-                id: crypto.randomUUID(),
-                accountId: approvingGoal.accountId,
-                profileId: approvingGoal.profileId,
-                activityId: approvingGoal.id, // Link to Goal ID
-                date: new Date().toISOString().split('T')[0],
+        try {
+            // 1. Mark goal completed
+            await updateGoal(approvingGoal.id, {
                 status: 'completed',
-                completedAt: new Date(),
-                starsEarned: awardStars,
-                metadata: {
-                    type: 'goal',
-                    title: approvingGoal.title,
-                    goalType: approvingGoal.type
-                }
+                completedAt: new Date().toISOString() as any
             });
 
-            toast.success(`Approved! Awarded ${awardStars} stars.`);
-        } else {
-            console.error("Profile not found for approval", approvingGoal.profileId);
-            toast.error("Could not find child profile to award stars.");
+            // 2. Add stars to profile (use awardStars state)
+            const profile = profiles.find(p => p.id === approvingGoal.profileId);
+
+            if (profile) {
+                const newStars = (profile.stars || 0) + awardStars;
+                await ProfileService.update(profile.id, { stars: newStars });
+
+                // 3. Log Activity for Child Feed
+                await LogService.add({
+                    id: crypto.randomUUID(),
+                    accountId: approvingGoal.accountId,
+                    profileId: approvingGoal.profileId,
+                    activityId: approvingGoal.id, // Link to Goal ID
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'completed',
+                    completedAt: new Date().toISOString(),
+                    starsEarned: awardStars,
+                    metadata: {
+                        type: 'goal',
+                        title: approvingGoal.title,
+                        goalType: approvingGoal.type
+                    }
+                });
+
+                toast.success(`Approved! Awarded ${awardStars} stars.`);
+            } else {
+                console.error("Profile not found for approval", approvingGoal.profileId);
+                toast.error("Could not find child profile to award stars.");
+            }
+        } catch (error) {
+            console.error("Approval failed", error);
+            toast.error("Failed to approve goal");
         }
 
         setApprovingGoal(null);
@@ -112,12 +125,17 @@ export default function RoutinesPage() {
     const handleConfirmReject = async () => {
         if (!rejectingGoal) return;
 
-        await db.goals.update(rejectingGoal.id, {
-            status: 'active',
-            current: rejectingGoal.type === 'binary' ? 0 : rejectingGoal.current, // Reset binary? Or keep progress? Keeping for now but setting status active.
-            completedAt: undefined // Clear completedAt if it was set
-        });
-        toast.info("Goal rejected and set back to active.");
+        try {
+            await updateGoal(rejectingGoal.id, {
+                status: 'active',
+                current: rejectingGoal.type === 'binary' ? 0 : rejectingGoal.current, // Reset binary? Or keep progress? Keeping for now but setting status active.
+                completedAt: undefined // Clear completedAt if it was set
+            });
+            toast.info("Goal rejected and set back to active.");
+        } catch (error) {
+            console.error("Reject failed", error);
+            toast.error("Failed to reject goal");
+        }
         setRejectingGoal(null);
     };
 

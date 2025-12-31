@@ -5,12 +5,14 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Home, Gift, CheckSquare, List, AlertCircle, ArrowRight, X, Clock, ShoppingBag, Package } from 'lucide-react';
 import Link from 'next/link';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { createPortal } from 'react-dom';
 import { type Reward } from '@/lib/db';
 import ChildHeader from '@/components/child/ChildHeader';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRewards } from '@/lib/hooks/useRewards';
+import { usePurchases } from '@/lib/hooks/usePurchases';
+import { toast } from 'sonner';
 
 const REWARD_PALETTE = ['#ff595e', '#ffca3a', '#8ac926', '#1982c4', '#6a4c93', '#ff9f1c'];
 
@@ -23,39 +25,34 @@ export default function ChildShopPage() {
     const [isSuccess, setIsSuccess] = useState(false);
     const [activeTab, setActiveTab] = useState<'shop' | 'inventory'>('shop');
 
+    const { profiles } = useProfiles();
+    const { rewards: allRewards } = useRewards();
+    const { purchases: allPurchases, addPurchase, claimInstant } = usePurchases();
+
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const liveProfile = useLiveQuery(
-        () => db.profiles.get(activeProfile?.id || ''),
-        [activeProfile?.id]
-    );
+    const liveProfile = profiles?.find(p => p.id === activeProfile?.id);
 
-    const rewards = useLiveQuery(async () => {
-        if (!activeProfile) return [];
-        const allRewards = await db.rewards.toArray();
-        return allRewards.filter(r => {
-            return !r.assignedProfileIds ||
-                r.assignedProfileIds.length === 0 ||
-                r.assignedProfileIds.includes(activeProfile.id);
-        });
-    }, [activeProfile?.id]);
+    // Filter rewards for this child
+    const rewards = allRewards?.filter(r => {
+        if (!activeProfile) return false;
+        return !r.assignedProfileIds ||
+            r.assignedProfileIds.length === 0 ||
+            r.assignedProfileIds.includes(activeProfile.id);
+    }) || [];
 
-    const purchaseHistory = useLiveQuery(async () => {
-        if (!activeProfile) return [];
-        return await db.purchaseLogs
-            .where({ profileId: activeProfile.id })
-            .reverse()
-            .sortBy('purchasedAt');
-    }, [activeProfile?.id]);
+    // Filter history for this child
+    const purchaseHistory = allPurchases?.filter(p =>
+        p.profileId === activeProfile?.id
+    ).sort((a, b) => {
+        const dateA = new Date(a.purchasedAt).getTime();
+        const dateB = new Date(b.purchasedAt).getTime();
+        return dateB - dateA;
+    }) || [];
 
-    const pendingRequests = useLiveQuery(async () => {
-        if (!activeProfile) return [];
-        return await db.purchaseLogs
-            .where({ profileId: activeProfile.id, status: 'pending' })
-            .toArray();
-    }, [activeProfile?.id]);
+    const pendingRequests = purchaseHistory.filter(p => p.status === 'pending');
 
     const handleClaimClick = (reward: Reward) => {
         setSelectedReward(reward);
@@ -68,26 +65,22 @@ export default function ChildShopPage() {
 
         const requiresApproval = selectedReward.requiresApproval !== false;
 
-        if (requiresApproval) {
-            await db.purchaseLogs.add({
-                id: crypto.randomUUID(),
-                accountId: activeProfile.accountId,
-                profileId: activeProfile.id,
-                rewardSnapshot: {
-                    id: selectedReward.id,
-                    title: selectedReward.title,
-                    icon: selectedReward.icon,
-                    cost: selectedReward.cost,
-                },
-                status: 'pending',
-                purchasedAt: new Date(),
-            });
-        } else {
-            await db.transaction('rw', db.profiles, db.purchaseLogs, async () => {
-                const newBalance = Math.max(0, (activeProfile.stars || 0) - selectedReward.cost);
-                await db.profiles.update(activeProfile.id, { stars: newBalance });
-
-                await db.purchaseLogs.add({
+        try {
+            if (requiresApproval) {
+                await addPurchase({
+                    profileId: activeProfile.id,
+                    rewardSnapshot: {
+                        id: selectedReward.id,
+                        title: selectedReward.title,
+                        icon: selectedReward.icon,
+                        cost: selectedReward.cost,
+                    },
+                    status: 'pending',
+                    purchasedAt: new Date(),
+                });
+            } else {
+                // Instant claim
+                await claimInstant({
                     id: crypto.randomUUID(),
                     accountId: activeProfile.accountId,
                     profileId: activeProfile.id,
@@ -100,10 +93,13 @@ export default function ChildShopPage() {
                     status: 'approved',
                     purchasedAt: new Date(),
                 });
-            });
-        }
+            }
 
-        setIsSuccess(true);
+            setIsSuccess(true);
+        } catch (error) {
+            console.error("Claim failed", error);
+            toast.error("Failed to claim reward");
+        }
     };
 
     const handleCloseModal = () => {

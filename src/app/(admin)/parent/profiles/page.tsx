@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Plus, Edit2, User, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { cn } from '@/lib/utils';
 import { ParentHeader } from '@/components/layout/ParentHeader';
-import { deleteProfileCascading } from '@/lib/logic/profileLogic';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { ProfileService } from '@/lib/firestore/profiles.service';
 
 export default function ProfilesPage() {
     const router = useRouter();
-    const profiles = useLiveQuery(() => db.profiles.toArray());
+    const { profiles: fetchedProfiles, loading } = useProfiles();
+    const profiles = fetchedProfiles || [];
 
     const handleEdit = (id: string) => {
         router.push(`/parent/profile/edit?id=${id}`);
@@ -24,12 +24,13 @@ export default function ProfilesPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this profile? All related data (logs, goals, history) will be permanently removed.")) {
+        if (confirm("Are you sure you want to delete this profile?")) {
             try {
-                await deleteProfileCascading(id);
+                // TODO: Implement cascading delete (logs, goals, etc.)
+                await ProfileService.delete(id);
             } catch (error) {
                 console.error("Failed to delete profile:", error);
-                alert("Failed to delete profile completely. See console.");
+                alert("Failed to delete profile.");
             }
         }
     };

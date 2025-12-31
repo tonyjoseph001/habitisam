@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { db, ThemeType } from '@/lib/db';
+import { ThemeType } from '@/lib/db';
 
 type ThemeContextType = {
     theme: ThemeType;

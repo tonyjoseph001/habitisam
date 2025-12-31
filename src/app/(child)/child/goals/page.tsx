@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { db, Goal } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { Goal } from '@/lib/db';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Check } from 'lucide-react';
 
@@ -13,6 +12,8 @@ import { cn } from '@/lib/utils';
 import ChildHeader from '@/components/child/ChildHeader';
 import { GoalSlider } from '@/components/child/GoalSlider';
 import { toast } from 'sonner';
+import { useGoals } from '@/lib/hooks/useGoals';
+import { GoalService } from '@/lib/firestore/goals.service';
 
 export default function ChildGoalsPage() {
     const RenderIcon = ({ name }: { name: string }) => {
@@ -22,25 +23,11 @@ export default function ChildGoalsPage() {
         return <span className="text-3xl leading-none">{name}</span>;
     };
     const { activeProfile } = useSessionStore();
-    const [mockGoals, setMockGoals] = useState<Goal[]>([]);
     const [confirmationGoal, setConfirmationGoal] = useState<Goal | null>(null);
     const [confirmationType, setConfirmationType] = useState<'complete' | 'cancel'>('complete');
-    const [checklistModalGoal, setChecklistModalGoal] = useState<Goal | null>(null); // For checklist modal
+    const [checklistModalGoal, setChecklistModalGoal] = useState<Goal | null>(null);
 
-    // Real Data Query
-    const goals = useLiveQuery(async () => {
-        if (!activeProfile) return [];
-        return await db.goals
-            .where('profileId').equals(activeProfile.id)
-            .toArray();
-    }, [activeProfile?.id]);
-
-    // Seed Default Data logic removed per user request
-    /*
-    useEffect(() => {
-        // ... removed
-    }, [activeProfile?.id]);
-    */
+    const { goals } = useGoals(activeProfile?.id);
 
     // Format Helpers
     const getStatusColor = (goal: Goal) => {
@@ -48,7 +35,6 @@ export default function ChildGoalsPage() {
         // We can randomize or use specific logic based on type
         switch (goal.type) {
             case 'checklist': return 'purple';
-
             case 'counter': return 'green';
             case 'binary': return 'orange';
             case 'savings': return 'yellow';
@@ -73,35 +59,25 @@ export default function ChildGoalsPage() {
     const updateGoalProgress = async (goal: Goal, newCurrent: number) => {
         try {
             // Clamp current between 0 and target (unless overachievement allowed? let's clamp for now)
-            // Actually for savings/counter allows going over target usually.
-            // For binary, max is 1.
             let val = newCurrent;
             if (val < 0) val = 0;
             if (goal.type === 'binary' && val > 1) val = 1;
 
-            // Limit to target (except maybe savings? let's clamp ALL for now to prevent confusion)
             if (val > goal.target) val = goal.target;
 
-            // Check completion
-            let newStatus = goal.status;
-            if (val >= goal.target && goal.status === 'active') {
-                // If goal met, mark pending approval or completed?
-            }
-
-            await db.goals.update(goal.id, { current: val });
+            await GoalService.update(goal.id, { current: val });
         } catch (err) { console.error("Failed to update goal", err); }
     };
 
     const handleCounter = async (goal: any, increment: number) => {
         if (goal.status !== 'active') return;
         const newCurrent = Math.max(0, Math.min(goal.target, goal.current + increment));
-        await db.goals.update(goal.id, { current: newCurrent });
+        await GoalService.update(goal.id, { current: newCurrent });
     };
     const handleGoalValueUpdate = async (goal: any, value: number) => {
         if (goal.status !== 'active') return;
-        await db.goals.update(goal.id, { current: value });
+        await GoalService.update(goal.id, { current: value });
     };
-
 
     const handleBinary = (goal: Goal) => {
         setConfirmationGoal(goal);
@@ -157,33 +133,30 @@ export default function ChildGoalsPage() {
         }
 
         const completedCount = newChecklist.filter(i => {
-            if (typeof i === 'string') return false; // purely string implied incomplete in this legacy mix context? usually strings were just text.
-            // actually, if it's a string, it's NOT completed (legacy data has no state).
+            if (typeof i === 'string') return false;
             return i.completed;
         }).length;
 
         // Update both local modal state (so UI updates) AND db
         setChecklistModalGoal({ ...goal, checklist: newChecklist, current: completedCount });
 
-        await db.goals.update(goal.id, {
-            checklist: newChecklist as any, // casting for legacy mix
+        await GoalService.update(goal.id, {
+            checklist: newChecklist,
             current: completedCount
         });
     };
 
-
-
     const confirmCompletion = async () => {
         if (confirmationGoal) {
             if (confirmationType === 'cancel') {
-                await db.goals.update(confirmationGoal.id, {
+                await GoalService.update(confirmationGoal.id, {
                     status: 'cancelled',
                     completedAt: new Date()
                 });
                 toast.info("Goal cancelled.");
             } else {
                 // Complete
-                await db.goals.update(confirmationGoal.id, {
+                await GoalService.update(confirmationGoal.id, {
                     status: 'pending_approval',
                     current: confirmationGoal.target,
                     completedAt: new Date()

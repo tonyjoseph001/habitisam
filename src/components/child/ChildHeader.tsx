@@ -4,37 +4,25 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { Bell, Star, ChevronLeft } from 'lucide-react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useInbox } from '@/lib/hooks/useInbox';
 
 export default function ChildHeader({ showBack = false, title }: { showBack?: boolean; title?: string }) {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
+    const { profiles } = useProfiles();
+    const { inboxItems } = useInbox(activeProfile?.id);
+
     // Live Profile Data to catch Star updates AND Pending Rewards
-    const liveProfile = useLiveQuery(
-        async () => {
-            if (!activeProfile) return null;
-            const profile = await db.profiles.get(activeProfile.id);
-            if (!profile) return null;
+    const currentProfile = profiles.find(p => p.id === activeProfile?.id);
+    const pendingCount = inboxItems?.filter(r => r.status === 'pending').length || 0;
 
-            // Fetch pending rewards count
-            const pendingCount = await db.inboxRewards
-                .where('profileId')
-                .equals(activeProfile.id)
-                .filter(r => r.status === 'pending')
-                .count();
+    const displayProfile = currentProfile ? { ...currentProfile, pendingRewardCount: pendingCount } : activeProfile ? { ...activeProfile, pendingRewardCount: pendingCount } : null;
 
-            return { ...profile, pendingRewardCount: pendingCount };
-        },
-        [activeProfile?.id]
-    );
-
-    if (!activeProfile) return null;
-
-    const displayProfile = liveProfile || activeProfile;
+    if (!activeProfile || !displayProfile) return null;
 
     const getAvatarEmoji = (avatarId?: string) => {
         switch (avatarId) {

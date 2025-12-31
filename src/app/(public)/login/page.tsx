@@ -5,10 +5,10 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { db } from "@/lib/db";
+import { ProfileService } from "@/lib/firestore/profiles.service";
 
 function LoginPageContent() {
-    const { user, signInWithGoogle, signInAsDev, loading } = useAuth();
+    const { user, signInWithGoogle, signInAnonymouslyUser, signInAsDev, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isRedirecting, setIsRedirecting] = useState(false);
@@ -29,10 +29,18 @@ function LoginPageContent() {
                 }
 
                 // Normal login flow (including forgot PIN - modal will show on dashboard)
-                const profiles = await db.profiles
-                    .where("accountId")
-                    .equals(user.uid)
-                    .toArray();
+                // Normal login flow (including forgot PIN - modal will show on dashboard)
+                let profiles: any[] = [];
+                try {
+                    // Race Firestore against a 10s timeout to prevent infinite hang
+                    profiles = await Promise.race([
+                        ProfileService.getByAccountId(user.uid),
+                        new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error("Firestore Timeout")), 10000))
+                    ]);
+                } catch (e) {
+                    console.warn("Profile check failed or timed out (redirecting to setup)", e);
+                    // Treat as no profiles found -> go to setup
+                }
 
                 if (profiles.length === 0) {
                     router.push("/setup");
@@ -120,6 +128,21 @@ function LoginPageContent() {
                         >
                             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-6 h-6" />
                             Sign up with Google
+                        </Button>
+
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-slate-300"></div>
+                            <span className="flex-shrink mx-4 text-slate-400 text-xs uppercase">Or</span>
+                            <div className="flex-grow border-t border-slate-300"></div>
+                        </div>
+
+                        <Button
+                            variant="outline"
+                            onClick={() => signInAnonymouslyUser()}
+                            disabled={loading}
+                            className="w-full h-12 rounded-full border-slate-300 text-slate-600 hover:bg-slate-50 font-medium transition-all"
+                        >
+                            Continue as Guest (No Setup)
                         </Button>
 
                         <p className="text-center text-sm font-medium text-slate-600/90 leading-relaxed px-4">

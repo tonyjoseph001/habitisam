@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Settings, Plus, Star, Zap, ChevronDown, Check, Clock, User as UserIcon, X, CheckCheck } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -17,14 +15,36 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 
 import { ParentHeader } from '@/components/layout/ParentHeader';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRoutines } from '@/lib/hooks/useRoutines';
+import { useGoals } from '@/lib/hooks/useGoals';
+import { usePurchases } from '@/lib/hooks/usePurchases';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { ProfileService } from '@/lib/firestore/profiles.service';
+import { LogService } from '@/lib/firestore/logs.service';
+import { GoalService } from '@/lib/firestore/goals.service'; // Direct service for deletes/updates not exposed in hook yet (or just expose them)
 
 export default function ParentDashboard() {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
-    // Removed local switcher state
+    const { user } = useAuth();
+
+    // Hooks
+    const { profiles } = useProfiles();
+    const { routines: allRoutines } = useRoutines();
+    const { goals: allGoals, updateGoal, deleteGoal } = useGoals();
+    const { purchases: allPurchases } = usePurchases();
+
+    // Derived State
+    const childProfiles = useMemo(() => profiles.filter(p => p.type === 'child'), [profiles]);
+    const pendingGoals = useMemo(() => allGoals.filter(g => g.status === 'pending_approval'), [allGoals]);
+    const pendingPurchases = useMemo(() => allPurchases.filter(p => p.status === 'pending'), [allPurchases]); // Now using correct hook
+
+    const totalAlerts = (pendingGoals.length || 0) + (pendingPurchases.length || 0);
 
     // Directive A: Local State
     const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+    const [weeklySuccessRate, setWeeklySuccessRate] = useState<number>(0);
 
     // Approval States
     const [approvingGoal, setApprovingGoal] = useState<any | null>(null);
@@ -32,25 +52,6 @@ export default function ParentDashboard() {
     const [awardStars, setAwardStars] = useState<number>(0);
     const [showSetPinModal, setShowSetPinModal] = useState(false);
     const [newPin, setNewPin] = useState('');
-
-    // Data Queries
-    const childProfiles = useLiveQuery(
-        () => db.profiles.where('type').equals('child').toArray()
-    );
-
-    const allRoutines = useLiveQuery(
-        () => db.activities.toArray()
-    );
-
-    const pendingGoals = useLiveQuery(
-        () => db.goals.where('status').equals('pending_approval').toArray()
-    );
-
-    const pendingPurchases = useLiveQuery(
-        () => db.purchaseLogs.filter(p => p.status === 'pending').toArray()
-    );
-
-    const totalAlerts = (pendingGoals?.length || 0) + (pendingPurchases?.length || 0);
 
     const getChild = (id: string) => childProfiles?.find(p => p.id === id);
 
@@ -68,20 +69,29 @@ export default function ParentDashboard() {
     };
 
     // Calculate weekly success rate
-    const weeklySuccessRate = useLiveQuery(async () => {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+    useEffect(() => {
+        async function fetchStats() {
+            if (!user?.uid) return;
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
-        // Get all activity logs and filter by date (YYYY-MM-DD format)
-        const allLogs = await db.activityLogs.toArray();
-        const logs = allLogs.filter(log => log.date >= sevenDaysAgoStr);
+            // Fetch all logs for account (simplification: fetching all then filtering date)
+            // Optimization: Add date filter to query in future
+            const allLogs = await LogService.getByAccountId(user.uid);
+            const logs = allLogs.filter(log => log.date >= sevenDaysAgoStr);
 
-        if (logs.length === 0) return 0;
+            if (logs.length === 0) {
+                setWeeklySuccessRate(0);
+                return;
+            }
 
-        const completedLogs = logs.filter(log => log.status === 'completed');
-        return Math.round((completedLogs.length / logs.length) * 100);
-    }, []);
+            const completedLogs = logs.filter(log => log.status === 'completed');
+            setWeeklySuccessRate(Math.round((completedLogs.length / logs.length) * 100));
+        }
+        fetchStats();
+    }, [user?.uid]);
+
 
     // Check for forgot PIN flow
     useEffect(() => {
@@ -90,21 +100,6 @@ export default function ParentDashboard() {
             setShowSetPinModal(true);
         }
     }, [activeProfile]);
-
-    // Require PIN verification - DISABLED to prevent flicker loop
-    /*
-    useEffect(() => {
-        const resetPinForProfile = localStorage.getItem('resetPinForProfile');
-        if (resetPinForProfile && activeProfile?.id === resetPinForProfile) return;
-
-        if (activeProfile?.type === 'parent') {
-            const pinVerified = sessionStorage.getItem('parentPinVerified_' + activeProfile.id);
-            if (!pinVerified) {
-                // router.push('/'); // Causing flicker loop
-            }
-        }
-    }, [activeProfile, router]);
-    */
 
     const handleSetPin = async () => {
         if (!newPin.trim()) return alert('Please enter a PIN');
@@ -117,7 +112,7 @@ export default function ParentDashboard() {
         }
 
         // Update the PIN
-        await db.profiles.update(profileId, { pin: newPin });
+        await ProfileService.update(profileId, { pin: newPin });
 
         // Clear the stored profile ID
         localStorage.removeItem('resetPinForProfile');
@@ -371,15 +366,20 @@ export default function ParentDashboard() {
 
     const handleConfirmApprove = async () => {
         if (!approvingGoal || !approvingGoal.profileId) return;
-        await db.goals.update(approvingGoal.id, {
+        await GoalService.update(approvingGoal.id, {
             status: 'completed',
             completedAt: new Date()
         });
-        const profile = await db.profiles.get(approvingGoal.profileId);
+
+        // Fetch fresh profile to get current stars
+        // Note: In real app, consider a transaction/cloud function for safety
+        const allProfiles = await ProfileService.getByAccountId(approvingGoal.accountId);
+        const profile = allProfiles.find(p => p.id === approvingGoal.profileId);
+
         if (profile) {
             const newStars = (profile.stars || 0) + awardStars;
-            await db.profiles.update(profile.id, { stars: newStars });
-            await db.activityLogs.add({
+            await ProfileService.update(profile.id, { stars: newStars });
+            await LogService.add({
                 id: crypto.randomUUID(),
                 accountId: approvingGoal.accountId,
                 profileId: approvingGoal.profileId,
@@ -404,7 +404,7 @@ export default function ParentDashboard() {
 
     const handleConfirmReject = async () => {
         if (!rejectingGoal) return;
-        await db.goals.update(rejectingGoal.id, {
+        await GoalService.update(rejectingGoal.id, {
             status: 'active',
             current: rejectingGoal.type === 'binary' ? 0 : rejectingGoal.current,
             completedAt: undefined
@@ -414,7 +414,7 @@ export default function ParentDashboard() {
 
     const handleDeny = async (goalId: string) => {
         if (confirm("Reject this goal request?")) {
-            await db.goals.delete(goalId);
+            await GoalService.delete(goalId);
         }
     };
 

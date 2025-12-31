@@ -3,55 +3,36 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { ArrowLeft, Bell, Gift, Star, Check } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useInbox } from '@/lib/hooks/useInbox';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
+import { LogService } from '@/lib/firestore/logs.service';
 
 export default function NotificationsPage() {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [mounted, setMounted] = useState(false);
 
+    const { inboxItems, claimInboxItem } = useInbox(activeProfile?.id);
+    const { logs } = useActivityLogs(activeProfile?.id);
+
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const data = useLiveQuery(async () => {
-        if (!activeProfile) return { rewards: [], pending: [] };
+    const today = new Date();
 
-        const today = new Date();
+    const pending = inboxItems?.filter(item => item.status === 'pending') || [];
 
-        // 1. History (Manual Rewards Log)
-        const logs = await db.activityLogs
-            .where('profileId')
-            .equals(activeProfile.id)
-            .toArray();
-
-        const history = logs
-            .filter(l =>
-                l.activityId === 'manual_reward' &&
-                isSameDay(new Date(l.date), today) &&
-                !(l.metadata as any)?.hidden // Filter out hidden logs
-            )
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        // 2. Pending Claims (Inbox Rewards)
-        const pending = await db.inboxRewards
-            .where('profileId')
-            .equals(activeProfile.id)
-            .filter(r => r.status === 'pending')
-            .toArray();
-
-        return { rewards: history, pending };
-
-    }, [activeProfile?.id]);
-
-    const rewards = data?.rewards || [];
-    const pending = data?.pending || [];
+    const rewards = logs?.filter(l =>
+        l.activityId === 'manual_reward' &&
+        isSameDay(new Date(l.date), today) &&
+        !(l.metadata as any)?.hidden
+    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
 
     // Track IDs to hide on exit
     const historyIdsRef = useRef<string[]>([]);
@@ -70,13 +51,12 @@ export default function NotificationsPage() {
             // Cleanup: Hide seen history items on unmount
             const idsToHide = historyIdsRef.current;
             if (idsToHide.length > 0) {
-                db.transaction('rw', db.activityLogs, async () => {
-                    for (const id of idsToHide) {
-                        await db.activityLogs.update(id, {
-                            'metadata.hidden': true
-                        } as any);
-                    }
-                }).catch(err => console.error("Auto-clear error", err));
+                // We perform individual updates as Firestore doesn't support bulk update easily without transaction or batched write
+                // Batched write is better but service doesn't expose it. We'll loop parallel updates.
+                idsToHide.forEach(id => {
+                    LogService.update(id, { 'metadata.hidden': true } as any)
+                        .catch(err => console.error("Auto-clear error", err));
+                });
             }
         };
     }, []);
@@ -84,35 +64,7 @@ export default function NotificationsPage() {
     const handleClaim = async (reward: any) => {
         if (!activeProfile) return;
         try {
-            await db.transaction('rw', db.inboxRewards, db.profiles, db.activityLogs, async () => {
-                // 1. Mark as Claimed
-                await db.inboxRewards.update(reward.id, {
-                    status: 'claimed',
-                    claimedAt: new Date()
-                });
-
-                // 2. Add Stars (Only if amount > 0)
-                if (reward.amount > 0) {
-                    await db.profiles.update(activeProfile.id, {
-                        stars: (activeProfile.stars || 0) + reward.amount
-                    });
-
-                    // 3. Log Activity
-                    await db.activityLogs.add({
-                        id: crypto.randomUUID(),
-                        accountId: activeProfile.accountId,
-                        profileId: activeProfile.id,
-                        activityId: 'manual_reward',
-                        date: new Date().toISOString(),
-                        status: 'completed',
-                        starsEarned: reward.amount,
-                        metadata: {
-                            reason: reward.message || "Reward Claimed",
-                            type: "manual_award"
-                        }
-                    });
-                }
-            });
+            await claimInboxItem(reward);
 
             if (reward.amount > 0) {
                 toast.success("Reward Claimed!", {

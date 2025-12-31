@@ -16,7 +16,6 @@ const fredoka = Fredoka({
 export const metadata: Metadata = {
   title: "Habitisim",
   description: "Gamified chores and routines for kids",
-  themeColor: "#1e293b",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

@@ -2,16 +2,18 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { ArrowLeft, Check, Minus, Plus, Star, Mic, Trash2, Shirt, Utensils, Brush } from 'lucide-react';
+import { ArrowLeft, Check, Star, Mic } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { addMinutes, format } from 'date-fns';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { ActivityService } from '@/lib/firestore/activities.service';
+import { useSessionStore } from '@/lib/store/useSessionStore';
 
 export default function QuickTaskPage() {
     const router = useRouter();
+    const { activeProfile } = useSessionStore();
 
     // State
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -22,9 +24,8 @@ export default function QuickTaskPage() {
     const [successProfileName, setSuccessProfileName] = useState<string | null>(null);
 
     // Data
-    const children = useLiveQuery(
-        () => db.profiles.where('type').equals('child').toArray()
-    );
+    const { profiles } = useProfiles();
+    const children = profiles.filter(p => p.type === 'child');
 
     const selectedChild = children?.find(c => c.id === selectedChildId);
 
@@ -38,7 +39,7 @@ export default function QuickTaskPage() {
 
     // Handlers
     const handlePresetClick = (preset: typeof presets[0]) => {
-        setTaskName(preset.label); // Or includes logic? User req: "Clean Room..."
+        setTaskName(preset.label);
         setReward(preset.reward);
     };
 
@@ -69,9 +70,9 @@ export default function QuickTaskPage() {
             }
 
             // Create Activity
-            await db.activities.add({
+            await ActivityService.add({
                 id: crypto.randomUUID(),
-                accountId: selectedChild?.accountId || 'unknown',
+                accountId: selectedChild?.accountId || activeProfile?.accountId || 'unknown',
                 profileIds: [selectedChildId],
                 type: 'one-time',
                 title: taskName,

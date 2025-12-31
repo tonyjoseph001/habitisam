@@ -2,18 +2,20 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { ArrowLeft, Check, Minus, Plus, Star, PenLine, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Minus, Plus, Star, PenLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { InboxService } from '@/lib/firestore/inbox.service';
+import { useSessionStore } from '@/lib/store/useSessionStore';
 
 export default function GiveStarsPage() {
     const router = useRouter();
     const { width, height } = useWindowSize();
+    const { activeProfile } = useSessionStore();
 
     // State
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -23,9 +25,8 @@ export default function GiveStarsPage() {
     const [isSuccess, setIsSuccess] = useState(false);
 
     // Data
-    const children = useLiveQuery(
-        () => db.profiles.where('type').equals('child').toArray()
-    );
+    const { profiles } = useProfiles();
+    const children = profiles.filter(p => p.type === 'child');
 
     const selectedChild = children?.find(c => c.id === selectedChildId);
 
@@ -56,35 +57,16 @@ export default function GiveStarsPage() {
 
         try {
             // Create Inbox Reward (Pending Claim)
-            await db.inboxRewards.add({
+            await InboxService.add({
                 id: crypto.randomUUID(),
-                accountId: selectedChild?.accountId || 'unknown',
+                accountId: selectedChild?.accountId || activeProfile?.accountId || 'unknown',
                 profileId: selectedChildId,
                 amount: amount,
                 message: customReason || selectedReason || "Great job!",
-                senderName: "Parent",
+                senderName: activeProfile?.name || "Parent",
                 status: 'pending',
                 createdAt: new Date()
             });
-
-            // Log Activity (Optional but good for history)
-            // Log Activity (Optional but good for history)
-            // MOVED TO CHILD SIDE: Log is created when child claims the reward
-            /* 
-            await db.activityLogs.add({
-                id: crypto.randomUUID(),
-                accountId: selectedChild?.accountId || 'unknown', // Critical for syncing
-                profileId: selectedChildId,
-                activityId: 'manual_reward', // Special ID
-                date: new Date().toISOString(),
-                status: 'completed',
-                starsEarned: amount,
-                metadata: {
-                    reason: customReason || selectedReason || "Ad-hoc Reward",
-                    type: "manual_award"
-                }
-            });
-            */
 
             // Show Success
             setIsSuccess(true);

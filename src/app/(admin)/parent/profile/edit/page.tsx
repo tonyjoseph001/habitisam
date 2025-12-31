@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { db, Profile } from '@/lib/db';
 import { ChevronLeft, Save, Check, Trash2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { toast } from 'sonner';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { ProfileService } from '@/lib/firestore/profiles.service';
 
 // Avatar Options
 const AVATARS = [
@@ -30,19 +30,13 @@ const AVATARS = [
     { id: 'rocket', label: 'Rocket', icon: '🚀' },
 ];
 
-
-
-import { Suspense } from 'react';
-
 function EditProfileContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const profileId = searchParams.get('id');
 
-    const profile = useLiveQuery(
-        () => profileId ? db.profiles.get(profileId) : undefined,
-        [profileId]
-    );
+    const { profiles } = useProfiles();
+    const profile = useMemo(() => profiles.find(p => p.id === profileId), [profiles, profileId]);
 
     const [name, setName] = useState('');
     const [dob, setDob] = useState('');
@@ -67,16 +61,21 @@ function EditProfileContent() {
         if (!profile || !profileId) return;
         if (!name.trim()) return;
 
-        await db.profiles.update(profileId, {
-            name: name.trim(),
-            dob: dob || undefined,
-            pin: pin || undefined,
-            avatarId: selectedAvatar,
-            colorTheme: selectedTheme,
-        });
+        try {
+            await ProfileService.update(profileId, {
+                name: name.trim(),
+                dob: dob || undefined,
+                pin: pin || undefined,
+                avatarId: selectedAvatar,
+                colorTheme: selectedTheme,
+            });
 
-        toast.success("Profile updated successfully");
-        router.back();
+            toast.success("Profile updated successfully");
+            router.back();
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update profile");
+        }
     };
 
     const handleDeleteClick = () => {
@@ -85,9 +84,14 @@ function EditProfileContent() {
 
     const handleConfirmDelete = async () => {
         if (!profileId) return;
-        await db.profiles.delete(profileId);
-        toast.success("Profile deleted");
-        router.back();
+        try {
+            await ProfileService.delete(profileId);
+            toast.success("Profile deleted");
+            router.back();
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to delete profile");
+        }
     };
 
     if (!profileId) return <div className="p-8 text-center text-slate-500">Invalid Profile ID</div>;

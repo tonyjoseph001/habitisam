@@ -1,36 +1,42 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { Check, Clock, Calendar, Filter, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRoutines } from '@/lib/hooks/useRoutines';
 
 export default function HistoryPage() {
     const { activeProfile } = useSessionStore();
+    const { logs } = useActivityLogs();
+    const { profiles } = useProfiles();
+    const { routines } = useRoutines();
 
     // Fetch logs joined with activity and profile data
-    const history = useLiveQuery(async () => {
-        if (!activeProfile?.accountId) return [];
+    const history = useMemo(() => {
+        if (!logs) return [];
 
-        // Get logs
-        const logs = await db.activityLogs
-            .where('accountId')
-            .equals(activeProfile.accountId)
-            .reverse()
-            .sortBy('date'); // Sort by date descending roughly (using string YYYY-MM-DD means sorting is tricky if we want exact timestamp, but logs have date string. Actually improved schema has startedAt/completedAt)
+        return logs
+            .slice()
+            .sort((a, b) => {
+                const dateA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
+                const dateB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
+                return dateB - dateA; // Descending
+            })
+            .map((log) => {
+                const profile = profiles.find(p => p.id === log.profileId);
+                const routine = routines?.find(r => r.id === log.activityId);
 
-        // Join with metadata
-        const enrichedLogs = await Promise.all(logs.map(async (log) => {
-            const activity = await db.activities.get(log.activityId);
-            const profile = await db.profiles.get(log.profileId);
-            return { ...log, activityTitle: activity?.title, profileName: profile?.name, profileType: profile?.type };
-        }));
-
-        return enrichedLogs;
-    }, [activeProfile?.accountId]);
+                return {
+                    ...log,
+                    activityTitle: routine?.title || log.metadata?.title || 'Unknown Mission',
+                    profileName: profile?.name
+                };
+            });
+    }, [logs, profiles, routines]);
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-24">
@@ -63,7 +69,7 @@ export default function HistoryPage() {
                                     {log.status === 'completed' ? '🏆' : '⏳'}
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">{log.activityTitle || 'Unknown Mission'}</h3>
+                                    <h3 className="font-bold text-slate-900">{log.activityTitle}</h3>
                                     <div className="flex items-center gap-2 text-xs text-slate-500">
                                         <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
                                             {log.profileName}
@@ -86,9 +92,9 @@ export default function HistoryPage() {
                                     </span>
                                 )}
                                 {/* Ensure completedAt is a Date object before calling toLocaleTimeString */}
-                                {log.completedAt && log.completedAt instanceof Date && (
+                                {log.completedAt && (
                                     <span className="text-[10px] text-slate-400 mt-1">
-                                        {log.completedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(log.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 )}
                             </div>
