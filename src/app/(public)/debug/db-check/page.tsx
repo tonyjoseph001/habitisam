@@ -26,8 +26,8 @@ export default function DbCheckPage() {
     return (
         <div className="p-10 space-y-4">
             <h1 className="text-xl font-bold">Shared DB Connection Check</h1>
-            <p>Database ID: {db.app.options.projectId} / {db.databaseId}</p>
-            <button 
+            <p>Database ID: {db.app.options.projectId}</p>
+            <button
                 onClick={testWrite}
                 className="px-4 py-2 bg-green-600 text-white rounded"
             >

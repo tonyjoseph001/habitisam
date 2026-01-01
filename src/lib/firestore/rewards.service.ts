@@ -1,6 +1,6 @@
 import { db } from './core';
 import { converter, removeUndefined } from './converters';
-import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, getDoc, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Reward } from '@/lib/db';
 
 const COLLECTION_NAME = 'rewards';
@@ -15,6 +15,12 @@ export const RewardService = {
         );
         const snapshot = await getDocs(q);
         return snapshot.docs.map(d => d.data());
+    },
+
+    get: async (id: string): Promise<Reward | undefined> => {
+        const ref = doc(db, COLLECTION_NAME, id).withConverter(converter<Reward>());
+        const snapshot = await getDoc(ref);
+        return snapshot.data();
     },
 
     add: async (reward: Reward) => {

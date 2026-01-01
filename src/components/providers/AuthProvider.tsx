@@ -8,10 +8,13 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
     signInAnonymously,
-    signOut as firebaseSignOut
+    signOut as firebaseSignOut,
+    signInWithCredential
 } from 'firebase/auth';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { AccountService } from '@/lib/firestore/accounts.service';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 interface AuthContextType {
     user: User | null;
@@ -28,6 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const { setActiveProfile } = useSessionStore();
+
+    // INIT REMOVED: @capacitor-firebase/authentication does not require manual init calls in useEffect.
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -95,12 +100,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signInWithGoogle = async () => {
         try {
-            const provider = new GoogleAuthProvider();
-            const result = await signInWithPopup(auth, provider);
+            let userCredential: User;
+
+            console.log("Current Platform:", Capacitor.getPlatform());
+
+            if (Capacitor.isNativePlatform()) {
+                console.log("STEP 1: Starting Native Google Sign-In with @capacitor-firebase/authentication");
+
+                // 1. Native Sign-In (Plugin handles the Google Auth flow)
+                const result = await FirebaseAuthentication.signInWithGoogle();
+                console.log("STEP 2: Native Sign-In Success. User:", result.user);
+
+                if (result.user) {
+                    if (auth.currentUser) {
+                        userCredential = auth.currentUser;
+                        // alert("STEP 3: Login Success! Welcome " + userCredential.displayName);
+                        console.log("STEP 3: Login Success via Listener! Welcome " + userCredential.displayName);
+                    } else {
+                        console.warn("Plugin signed in, but auth.currentUser is null. Using manual credential sync.");
+                        if (result.credential?.idToken) {
+                            const cred = GoogleAuthProvider.credential(result.credential.idToken);
+                            const manualRes = await signInWithCredential(auth, cred);
+                            userCredential = manualRes.user;
+                            console.log("STEP 3 (Manual Sync): Login Success! Welcome " + userCredential.displayName);
+                            // alert("STEP 3 (Manual Sync): Login Success! Welcome " + userCredential.displayName);
+                        } else {
+                            throw new Error("Login failed: No user and no ID token.");
+                        }
+                    }
+                } else {
+                    throw new Error("Native Login cancelled or failed.");
+                }
+
+            } else {
+                console.log("STEP 1 (Web): Detected Web Platform. Using signInWithPopup.");
+                // Web Sign-In
+                const provider = new GoogleAuthProvider();
+                const result = await signInWithPopup(auth, provider);
+                userCredential = result.user;
+            }
+
             // Sync Account
-            await AccountService.syncAccount(result.user);
-            return result.user;
-        } catch (error) {
+            await AccountService.syncAccount(userCredential);
+            return userCredential;
+        } catch (error: any) {
+            alert("LOGIN ERROR: " + error.message);
             console.error("Error signing in with Google", error);
             throw error;
         }
@@ -136,6 +180,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(null);
                 setActiveProfile(null);
                 return;
+            }
+            if (Capacitor.isNativePlatform()) {
+                await FirebaseAuthentication.signOut();
             }
             await firebaseSignOut(auth);
             setActiveProfile(null);

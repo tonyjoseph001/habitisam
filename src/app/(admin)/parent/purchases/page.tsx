@@ -3,9 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
-import React from 'react';
-import Link from 'next/link';
-import { ParentNavBar } from '@/components/layout/ParentNavBar';
+
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ShoppingBag, Star, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';

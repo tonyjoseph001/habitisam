@@ -1,6 +1,6 @@
 import { db } from './core';
 import { converter, removeUndefined } from './converters';
-import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc, runTransaction, deleteField } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, getDoc, query, where, updateDoc, deleteDoc, runTransaction, deleteField } from 'firebase/firestore';
 import { Goal } from '@/lib/db';
 
 const COLLECTION_NAME = 'goals';
@@ -15,6 +15,12 @@ export const GoalService = {
         );
         const snapshot = await getDocs(q);
         return snapshot.docs.map(d => d.data());
+    },
+
+    get: async (id: string): Promise<Goal | undefined> => {
+        const ref = doc(db, COLLECTION_NAME, id).withConverter(converter<Goal>());
+        const snapshot = await getDoc(ref);
+        return snapshot.data();
     },
 
     add: async (goal: Goal) => {

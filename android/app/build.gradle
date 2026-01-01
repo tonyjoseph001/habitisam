@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.habitisim.app"
+    namespace = "com.bigdatabytes.habitisam"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.habitisim.app"
+        applicationId "com.bigdatabytes.habitisam"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

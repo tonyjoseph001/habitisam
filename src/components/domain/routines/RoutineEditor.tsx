@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { Activity, Step, Goal, GoalType } from '@/lib/db';
+import { Activity, Step, Goal, GoalType, ActivityType } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2, Bell, XCircle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -53,7 +53,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
     // --- State ---
     // Top Toggle state: 'recurring' | 'one-time' | 'goal'
-    const [editorType, setEditorType] = useState<'recurring' | 'one-time' | 'goal'>('recurring');
+    const [editorType, setEditorType] = useState<ActivityType | 'goal'>('recurring');
     const [showIconModal, setShowIconModal] = useState(false);
 
     // Shared
@@ -205,7 +205,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     id: initialRoutineId || uuidv4(),
                     accountId: user.uid,
                     profileIds: assignedChildIds,
-                    type: editorType as 'recurring' | 'one-time',
+                    type: editorType as ActivityType,
                     title: title.trim(),
                     description: description.trim(),
                     audioUrl: audioUrl,

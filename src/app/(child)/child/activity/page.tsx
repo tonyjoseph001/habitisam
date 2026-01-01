@@ -68,7 +68,7 @@ export default function ChildActivityPage() {
                         type: 'earned',
                         title: (log.metadata as any)?.reason || 'Reward Received',
                         stars: log.starsEarned || 0,
-                        stars: log.starsEarned || 0,
+
                         date: safeDate(log.date),
                         icon: '⭐'
                     });
@@ -92,8 +92,7 @@ export default function ChildActivityPage() {
                     type: 'earned',
                     title: act?.title || metaTitle || 'Unknown Activity',
                     stars: starsEarned,
-                    title: act?.title || metaTitle || 'Unknown Activity',
-                    stars: starsEarned,
+
                     date: safeDate(log.completedAt || log.date),
                     icon: act?.icon ? undefined : (metaType === 'goal' ? '🏆' : '✅')
                 });
@@ -105,8 +104,7 @@ export default function ChildActivityPage() {
             type: 'spent',
             title: p.rewardSnapshot.title,
             stars: p.rewardSnapshot.cost,
-            title: p.rewardSnapshot.title,
-            stars: p.rewardSnapshot.cost,
+
             date: safeDate(p.purchasedAt),
             icon: p.rewardSnapshot.icon
         }));

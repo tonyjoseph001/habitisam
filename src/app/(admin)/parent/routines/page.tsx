@@ -78,7 +78,7 @@ export default function RoutinesPage() {
             // 1. Mark goal completed
             await updateGoal(approvingGoal.id, {
                 status: 'completed',
-                completedAt: new Date().toISOString() as any
+                completedAt: new Date()
             });
 
             // 2. Add stars to profile (use awardStars state)
@@ -96,7 +96,7 @@ export default function RoutinesPage() {
                     activityId: approvingGoal.id, // Link to Goal ID
                     date: new Date().toISOString().split('T')[0],
                     status: 'completed',
-                    completedAt: new Date().toISOString(),
+                    completedAt: new Date(),
                     starsEarned: awardStars,
                     metadata: {
                         type: 'goal',

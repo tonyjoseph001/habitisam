@@ -49,7 +49,7 @@ export default function MissionControlPage() {
     const [streakLogs, setStreakLogs] = useState<ActivityLog[]>([]);
 
     // Firestore Hooks
-    const { routines: fetchedRoutines } = useRoutines(activeProfile?.id);
+    const { routines: fetchedRoutines } = useRoutines();
     const routines = fetchedRoutines || [];
 
     // Fix: Pass string date YYYY-MM-DD (Local Time)
