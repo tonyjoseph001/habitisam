@@ -126,8 +126,8 @@ export function NotificationScheduler() {
                                 }
                             });
                         });
-                    } else if (routine.type === 'one-time' && routine.date) {
-                        // One Time
+                    } else if ((routine.type === 'one-time' || routine.type === 'quick-task') && routine.date) {
+                        // One Time & Quick Tasks
                         // Parse date + time
                         const targetDate = parse(`${routine.date} ${routine.timeOfDay}`, 'yyyy-MM-dd HH:mm', new Date());
                         const notifyAt = addMinutes(targetDate, offset);

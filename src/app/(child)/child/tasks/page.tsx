@@ -10,7 +10,7 @@ import { format, isSameDay, parse, addDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useRoutines } from '@/lib/hooks/useRoutines';
 import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
-import { cn } from '@/lib/utils';
+
 
 // Simple Icon Mapper
 const DynamicIcon = ({ name, className }: { name?: string; className?: string }) => {
@@ -85,7 +85,7 @@ export default function ChildTasksPage() {
         );
 
         const dateLogs = allLogs.filter(log => {
-            const logDate = log.date instanceof Date ? log.date : new Date(log.date);
+            const logDate = new Date(log.date);
             return isSameDay(logDate, selectedDate);
         });
 
@@ -131,7 +131,7 @@ export default function ChildTasksPage() {
         if (r.type === 'recurring') {
             return r.days?.includes(currentDayOfWeek);
         }
-        if (r.type === 'one-time' && r.date) {
+        if ((r.type === 'one-time' || r.type === 'quick-task') && r.date) {
             return isSameDay(new Date(r.date), selectedDate);
         }
         return true;

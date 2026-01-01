@@ -176,7 +176,7 @@ export default function MissionControlPage() {
             // If "Anytime Today", unlockTime is basically start of day, so it's technically always unlocked if today
             // But let's respect the specific logic:
             // FIX: One-time tasks (Quick Tasks) are "Due By", so they should be unlocked immediately
-            if (task.type !== 'one-time' && isBefore(now, unlockTime)) return 'locked';
+            if (task.type !== 'one-time' && task.type !== 'quick-task' && isBefore(now, unlockTime)) return 'locked';
 
             // 2. Check Expiration (Too Late)
             if (task.expires === 'End of Day') {
@@ -184,7 +184,7 @@ export default function MissionControlPage() {
             } else if (expireMinutes !== null) {
                 const expirationTime = addMinutes(taskTime, expireMinutes);
                 if (isAfter(now, expirationTime)) return 'expired';
-            } else if (task.type === 'one-time') {
+            } else if (task.type === 'one-time' || task.type === 'quick-task') {
                 // For one-time tasks without explicit expires, the timeOfDay IS the expiry
                 if (isAfter(now, taskTime)) return 'expired';
             }
@@ -212,7 +212,7 @@ export default function MissionControlPage() {
 
             for (const r of routines) {
                 // Only for one-time tasks assigned for today (Quick Tasks)
-                if (r.type === 'one-time' && r.date === todayStr && !processedTaskIds.has(r.id)) {
+                if ((r.type === 'one-time' || r.type === 'quick-task') && r.date === todayStr && !processedTaskIds.has(r.id)) {
                     if (r.timeOfDay) {
                         try {
                             const dueTime = parse(r.timeOfDay, 'HH:mm', now);
@@ -371,7 +371,7 @@ export default function MissionControlPage() {
 
         return allRoutines.filter(r => {
             if (r.type === 'recurring') return r.days?.includes(dayOfWeek);
-            if (r.type === 'one-time' && r.date) return r.date === dateStr;
+            if ((r.type === 'one-time' || r.type === 'quick-task') && r.date) return r.date === dateStr;
             return true; // Default fallback
         }).sort((a, b) => {
             if (!a.timeOfDay || !b.timeOfDay) return 0;
@@ -471,7 +471,7 @@ export default function MissionControlPage() {
             } else {
                 const hours = Math.floor(diffMins / 60);
                 const mins = diffMins % 60;
-                const label = upNextRoutine.type === 'one-time' ? 'Ends in' : 'Starts in';
+                const label = (upNextRoutine.type === 'one-time' || upNextRoutine.type === 'quick-task') ? 'Ends in' : 'Starts in';
                 if (hours > 0) {
                     text = `${label} ${hours}h ${mins}m`;
                 } else {
@@ -747,7 +747,7 @@ export default function MissionControlPage() {
                                         </div>
 
                                         {/* Steps - Only for Routine */}
-                                        {upNextRoutine.type !== 'one-time' && (
+                                        {upNextRoutine.type !== 'one-time' && upNextRoutine.type !== 'quick-task' && (
                                             <div className="mb-5">
                                                 <div className="flex items-center gap-2 bg-black/10 p-2 rounded-xl overflow-x-auto scrollbar-hide backdrop-blur-[2px]">
                                                     {upNextRoutine.steps.slice(0, 3).map((step: any, i: number) => (
@@ -838,7 +838,7 @@ export default function MissionControlPage() {
                                                     </button>
                                                 );
                                             }
-                                            if (upNextRoutine.type === 'one-time') {
+                                            if (upNextRoutine.type === 'one-time' || upNextRoutine.type === 'quick-task') {
                                                 return (
                                                     <button onClick={() => setConfirmTask(upNextRoutine)} className="w-full bg-white text-green-600 font-bold py-3 rounded-2xl shadow-lg shadow-green-900/10 active:scale-95 transition-all flex items-center justify-center gap-2">
                                                         <Check className="w-5 h-5" strokeWidth={3} />
@@ -1016,7 +1016,7 @@ export default function MissionControlPage() {
                                                                                 <Lock className="w-4 h-4" />
                                                                                 Locked until {format(addMinutes(parse(task.timeOfDay, 'HH:mm', new Date()), -getFlexWindowMinutes(task.flexWindow)), 'h:mm a')}
                                                                             </button>
-                                                                        ) : task.type === 'one-time' ? (
+                                                                        ) : (task.type === 'one-time' || task.type === 'quick-task') ? (
                                                                             <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();

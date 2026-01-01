@@ -1,5 +1,5 @@
 import { db } from './core';
-import { converter } from './converters';
+import { converter, removeUndefined } from './converters';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc, runTransaction, deleteField } from 'firebase/firestore';
 import { Goal } from '@/lib/db';
 
@@ -24,7 +24,7 @@ export const GoalService = {
 
     update: async (id: string, updates: Partial<Goal>) => {
         const ref = doc(db, COLLECTION_NAME, id);
-        await updateDoc(ref, updates);
+        await updateDoc(ref, removeUndefined(updates));
     },
 
     delete: async (id: string) => {

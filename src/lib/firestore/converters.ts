@@ -6,7 +6,7 @@ import {
     FirestoreDataConverter
 } from 'firebase/firestore';
 
-const removeUndefined = (obj: any): any => {
+export const removeUndefined = (obj: any): any => {
     if (obj === null || obj === undefined) return obj;
     if (obj instanceof Date) return obj; // Preserve Dates
 

@@ -13,7 +13,7 @@ interface ProfileSwitcherProps {
 }
 
 export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) {
-    const { user } = useAuth();
+    const { user, signInWithGoogle } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const router = useRouter();
     const { profiles } = useProfiles(); // Use Firestore Hook
@@ -153,14 +153,30 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                             <Lock className="w-5 h-5" /> Unlock
                         </button>
                         <button
-                            onClick={() => {
-                                if (confirm("Forgot PIN? Please sign in again with Google to verify account.")) {
-                                    window.location.href = '/login';
+                            onClick={async () => {
+                                if (!targetProfile) return;
+                                try {
+                                    // Trigger Google Re-auth
+                                    const resultUser = await signInWithGoogle(); // Use function from hook
+                                    // Check if the signed-in user OWNS this profile
+                                    if (resultUser.uid === targetProfile.accountId) {
+                                        // Success! Bypass PIN
+                                        sessionStorage.setItem('parentPinVerified_' + targetProfile.id, 'true');
+                                        setActiveProfile(targetProfile);
+                                        onClose();
+                                        router.push('/parent/profile/edit?id=' + targetProfile.id);
+                                        // Ideally show toast here: "Identity Verified"
+                                    } else {
+                                        setError("Verification Failed: Wrong Account");
+                                    }
+                                } catch (e) {
+                                    console.error("PIN Recovery Failed", e);
+                                    // User closed popup or error
                                 }
                             }}
                             className="text-xs text-violet-600 hover:text-violet-700 font-medium underline"
                         >
-                            Forgot PIN?
+                            Forgot PIN? (Verify with Google)
                         </button>
                     </div>
                 </div>

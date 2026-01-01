@@ -74,7 +74,7 @@ export default function QuickTaskPage() {
                 id: crypto.randomUUID(),
                 accountId: selectedChild?.accountId || activeProfile?.accountId || 'unknown',
                 profileIds: [selectedChildId],
-                type: 'one-time',
+                type: 'quick-task',
                 title: taskName,
                 icon: '⚡', // Quick Task Icon
                 date: format(now, 'yyyy-MM-dd'),

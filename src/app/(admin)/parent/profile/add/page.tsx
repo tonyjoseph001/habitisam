@@ -38,7 +38,7 @@ const PROFILE_TYPES = [
     { id: 'parent', label: 'Parent Profile', icon: '👨‍👩‍👧', description: 'For additional parent accounts' },
 ];
 
-export default function AddChildProfilePage() {
+export default function AddProfilePage() {
     const router = useRouter();
     const { user } = useAuth();
 

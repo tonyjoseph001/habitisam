@@ -23,7 +23,7 @@ function EditTaskContent() {
     const children = profiles.filter(p => p.type === 'child');
 
     const { routines } = useRoutines();
-    const activity = routines.find(r => r.id === taskId);
+    const activity = routines?.find(r => r.id === taskId);
 
     // State
     const [taskName, setTaskName] = useState("");

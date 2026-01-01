@@ -12,9 +12,12 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { useAuth } from '@/lib/hooks/useAuth'; // Added Import
+
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
+    const { user, signOut } = useAuth();
     const { activeProfile } = useSessionStore();
     const [showPinModal, setShowPinModal] = useState(false);
     const [newPin, setNewPin] = useState('');
@@ -128,6 +131,33 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
+                {/* Account Actions */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex items-center gap-3 mb-4 text-slate-400">
+                        <Key className="w-6 h-6" />
+                        <h2 className="text-lg font-bold text-slate-800">Account</h2>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between text-sm text-slate-500 py-2 border-b border-slate-50">
+                            <span>Logged in as</span>
+                            <span className="font-bold text-slate-700 truncate max-w-[150px]">{user?.email}</span>
+                        </div>
+
+                        <button
+                            onClick={async () => {
+                                if (confirm("Are you sure you want to sign out?")) {
+                                    await signOut();
+                                    router.push('/login');
+                                }
+                            }}
+                            className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+                        >
+                            <ArrowLeft className="w-4 h-4 rotate-180" />
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* PIN Reset Modal */}

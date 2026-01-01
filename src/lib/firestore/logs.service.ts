@@ -1,5 +1,5 @@
 import { db } from './core';
-import { converter } from './converters';
+import { converter, removeUndefined } from './converters';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { ActivityLog } from '@/lib/db';
 
@@ -54,7 +54,7 @@ export const LogService = {
 
     update: async (id: string, updates: Partial<ActivityLog>) => {
         const ref = doc(db, COLLECTION_NAME, id);
-        await updateDoc(ref, updates);
+        await updateDoc(ref, removeUndefined(updates));
     },
 
     delete: async (id: string) => {

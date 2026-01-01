@@ -11,6 +11,7 @@ import {
     signOut as firebaseSignOut
 } from 'firebase/auth';
 import { useSessionStore } from '@/lib/store/useSessionStore';
+import { AccountService } from '@/lib/firestore/accounts.service';
 
 interface AuthContextType {
     user: User | null;
@@ -82,6 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 setUser(devUser);
                 setLoading(false);
+                // Sync Dev Account
+                AccountService.syncAccount(devUser).catch(e => console.error("Dev Account Sync Failed", e));
             }
         };
         // Run check if not loading and no user, or initially
@@ -94,6 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(auth, provider);
+            // Sync Account
+            await AccountService.syncAccount(result.user);
             return result.user;
         } catch (error) {
             console.error("Error signing in with Google", error);
@@ -103,7 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signInAnonymouslyUser = async () => {
         try {
-            await signInAnonymously(auth);
+            const result = await signInAnonymously(auth);
+            await AccountService.syncAccount(result.user);
         } catch (error) {
             console.error("Error signing in anonymously", error);
             throw error;

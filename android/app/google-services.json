@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "728995184022",
+        "project_id": "habitisam",
+        "storage_bucket": "habitisam.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:728995184022:android:7f5b67ad9631ea67b131b7",
+                "android_client_info": {
+                    "package_name": "com.bigdatabytes.habitisam"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyAxd4SdawwVI-EdNyKF_4TDcSU5Qb0p0po"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

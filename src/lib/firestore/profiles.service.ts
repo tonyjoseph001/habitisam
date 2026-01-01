@@ -1,5 +1,5 @@
 import { db } from './core';
-import { converter } from './converters';
+import { converter, removeUndefined } from './converters';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Profile } from '@/lib/db'; // Keep using shared Types from db.ts for now
 
@@ -45,7 +45,7 @@ export const ProfileService = {
      */
     update: async (id: string, updates: Partial<Profile>) => {
         const ref = doc(db, COLLECTION_NAME, id);
-        await updateDoc(ref, updates);
+        await updateDoc(ref, removeUndefined(updates));
     },
 
     /**

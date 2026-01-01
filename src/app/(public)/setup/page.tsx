@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { type Profile } from "@/lib/db";
 import { ProfileService } from "@/lib/firestore/profiles.service";
@@ -106,85 +107,93 @@ export default function SetupPage() {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-violet-100 via-white to-pink-50 flex flex-col items-center justify-center p-6">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-lg"
-            >
-                {/* Header Section */}
-                <div className="text-center mb-8 space-y-2">
-                    <div className="w-16 h-16 bg-violet-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-violet-200 rotate-3 transform hover:rotate-6 transition-transform">
-                        <Sparkles className="w-8 h-8 text-white" />
-                    </div>
-                    <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Welcome to Habitisim!</h1>
-                    <p className="text-lg text-slate-500 max-w-xs mx-auto">Let's set up your admin profile to check mission status.</p>
+        <div className="min-h-screen w-full flex items-center justify-center bg-[#f0eff5] lg:py-10">
+            {/* Device Container */}
+            <div className="relative w-full h-[100vh] lg:w-[480px] lg:h-[844px] lg:max-h-[90vh] lg:rounded-[3rem] lg:border-[12px] lg:border-white lg:shadow-2xl overflow-hidden flex flex-col items-center">
+
+                {/* Background Image */}
+                <div className="absolute inset-0 z-0">
+                    {/* Using img3.png as requested for consistency */}
+                    <Image
+                        src="/img3.png"
+                        alt="Background"
+                        fill
+                        className="object-cover object-bottom"
+                        priority
+                    />
                 </div>
 
-                {/* Main Card */}
-                <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 space-y-6 sm:space-y-8 border border-white/50 backdrop-blur-sm mx-4 sm:mx-0">
-                    {/* Name Input */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                            Admin Name
-                        </label>
-                        <Input
-                            placeholder="e.g., Mom, Dad, or Captain"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="bg-slate-50 border-slate-200 h-12 sm:h-14 text-base sm:text-lg focus:ring-violet-500 focus:border-violet-500 transition-all rounded-xl"
-                        />
+                {/* Content Overlay */}
+                <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-start pt-32 px-8">
+
+                    {/* Header */}
+                    <div className="w-full text-center mb-8 animate-in slide-in-from-bottom-5 fade-in duration-700">
+                        <h1 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Welcome to Habitisim!</h1>
+                        <p className="text-sm font-medium text-slate-600">
+                            Let's set up your admin profile.
+                        </p>
                     </div>
 
-                    {/* PIN Input */}
-                    <div className="space-y-4">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-violet-500" />
-                            Create Security PIN
-                        </label>
-                        <div className="flex gap-2 sm:gap-4 justify-between sm:px-4">
-                            {[0, 1, 2, 3].map((i) => (
-                                <motion.input
-                                    key={i}
-                                    id={`pin-${i}`}
-                                    type="password"
-                                    inputMode="numeric"
-                                    maxLength={1}
-                                    value={pin[i]}
-                                    onChange={(e) => handlePinChange(i, e.target.value)}
-                                    onKeyDown={(e) => handleKeyDown(i, e)}
-                                    whileFocus={{ scale: 1.1, borderColor: "#7c3aed", boxShadow: "0 0 0 4px rgba(124, 58, 237, 0.1)" }}
-                                    className="w-12 h-12 sm:w-16 sm:h-16 border-2 border-slate-200 rounded-2xl text-center text-2xl sm:text-3xl font-bold text-slate-800 bg-slate-50 outline-none transition-all shadow-sm focus:bg-white"
-                                />
-                            ))}
-                        </div>
-                        <p className="text-xs text-slate-400 text-center font-medium">This PIN protects your settings from curious little fingers.</p>
-                    </div>
-
-                    {error && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="bg-red-50 text-red-600 text-sm p-3 rounded-lg text-center font-medium border border-red-100"
-                        >
-                            {error}
-                        </motion.div>
-                    )}
-
-                    {/* Action Button */}
-                    <Button
-                        variant="cosmic"
-                        size="lg"
-                        className="w-full h-14 text-lg font-bold rounded-xl shadow-lg shadow-violet-200 active:scale-95 transition-all"
-                        onClick={handleCompleteSetup}
-                        disabled={isSubmitting}
+                    {/* Main Form Card (Transparent/Glass effect) */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full space-y-6 bg-white/60 backdrop-blur-md p-6 rounded-3xl border border-white/50 shadow-lg"
                     >
-                        {isSubmitting ? "Creating Profile..." : "Complete Setup"}
-                        {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
-                    </Button>
+                        {/* Name Input */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">
+                                Admin Name
+                            </label>
+                            <Input
+                                placeholder="e.g., Mom"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="bg-white/80 border-slate-200 h-12 text-lg focus:ring-violet-500 rounded-xl"
+                            />
+                        </div>
+
+                        {/* PIN Input */}
+                        <div className="space-y-3">
+                            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1 flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3 text-violet-600" />
+                                Create Security PIN
+                            </label>
+                            <div className="flex gap-3 justify-between">
+                                {[0, 1, 2, 3].map((i) => (
+                                    <input
+                                        key={i}
+                                        id={`pin-${i}`}
+                                        type="password"
+                                        inputMode="numeric"
+                                        maxLength={1}
+                                        value={pin[i]}
+                                        onChange={(e) => handlePinChange(i, e.target.value)}
+                                        onKeyDown={(e) => handleKeyDown(i, e)}
+                                        className="w-12 h-12 border-2 border-white/50 rounded-xl text-center text-2xl font-bold text-slate-800 bg-white/70 focus:bg-white focus:border-violet-500 focus:ring-2 focus:ring-violet-200 transition-all outline-none shadow-sm"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-50/90 text-red-600 text-xs p-3 rounded-lg text-center font-bold border border-red-100">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Action Button */}
+                        <Button
+                            onClick={handleCompleteSetup}
+                            disabled={isSubmitting}
+                            className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all active:scale-95"
+                        >
+                            {isSubmitting ? "Creating..." : "Complete Setup"}
+                            {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
+                        </Button>
+                    </motion.div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }

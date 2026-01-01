@@ -60,7 +60,7 @@ export function useRoutines() {
     };
 
     return {
-        routines,
+        routines: routines || [],
         loading,
         error,
         addRoutine,

@@ -160,33 +160,35 @@ function EditProfileContent() {
                 </div>
 
                 {/* 2. Avatar Selection */}
-                <div className="bg-white rounded-xl mx-4 p-4 shadow-sm border border-slate-200 flex flex-col gap-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Avatar</label>
-                    <div className="flex gap-3 overflow-x-auto pb-1 px-1 scrollbar-hide">
-                        {AVATARS.map(avatar => {
-                            const isSelected = selectedAvatar === avatar.id;
-                            return (
-                                <button
-                                    key={avatar.id}
-                                    onClick={() => setSelectedAvatar(avatar.id)}
-                                    className={cn(
-                                        "flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border-2 transition-all relative",
-                                        isSelected
-                                            ? "border-violet-600 shadow-md scale-105"
-                                            : "border-slate-200 opacity-70 hover:opacity-100"
-                                    )}
-                                >
-                                    {avatar.icon}
-                                    {isSelected && (
-                                        <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-0.5 border-2 border-white">
-                                            <Check className="w-2 h-2" />
-                                        </div>
-                                    )}
-                                </button>
-                            )
-                        })}
+                {profile?.type !== 'parent' && (
+                    <div className="bg-white rounded-xl mx-4 p-4 shadow-sm border border-slate-200 flex flex-col gap-3">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Avatar</label>
+                        <div className="flex gap-3 overflow-x-auto pb-1 px-1 scrollbar-hide">
+                            {AVATARS.map(avatar => {
+                                const isSelected = selectedAvatar === avatar.id;
+                                return (
+                                    <button
+                                        key={avatar.id}
+                                        onClick={() => setSelectedAvatar(avatar.id)}
+                                        className={cn(
+                                            "flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border-2 transition-all relative",
+                                            isSelected
+                                                ? "border-violet-600 shadow-md scale-105"
+                                                : "border-slate-200 opacity-70 hover:opacity-100"
+                                        )}
+                                    >
+                                        {avatar.icon}
+                                        {isSelected && (
+                                            <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white rounded-full p-0.5 border-2 border-white">
+                                                <Check className="w-2 h-2" />
+                                            </div>
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
-                </div>
+                )}
 
 
 

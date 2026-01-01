@@ -211,7 +211,7 @@ export default function ParentDashboard() {
                     <div className="flex flex-col gap-1 pl-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Weekly Success</span>
                         <div className="flex items-center gap-2">
-                            <span className="text-3xl font-black text-green-400">85%</span>
+                            <span className="text-3xl font-black text-green-400">{weeklySuccessRate ?? 0}%</span>
                             <div className="w-5 h-5 text-green-400 fill-current">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16H224A8,8,0,0,1,232,208ZM165.66,82.34a8,8,0,0,0-11.32,0L102.63,134.06,69.66,101.09a8,8,0,0,0-11.32,11.32l38.63,38.62a8,8,0,0,0,11.32,0l57.37-57.37,42.34,42.34a8,8,0,0,0,11.31-11.31Z"></path></svg>
                             </div>
@@ -536,7 +536,7 @@ export default function ParentDashboard() {
                                         <div
                                             key={routine.id}
                                             onClick={() => {
-                                                if (routine.type === 'one-time') {
+                                                if (routine.type === 'quick-task') {
                                                     router.push(`/parent/tasks/edit?id=${routine.id}`);
                                                 } else {
                                                     router.push(`/parent/routines/edit?id=${routine.id}`);

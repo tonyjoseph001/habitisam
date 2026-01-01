@@ -14,6 +14,8 @@ function LoginPageContent() {
     const [isRedirecting, setIsRedirecting] = useState(false);
 
 
+    const isDev = process.env.NODE_ENV === 'development';
+
     // Redirect logic
     useEffect(() => {
         async function checkRouting() {
@@ -28,7 +30,6 @@ function LoginPageContent() {
                     localStorage.removeItem('pendingPinReset');
                 }
 
-                // Normal login flow (including forgot PIN - modal will show on dashboard)
                 // Normal login flow (including forgot PIN - modal will show on dashboard)
                 let profiles: any[] = [];
                 try {
@@ -116,57 +117,67 @@ function LoginPageContent() {
                 </div>
 
                 {/* Content Overlay */}
-                <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-end pb-12 px-8">
+                <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-between pb-6 pt-12 px-8">
 
-                    {/* Main Sign Up Button */}
-                    <div className="w-full space-y-4 animate-in slide-in-from-bottom-10 fade-in duration-700">
-                        <Button
-                            variant="default" // Reset to default or custom
-                            onClick={handleLogin}
-                            disabled={loading}
-                            className="w-full h-14 rounded-full bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/50 text-slate-900 font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95"
-                        >
-                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-6 h-6" />
-                            Sign up with Google
-                        </Button>
+                    {/* Top/Center Section: Branding & Forms */}
+                    <div className="flex-1 w-full flex flex-col items-center justify-start pt-24">
 
-                        <div className="relative flex py-2 items-center">
-                            <div className="flex-grow border-t border-slate-300"></div>
-                            <span className="flex-shrink mx-4 text-slate-400 text-xs uppercase">Or</span>
-                            <div className="flex-grow border-t border-slate-300"></div>
+                        {/* Branding */}
+                        <div className="w-full text-center mb-8 animate-in slide-in-from-bottom-5 fade-in duration-700 delay-100">
+                            <h1 className="text-4xl font-black text-slate-800 mb-2 tracking-tight">Habitisim</h1>
+                            <h2 className="text-xl font-bold text-slate-700 mb-2">Let’s Get Your Family Started!</h2>
+                            <p className="text-sm font-medium text-slate-500">
+                                Build better habits and make daily routines fun.
+                            </p>
                         </div>
 
-                        <Button
-                            variant="outline"
-                            onClick={() => signInAnonymouslyUser()}
-                            disabled={loading}
-                            className="w-full h-12 rounded-full border-slate-300 text-slate-600 hover:bg-slate-50 font-medium transition-all"
-                        >
-                            Continue as Guest (No Setup)
-                        </Button>
+                        {/* Buttons Container */}
+                        <div className="w-full space-y-4 animate-in slide-in-from-bottom-10 fade-in duration-700">
+                            <Button
+                                variant="default"
+                                onClick={handleLogin}
+                                disabled={loading}
+                                className="w-full h-14 rounded-full bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/50 text-slate-900 font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95"
+                            >
+                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-6 h-6" />
+                                Sign up with Google
+                            </Button>
 
-                        <p className="text-center text-sm font-medium text-slate-600/90 leading-relaxed px-4">
-                            Start your family's adventure! We will create your account and securely link it to Google.
-                        </p>
+                            {isDev && (
+                                <>
+                                    <div className="relative flex py-2 items-center">
+                                        <div className="flex-grow border-t border-slate-300"></div>
+                                        <span className="flex-shrink mx-4 text-slate-400 text-xs uppercase">Or</span>
+                                        <div className="flex-grow border-t border-slate-300"></div>
+                                    </div>
+
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => signInAnonymouslyUser()}
+                                        disabled={loading}
+                                        className="w-full h-12 rounded-full border-slate-300 text-slate-600 hover:bg-slate-50 font-medium transition-all"
+                                    >
+                                        Continue as Guest (No Setup)
+                                    </Button>
+
+                                    <button
+                                        onClick={() => signInAsDev()}
+                                        disabled={loading}
+                                        className="w-full text-center text-[10px] uppercase tracking-widest text-slate-400/50 hover:text-indigo-600 font-bold transition-colors py-2"
+                                    >
+                                        Dev Bypass 🕵️
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Footer / Terms */}
-                    <div className="mt-8 text-center space-y-4">
-                        <p className="text-[11px] text-slate-500 font-medium">
+                    {/* Footer / Terms - Pinned to Bottom */}
+                    <div className="w-full text-center pt-4">
+                        <p className="text-[11px] text-slate-500 font-medium mix-blend-multiply">
                             By signing up, you agree to our<br />
                             <a href="#" className="underline decoration-slate-400 hover:text-slate-800">Privacy Policy</a> &amp; <a href="#" className="underline decoration-slate-400 hover:text-slate-800">Terms of Service</a>
                         </p>
-
-                        {/* Dev Bypass (Subtle) */}
-                        <div className="pt-4 border-t border-slate-200/30 w-full max-w-[200px] mx-auto">
-                            <button
-                                onClick={() => signInAsDev()}
-                                disabled={loading}
-                                className="text-[10px] uppercase tracking-widest text-slate-400/70 hover:text-indigo-600 font-bold transition-colors"
-                            >
-                                Dev Bypass 🕵️
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>

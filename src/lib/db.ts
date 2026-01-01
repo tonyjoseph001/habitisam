@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 
 // --- TYPE DEFINITIONS ---
 
-export type ActivityType = 'recurring' | 'one-time';
+export type ActivityType = 'recurring' | 'one-time' | 'quick-task';
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Sunday, 1=Monday, etc.
 export type ProfileType = 'parent' | 'child';
 export type ThemeType = 'default' | 'ocean' | 'sunset' | 'forest' | 'candy' | 'midnight';
@@ -20,6 +20,15 @@ export interface Account {
     email: string | null; // Cached from Google
     displayName: string | null; // Cached "Parent Name" from Google
     photoURL: string | null; // Cached Google Profile Pic
+
+    // License & Subscription
+    licenseType: 'free' | 'pro' | 'enterprise';
+    licenseExpiry: string | null; // ISO Date String
+    isPaid: boolean;
+    subscriptionStatus: 'active' | 'expired' | 'cancelled' | 'none';
+    billingInterval?: 'monthly' | 'annual' | null;
+    stripeCustomerId?: string;
+
     createdAt: Date;
     lastLoginAt: Date;
 }
