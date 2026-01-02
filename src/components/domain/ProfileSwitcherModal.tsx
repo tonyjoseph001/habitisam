@@ -6,6 +6,7 @@ import { Lock, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useAccount } from '@/lib/hooks/useAccount';
 
 interface ProfileSwitcherProps {
     isOpen: boolean;
@@ -16,7 +17,8 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
     const { user, signInWithGoogle } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const router = useRouter();
-    const { profiles } = useProfiles(); // Use Firestore Hook
+    const { profiles } = useProfiles();
+    const { account } = useAccount();
 
     // const [profiles, setProfiles] = useState<Profile[]>([]); // Removed local state
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -111,8 +113,14 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
         }
     };
 
+    // Filter profiles: Show all children, but only the current user's parent profile.
+    const visibleProfiles = profiles.filter(p =>
+        p.type !== 'parent' ||
+        (p.ownerUid ? p.ownerUid === user?.uid : (user?.uid === p.accountId))
+    );
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Switch Profile">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Switch Profile ${account?.displayName ? `(${account.displayName})` : ''}`}>
             {showPinPad ? (
                 // PIN PAD VIEW
                 <div className="flex flex-col items-center justify-center p-6 space-y-6">
@@ -183,7 +191,7 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
             ) : (
                 // PROFILE LIST VIEW
                 <div className="grid grid-cols-2 gap-4 p-6">
-                    {profiles.map(profile => (
+                    {visibleProfiles.map(profile => (
                         <button
                             key={profile.id}
                             onClick={() => handleSelect(profile)}
@@ -202,7 +210,7 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                         </button>
                     ))}
 
-                    {profiles.length === 0 && (
+                    {visibleProfiles.length === 0 && (
                         <div className="col-span-2 text-center py-8 text-slate-400">
                             No profiles found.
                         </div>

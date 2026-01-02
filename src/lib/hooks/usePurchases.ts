@@ -5,17 +5,21 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { PurchaseService } from "@/lib/firestore/purchases.service";
 import { useFirestoreQuery } from "@/lib/firestore/hooks";
 import { query, where, orderBy } from 'firebase/firestore';
+import { useAccount } from "@/lib/hooks/useAccount";
 
 export function usePurchases(profileId?: string, status?: PurchaseLog['status']) {
     const { user } = useAuth();
+    const { account } = useAccount();
+
+    const accountId = account?.uid || user?.uid;
 
     // Create Firestore Query
     const purchasesQuery = useMemo(() => {
-        if (!user?.uid) return null;
+        if (!accountId) return null;
 
         let q = query(
             PurchaseService.getCollection(),
-            where("accountId", "==", user.uid)
+            where("accountId", "==", accountId)
         );
 
         if (profileId) {
@@ -27,16 +31,17 @@ export function usePurchases(profileId?: string, status?: PurchaseLog['status'])
         }
 
         return q;
-    }, [user?.uid, profileId, status]);
+    }, [accountId, profileId, status]);
 
     const { data: purchases, loading, error } = useFirestoreQuery<PurchaseLog>(purchasesQuery);
 
     const addPurchase = async (log: Omit<PurchaseLog, 'id' | 'accountId'>) => {
         if (!user?.uid) throw new Error("No authenticated user");
+        if (!accountId) throw new Error("No active account");
 
         const newLog: PurchaseLog = {
             id: uuidv4(),
-            accountId: user.uid,
+            accountId: accountId,
             ...log
         };
 

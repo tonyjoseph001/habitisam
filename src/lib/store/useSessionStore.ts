@@ -12,6 +12,7 @@ interface SessionState {
 
     hasHydrated: boolean;
     setHasHydrated: (state: boolean) => void;
+    reset: () => void;
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -28,6 +29,8 @@ export const useSessionStore = create<SessionState>()(
 
             currentTheme: 'default', // Default start theme
             setTheme: (theme) => set({ currentTheme: theme }),
+
+            reset: () => set({ activeProfile: null, currentTheme: 'default' }),
         }),
         {
             name: 'habitisim-session-storage', // name of the item in the storage (must be unique)

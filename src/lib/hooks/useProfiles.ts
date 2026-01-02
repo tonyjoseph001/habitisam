@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Profile } from "@/lib/db";
 import { v4 as uuidv4 } from 'uuid';
+import { useAccount } from "@/lib/hooks/useAccount";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { ProfileService } from "@/lib/firestore/profiles.service";
 import { useFirestoreQuery } from "@/lib/firestore/hooks";
@@ -8,16 +9,20 @@ import { query, where, orderBy } from 'firebase/firestore';
 
 export function useProfiles() {
     const { user } = useAuth();
+    const { account } = useAccount();
+
+    // Use the resolved account ID (Shared Household or Personal)
+    const accountId = account?.uid || user?.uid;
 
     // Create Firestore Query
     const profilesQuery = useMemo(() => {
-        if (!user?.uid) return null;
+        if (!accountId) return null;
         return query(
             ProfileService.getCollection(),
-            where("accountId", "==", user.uid)
+            where("accountId", "==", accountId)
             // orderBy("createdAt", "asc") // Optional
         );
-    }, [user?.uid]);
+    }, [accountId]);
 
     const { data: profiles, loading, error } = useFirestoreQuery<Profile>(profilesQuery);
 
@@ -29,10 +34,11 @@ export function useProfiles() {
         theme: Profile['theme'] = 'default'
     ) => {
         if (!user?.uid) throw new Error("No authenticated user");
+        if (!accountId) throw new Error("No active account linked");
 
         const newProfile: Profile = {
             id: uuidv4(),
-            accountId: user.uid,
+            accountId: accountId, // Use the resolved account ID
             name,
             type,
             avatarId,

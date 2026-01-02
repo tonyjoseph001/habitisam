@@ -15,6 +15,8 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { AccountService } from '@/lib/firestore/accounts.service';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firestore/core';
 
 interface AuthContextType {
     user: User | null;
@@ -30,9 +32,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const { setActiveProfile } = useSessionStore();
+    const { activeProfile, setActiveProfile, reset } = useSessionStore();
 
     // INIT REMOVED: @capacitor-firebase/authentication does not require manual init calls in useEffect.
+
+    // MEMBERSHIP GUARD: Watch for removal from household
+    useEffect(() => {
+        if (!user || !activeProfile?.accountId) return;
+
+        // Skip check if user owns the account (can't remove self this way usually, but safe guard)
+        // Actually, if I remove myself, I should be logged out too?
+        // Let's just listen.
+
+
+
+        const unsub = onSnapshot(doc(db, 'accounts', activeProfile.accountId), (snap: any) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                const members = data.members || [];
+
+                // If current user is NO LONGER a member, force logout
+                if (!members.includes(user.uid)) {
+                    console.warn("🚨 User removed from household! Signing out...");
+                    alert("You have been removed from this household.");
+                    signOut();
+                }
+            } else {
+                // Account deleted?
+                console.warn("🚨 Household account not found! Signing out...");
+                signOut();
+            }
+        });
+
+        return () => unsub();
+    }, [user, activeProfile?.accountId]); // Re-run if user or account context changes
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -175,17 +208,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signOut = async () => {
         try {
+            // Universal cleanup
+            reset(); // Clear session store (activeProfile, theme)
+            localStorage.removeItem('habitisim-session-storage'); // Clear persisted session
+
             if (localStorage.getItem('habitisim_dev_mode')) {
                 localStorage.removeItem('habitisim_dev_mode');
                 setUser(null);
-                setActiveProfile(null);
                 return;
             }
             if (Capacitor.isNativePlatform()) {
                 await FirebaseAuthentication.signOut();
             }
             await firebaseSignOut(auth);
-            setActiveProfile(null);
         } catch (error) {
             console.error("Error signing out", error);
         }

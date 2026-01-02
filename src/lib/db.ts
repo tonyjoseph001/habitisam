@@ -29,6 +29,8 @@ export interface Account {
     billingInterval?: 'monthly' | 'annual' | null;
     stripeCustomerId?: string;
 
+    members?: string[]; // Array of UIDs (Main + Invited Parents)
+
     createdAt: Date;
     lastLoginAt: Date;
 }
@@ -42,6 +44,7 @@ export interface Account {
 export interface Profile {
     id: string; // UUID
     accountId: string; // <-- FOREIGN KEY: Links this profile to the Household Account (uid)
+    ownerUid?: string; // Links to the specific Auth User (for Parents)
     name: string;
     type: ProfileType;
     pin?: string; // 4-digit PIN (Parent only)

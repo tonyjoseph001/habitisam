@@ -7,12 +7,15 @@ import { ActivityService } from "@/lib/firestore/activities.service";
 import { useFirestoreQuery } from "@/lib/firestore/hooks";
 import { query, where, orderBy } from 'firebase/firestore';
 
+import { useAccount } from "@/lib/hooks/useAccount";
+
 export function useRoutines() {
     const { user } = useAuth();
-    const { activeProfile } = useSessionStore();
+    const { account } = useAccount();
 
     // Query all activities for the household (account)
-    const accountId = user?.uid || activeProfile?.accountId;
+    // useAccount handles resolving the correct household based on active profile or membership
+    const accountId = account?.uid || user?.uid;
 
     // Create Firestore Query
     const routinesQuery = useMemo(() => {

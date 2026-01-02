@@ -13,7 +13,8 @@ import { ProfileService } from '@/lib/firestore/profiles.service';
 export default function ProfilesPage() {
     const router = useRouter();
     const { profiles: fetchedProfiles, loading } = useProfiles();
-    const profiles = fetchedProfiles || [];
+    // Only show child profiles here. Parents are managed in Settings.
+    const profiles = (fetchedProfiles || []).filter(p => p.type !== 'parent');
 
     const handleEdit = (id: string) => {
         router.push(`/parent/profile/edit?id=${id}`);

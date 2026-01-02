@@ -6,12 +6,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ProfileService } from "@/lib/firestore/profiles.service";
+import { AccountService } from "@/lib/firestore/accounts.service";
+import { useSessionStore } from "@/lib/store/useSessionStore";
 
 function LoginPageContent() {
     const { user, signInWithGoogle, signInAnonymouslyUser, signInAsDev, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isRedirecting, setIsRedirecting] = useState(false);
+    const { setActiveProfile } = useSessionStore();
 
 
     const isDev = process.env.NODE_ENV === 'development';
@@ -35,7 +38,14 @@ function LoginPageContent() {
                 try {
                     // Race Firestore against a 10s timeout to prevent infinite hang
                     profiles = await Promise.race([
-                        ProfileService.getByAccountId(user.uid),
+                        (async () => {
+                            // 1. Find all accounts I belong to (My own + Shared)
+                            const accounts = await AccountService.getForUser(user.uid);
+                            // 2. Fetch profiles for each account
+                            const promises = accounts.map(acc => ProfileService.getByAccountId(acc.uid));
+                            const results = await Promise.all(promises);
+                            return results.flat();
+                        })(),
                         new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error("Firestore Timeout")), 10000))
                     ]);
                 } catch (e) {
@@ -53,13 +63,16 @@ function LoginPageContent() {
                             const parsed = JSON.parse(stored);
                             const lastProfile = parsed?.state?.activeProfile;
 
-                            // Verify it belongs to this user
-                            if (lastProfile && lastProfile.accountId === user.uid) {
+                            // Verify it belongs to this user (or household)
+                            // We check if the stored profile ID is in the fetched list of valid profiles
+                            if (lastProfile && profiles.some(p => p.id === lastProfile.id)) {
                                 if (lastProfile.type === 'child') {
+                                    setActiveProfile(lastProfile);
                                     router.push("/child/dashboard");
                                     return;
                                 } else if (lastProfile.type === 'parent') {
                                     // SECURITY: Do NOT auto-verify parent PIN
+                                    setActiveProfile(lastProfile);
                                     router.push("/parent/dashboard");
                                     return;
                                 }
@@ -71,12 +84,18 @@ function LoginPageContent() {
 
                     // 2. Fallback: Default to Parent (Locked)
                     const parentProfile = profiles.find(p => p.type === 'parent');
-                    router.push("/parent/dashboard");
+                    if (parentProfile) {
+                        setActiveProfile(parentProfile);
+                        router.push("/parent/dashboard");
+                    } else {
+                        // No parent profile found? Weird. Go to Setup for safety.
+                        router.push("/setup");
+                    }
                 }
             }
         }
         checkRouting();
-    }, [user, loading, router, isRedirecting]);
+    }, [user, loading, router, isRedirecting, setActiveProfile]);
 
 
 

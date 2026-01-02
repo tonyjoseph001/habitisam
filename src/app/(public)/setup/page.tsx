@@ -6,12 +6,14 @@ import Image from "next/image";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { type Profile } from "@/lib/db";
 import { ProfileService } from "@/lib/firestore/profiles.service";
+import { InviteService } from "@/lib/firestore/invites.service";
+import { AccountService } from "@/lib/firestore/accounts.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSessionStore } from "@/lib/store/useSessionStore";
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, ShieldCheck } from "lucide-react";
+import { Sparkles, ArrowRight, ShieldCheck, Ticket } from "lucide-react";
 
 export default function SetupPage() {
     const { user, loading } = useAuth();
@@ -52,6 +54,8 @@ export default function SetupPage() {
         }
     };
 
+    const [inviteCode, setInviteCode] = useState("");
+
     const handleCompleteSetup = async () => {
         if (!name.trim()) {
             setError("Please enter your name.");
@@ -72,11 +76,31 @@ export default function SetupPage() {
         setError(""); // Clear previous errors
 
         try {
-            console.log("Creating profile for:", user.uid);
-            // Create new Parent Profile
+            console.log("Setting up profile for:", user.uid);
+
+            let targetAccountId = user.uid;
+
+            // --- Join Household Flow ---
+            if (inviteCode.trim()) {
+                const invite = await InviteService.validate(inviteCode.trim());
+                if (!invite) {
+                    throw new Error("Invalid or expired invite code.");
+                }
+                targetAccountId = invite.accountId;
+                console.log("Joining existing household:", targetAccountId);
+
+                // Add user to account's members list
+                await AccountService.joinHousehold(user, targetAccountId);
+
+                // Redeem (delete) the invite
+                await InviteService.redeem(inviteCode.trim());
+            }
+
+            // Create new Parent Profile linked to either new account (self) or joined account
             const newProfile: Profile = {
                 id: uuidv4(),
-                accountId: user.uid,
+                accountId: targetAccountId, // <--- Linked here
+                ownerUid: user.uid, // Link to Auth User
                 name: name.trim(),
                 type: 'parent',
                 pin: pinString,
@@ -95,7 +119,7 @@ export default function SetupPage() {
             router.push("/parent/dashboard");
         } catch (err) {
             console.error("Setup failed", err);
-            setError("Failed to create profile. Please try again. " + (err as Error).message);
+            setError("Failed to complete setup. " + (err as Error).message);
             setIsSubmitting(false);
         }
     };
@@ -174,6 +198,24 @@ export default function SetupPage() {
                                     />
                                 ))}
                             </div>
+                        </div>
+
+                        {/* Invite Code Input */}
+                        <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
+                                <Ticket className="w-3 h-3" />
+                                Family Invite Code (Optional)
+                            </label>
+                            <Input
+                                placeholder="Enter 6-digit code"
+                                value={inviteCode}
+                                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                                maxLength={6}
+                                className="bg-slate-50 border-slate-200 h-10 text-center font-mono tracking-widest text-sm focus:ring-emerald-500 rounded-xl"
+                            />
+                            <p className="text-[10px] text-slate-400 text-center">
+                                If your partner invited you, enter the code here to join your family.
+                            </p>
                         </div>
 
                         {error && (
