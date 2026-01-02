@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/lib/hooks/useAuth';
 import { Profile } from '@/lib/db';
 import { ProfileService } from '@/lib/firestore/profiles.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +13,9 @@ import { ChevronLeft, Save, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useProfiles } from '@/lib/hooks/useProfiles';
+import { getLimits } from '@/config/tiers';
+import { db } from '@/lib/db';
 
 // Avatar Options
 const AVATARS = [
@@ -35,6 +38,7 @@ const AVATARS = [
 export default function AddProfilePage() {
     const router = useRouter();
     const { user } = useAuth();
+    const { profiles } = useProfiles(); // Added hook
 
     // Constant type 'child'
     const [name, setName] = useState('');
@@ -44,6 +48,20 @@ export default function AddProfilePage() {
     const handleSave = async () => {
         if (!user) return;
         if (!name.trim()) return alert('Please enter a name');
+
+        // --- LIMIT CHECK ---
+        const childCount = profiles.filter(p => p.type === 'child').length;
+        // Fetch license
+        const account = await db.accounts.get(user.uid);
+        const license = account?.licenseType || 'free';
+        const limits = getLimits(license);
+
+        if (childCount >= limits.maxChildren) {
+            toast.error(`Free tier limit reached (${limits.maxChildren} children). Upgrade to add more!`);
+            setTimeout(() => router.push('/parent/subscription'), 1000); // Small delay for toast visibility
+            return;
+        }
+        // -------------------
 
         const newProfile: Profile = {
             id: uuidv4(),
