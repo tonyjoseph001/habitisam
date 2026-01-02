@@ -17,7 +17,7 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
     const { user, signInWithGoogle } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const router = useRouter();
-    const { profiles } = useProfiles();
+    const { profiles, addProfile } = useProfiles();
     const { account } = useAccount();
 
     // const [profiles, setProfiles] = useState<Profile[]>([]); // Removed local state
@@ -114,10 +114,13 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
     };
 
     // Filter profiles: Show all children, but only the current user's parent profile.
+    // We hide other parents (e.g. spouse) as requested, to keep the view focused on the active user.
     const visibleProfiles = profiles.filter(p =>
         p.type !== 'parent' ||
         (p.ownerUid ? p.ownerUid === user?.uid : (user?.uid === p.accountId))
     );
+
+
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Switch Profile ${account?.displayName ? `(${account.displayName})` : ''}`}>
@@ -210,11 +213,39 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                         </button>
                     ))}
 
-                    {visibleProfiles.length === 0 && (
+                    {/* Missing Parent Recovery Option */}
+                    {!visibleProfiles.some(p => p.type === 'parent') && (
+                        <button
+                            onClick={async () => {
+                                if (confirm("No parent profile detected. Create a new Admin profile to restore access?")) {
+                                    try {
+                                        // Default: Name per Auth, Avatar 1, PIN 0000
+                                        await addProfile(user?.displayName || "Admin", 'parent', 'parent-1', '0000');
+                                        alert("Profile Created! Default PIN is 0000.");
+                                    } catch (e) {
+                                        alert("Failed to create profile: " + e);
+                                    }
+                                }
+                            }}
+                            className="flex flex-col items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400 transition-all text-slate-400"
+                        >
+                            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-3xl border border-slate-200">
+                                ➕
+                            </div>
+                            <div className="text-center">
+                                <h3 className="font-bold text-slate-600">Create Admin</h3>
+                                <p className="text-xs text-slate-400">Recovery Mode</p>
+                            </div>
+                        </button>
+                    )}
+
+                    {visibleProfiles.length === 0 && !visibleProfiles.some(p => p.type === 'parent') && (
                         <div className="col-span-2 text-center py-8 text-slate-400">
                             No profiles found.
                         </div>
                     )}
+
+
                 </div>
             )}
         </Modal>

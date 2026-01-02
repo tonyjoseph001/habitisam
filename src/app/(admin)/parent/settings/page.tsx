@@ -42,6 +42,9 @@ export default function SettingsPage() {
             if (parentProfile.ownerUid) {
                 // Atomic cleanup: Remove access + Delete profile
                 await AccountService.removeParent(activeProfile!.accountId, parentProfile.ownerUid, parentProfile.id);
+                // Also wipe their personal account data (Nuclear option)
+                // Pass activeProfile.accountId as protectedUid to ensure we NEVER delete the household owner
+                await AccountService.deleteFullAccount(parentProfile.ownerUid, activeProfile!.accountId);
             } else {
                 console.warn("No ownerUid found on profile, only deleting profile doc.");
                 await ProfileService.delete(parentProfile.id);
@@ -410,6 +413,32 @@ export default function SettingsPage() {
                         >
                             <ArrowLeft className="w-4 h-4 rotate-180" />
                             Sign Out
+                        </button>
+
+                        <button
+                            onClick={async () => {
+                                if (!user) return;
+                                if (confirm("DANGER: This will permanently delete your account and all data. This cannot be undone.")) {
+                                    if (confirm("Are you absolutely sure?")) {
+                                        try {
+                                            // Soft Delete (Deactivate) data
+                                            await AccountService.deleteFullAccount(user.uid);
+
+                                            // Sign Out
+                                            // NOTE: We do NOT delete the Firebase Auth user. 
+                                            // This preserves the UID so the account can be Reactivated upon future login.
+                                            await signOut();
+                                            router.push('/login');
+                                        } catch (e: any) {
+                                            console.error("Delete Account Error:", e);
+                                            alert("Error deleting account: " + e.message);
+                                        }
+                                    }
+                                }
+                            }}
+                            className="w-full bg-white border border-slate-200 text-slate-400 hover:bg-red-50 hover:text-red-600 hover:border-red-100 font-bold py-3.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2 text-xs"
+                        >
+                            Delete Account
                         </button>
                     </div>
                 </div>

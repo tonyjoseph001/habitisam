@@ -29,6 +29,9 @@ export interface Account {
     billingInterval?: 'monthly' | 'annual' | null;
     stripeCustomerId?: string;
 
+    status?: 'active' | 'deactivated'; // Default 'active'
+    deactivatedAt?: Date;
+
     members?: string[]; // Array of UIDs (Main + Invited Parents)
 
     createdAt: Date;
@@ -249,6 +252,7 @@ db.version(1).stores({
 db.accounts.hook('creating', function (primKey, obj, trans) {
     obj.createdAt = new Date();
     obj.lastLoginAt = new Date();
+    if (!obj.status) obj.status = 'active';
 });
 db.profiles.hook('creating', function (primKey, obj, trans) {
     obj.createdAt = new Date();

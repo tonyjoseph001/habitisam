@@ -32,11 +32,45 @@ export const AccountService = {
         const now = new Date();
 
         if (!snapshot.exists()) {
-            // Check if user is already a member of another household?
-            // For now, simplicity: A user always creates their own "Household" on signup.
-            // When they join another, we might handle switching context.
-            // BUT: If they join another, their own household becomes dormant?
-            // Actually, `useAccount` determines which one checks out.
+            // Check for Account Recovery by Email (Migration Scenario)
+            if (user.email) {
+                const emailQuery = query(collection(db, COLLECTION), where('email', '==', user.email));
+                const emailSnap = await getDocs(emailQuery);
+
+                if (!emailSnap.empty) {
+                    const oldAccountDoc = emailSnap.docs[0];
+                    const oldData = oldAccountDoc.data();
+                    console.log(`♻️ Found existing account by email (${user.email}). Migrating ${oldAccountDoc.id} -> ${user.uid}...`);
+
+                    // 1. Migrate Child Collections
+                    await AccountService.migrateAccountData(oldAccountDoc.id, user.uid);
+
+                    // 2. Prepare New Account Data
+                    const mergedAccount: any = {
+                        ...oldData,
+                        uid: user.uid, // NEW UID
+                        status: 'active',
+                        deactivatedAt: null,
+                        lastLoginAt: now,
+                    };
+
+                    // Fix members array: Replace old UID with new UID
+                    if (mergedAccount.members && Array.isArray(mergedAccount.members)) {
+                        mergedAccount.members = mergedAccount.members.map((m: string) => m === oldAccountDoc.id ? user.uid : m);
+                    } else {
+                        mergedAccount.members = [user.uid];
+                    }
+
+                    // 3. Create New Root & Delete Old
+                    const batch = writeBatch(db);
+                    batch.set(accountRef, mergedAccount);
+                    batch.delete(oldAccountDoc.ref);
+                    await batch.commit();
+
+                    console.log("✅ Migration Complete.");
+                    return;
+                }
+            }
 
             // CREATE NEW ACCOUNT
             const newAccount: Account = {
@@ -53,6 +87,7 @@ export const AccountService = {
 
                 members: [user.uid], // Initialize with self
 
+                status: 'active',
                 createdAt: now,
                 lastLoginAt: now
             };
@@ -68,6 +103,13 @@ export const AccountService = {
                 photoURL: user.photoURL,
                 lastLoginAt: now
             };
+
+            // Reactivate if previously deactivated
+            if (data.status === 'deactivated') {
+                updates.status = 'active';
+                updates.deactivatedAt = null;
+                console.log("♻️ Account Reactivated:", user.uid);
+            }
 
             // Migration: Ensure members exists
             if (!data.members) {
@@ -193,5 +235,113 @@ export const AccountService = {
         batch.delete(profileRef);
 
         await batch.commit();
+    },
+
+    /**
+     * NUCLEAR OPTION: Completely deletes a user's Firestore data.
+     * 1. Deletes their personal 'accounts/{uid}' doc.
+     * 2. Deletes all profiles owned by them (including the one in the household).
+     * @param uid The user ID to wipe
+     * @param protectedUid Optional: If provided, ensures we don't delete this specific UID (e.g. the Household Owner)
+     */
+    deleteFullAccount: async (uid: string, protectedUid?: string) => {
+        if (!uid) return;
+        if (protectedUid && uid === protectedUid) {
+            throw new Error("Security Violation: Cannot deactivate the primary household owner account.");
+        }
+
+        const COLLECTIONS_TO_WIPE = [
+            'profiles',
+            'activities',
+            'activityLogs',
+            'rewards',
+            'purchaseLogs',
+            'inboxRewards',
+            'goals'
+        ];
+
+        let batch = writeBatch(db);
+        let opCount = 0;
+        const BATCH_LIMIT = 400;
+
+        // 1. Deactivate Root Account (Soft Delete)
+        const accountRef = doc(db, COLLECTION, uid);
+        batch.update(accountRef, {
+            status: 'deactivated',
+            deactivatedAt: new Date()
+        });
+        opCount++;
+
+        // 2. Delete ALL Household Data from all tables
+        for (const colName of COLLECTIONS_TO_WIPE) {
+            const q = query(collection(db, colName), where('accountId', '==', uid));
+            const snap = await getDocs(q);
+
+            for (const docSnap of snap.docs) {
+                batch.delete(docSnap.ref);
+                opCount++;
+
+                if (opCount >= BATCH_LIMIT) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    opCount = 0;
+                }
+            }
+        }
+
+        if (opCount > 0) {
+            await batch.commit();
+        }
+    },
+
+    /**
+     * Helper: Moves all child data from Old UID to New UID.
+     */
+    migrateAccountData: async (oldUid: string, newUid: string) => {
+        const COLLECTIONS = [
+            'profiles',
+            'activities',
+            'activityLogs',
+            'rewards',
+            'purchaseLogs',
+            'inboxRewards',
+            'goals'
+        ];
+
+        // Process in batches
+        let batch = writeBatch(db);
+        let count = 0;
+        const BATCH_LIMIT = 400;
+
+        for (const colName of COLLECTIONS) {
+            const q = query(collection(db, colName), where('accountId', '==', oldUid));
+            const snap = await getDocs(q);
+
+            for (const docSnap of snap.docs) {
+                const updateData: any = { accountId: newUid };
+
+                // If profile owned by old user, transfer ownership
+                if (colName === 'profiles') {
+                    const pData = docSnap.data();
+                    if (pData.ownerUid === oldUid) {
+                        updateData.ownerUid = newUid;
+                    }
+                }
+
+                batch.update(docSnap.ref, updateData);
+                count++;
+
+                if (count >= BATCH_LIMIT) {
+                    await batch.commit();
+                    batch = writeBatch(db); // New batch
+                    count = 0;
+                }
+            }
+        }
+
+        if (count > 0) {
+            await batch.commit();
+            console.log(`📦 Migrated documents from ${oldUid} to ${newUid}`);
+        }
     }
 };
