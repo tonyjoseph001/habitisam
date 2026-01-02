@@ -217,6 +217,19 @@ export interface Goal {
     completedAt?: Date;
 }
 
+// ==========================================
+// NEW: Feedback
+// ==========================================
+export interface Feedback {
+    id: string; // UUID
+    userId: string; // Reporter
+    type: 'bug' | 'feature' | 'general';
+    message: string;
+    contactEmail?: string;
+    createdAt: Date;
+    metadata?: any;
+}
+
 // --- DATABASE INITIALIZATION ---
 
 interface HabitisimDB extends Dexie {

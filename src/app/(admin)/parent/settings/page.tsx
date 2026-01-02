@@ -374,6 +374,24 @@ export default function SettingsPage() {
                     </div>
                 )}
 
+                {/* Support & Feedback Card */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex items-center gap-3 mb-4 text-sky-500">
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span>💬</span> Support
+                        </h2>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-4">
+                        Found a bug or have an idea? We'd love to hear from you.
+                    </p>
+                    <Link
+                        href="/parent/feedback"
+                        className="block w-full bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold py-3.5 px-4 rounded-xl text-center transition-colors shadow-sm"
+                    >
+                        Send Feedback / Report Bug
+                    </Link>
+                </div>
+
                 {/* Notifications Card */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3 mb-4 text-slate-400">
