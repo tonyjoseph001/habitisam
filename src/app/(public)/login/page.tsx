@@ -143,7 +143,7 @@ function LoginPageContent() {
 
                         {/* Branding */}
                         <div className="w-full text-center mb-8 animate-in slide-in-from-bottom-5 fade-in duration-700 delay-100">
-                            <h1 className="text-4xl font-black text-slate-800 mb-2 tracking-tight">Habitisim</h1>
+                            <h1 className="text-4xl font-black text-slate-800 mb-2 tracking-tight">Habitisam</h1>
                             <h2 className="text-xl font-bold text-slate-700 mb-2">Let’s Get Your Family Started!</h2>
                             <p className="text-sm font-medium text-slate-500">
                                 Build better habits and make daily routines fun.

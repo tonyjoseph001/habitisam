@@ -14,12 +14,12 @@ const fredoka = Fredoka({
 });
 
 export const metadata: Metadata = {
-  title: "Habitisim",
+  title: "Habitisam",
   description: "Gamified chores and routines for kids",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Habitisim",
+    title: "Habitisam",
   },
 };
 

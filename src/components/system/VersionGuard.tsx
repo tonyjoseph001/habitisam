@@ -90,7 +90,7 @@ export default function VersionGuard({ children }: { children: React.ReactNode }
                     <h1 className="text-2xl font-black text-slate-900 mb-2">Update Required</h1>
                     <p className="text-slate-500 font-medium mb-8">
                         The version you are using ({APP_CONFIG.version}) is no longer supported.
-                        Please update to the latest version to continue using Habitisim.
+                        Please update to the latest version to continue using Habitisam.
                     </p>
 
                     <button

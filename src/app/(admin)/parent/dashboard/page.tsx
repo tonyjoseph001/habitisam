@@ -423,7 +423,7 @@ export default function ParentDashboard() {
     return (
         <div className="min-h-screen bg-slate-100 pb-20 font-sans">
             {/* 1. Header Bar: Using Standard Component */}
-            <ParentHeader title="Dashboard" />
+            <ParentHeader title="Habitisam" />
 
             <main className="py-4 flex flex-col gap-6 max-w-screen-md mx-auto">
                 {/* Loading State for Content Only */}

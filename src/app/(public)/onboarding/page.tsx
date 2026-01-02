@@ -11,7 +11,7 @@ const slides = [
     {
         id: 1,
         title: "Understanding Their World",
-        text: "Habitisim bridges the gap between daily expectations and your child's unique way of processing the world.",
+        text: "Habitisam bridges the gap between daily expectations and your child's unique way of processing the world.",
         image: "/splash-1.png"
     },
     {

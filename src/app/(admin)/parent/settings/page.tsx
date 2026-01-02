@@ -460,7 +460,7 @@ export default function SettingsPage() {
 
                 {/* Version Footer */}
                 <p className="text-center text-[10px] text-slate-400 font-mono mt-8 mb-4 opacity-50">
-                    Version {APP_CONFIG.version} (Build {APP_CONFIG.buildNumber})
+                    Habitisam v{APP_CONFIG.version} (Build {APP_CONFIG.buildNumber})
                 </p>
 
             </div>

@@ -152,7 +152,7 @@ export default function SetupPage() {
 
                     {/* Header */}
                     <div className="w-full text-center mb-8 animate-in slide-in-from-bottom-5 fade-in duration-700">
-                        <h1 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Welcome to Habitisim!</h1>
+                        <h1 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Welcome to Habitisam!</h1>
                         <p className="text-sm font-medium text-slate-600">
                             Let's set up your admin profile.
                         </p>

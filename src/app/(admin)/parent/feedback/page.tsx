@@ -65,7 +65,7 @@ export default function FeedbackPage() {
                     </div>
                     <h1 className="text-2xl font-bold text-slate-800 mb-2">Thank You!</h1>
                     <p className="text-slate-500">
-                        Your feedback has been received. We appreciate your help in making Habitisim better!
+                        Your feedback has been received. We appreciate your help in making Habitisam better!
                     </p>
                     <button
                         onClick={() => router.back()}
@@ -115,8 +115,8 @@ export default function FeedbackPage() {
                                     type="button"
                                     onClick={() => setType(item.id as any)}
                                     className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${isSelected
-                                            ? `${item.bg} ${item.border} border-opacity-100 ring-2 ring-violet-100`
-                                            : 'bg-white border-slate-100 hover:border-slate-200'
+                                        ? `${item.bg} ${item.border} border-opacity-100 ring-2 ring-violet-100`
+                                        : 'bg-white border-slate-100 hover:border-slate-200'
                                         }`}
                                 >
                                     <Icon className={`w-6 h-6 ${item.color}`} />
