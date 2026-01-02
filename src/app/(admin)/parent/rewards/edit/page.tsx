@@ -7,11 +7,13 @@ import { ArrowLeft, Check, Star, Users, Trash, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import EmojiPicker, { Theme as EmojiTheme } from 'emoji-picker-react';
+import { IconSelector } from '@/components/domain/routines/IconSelector'; // Added
 import { Modal } from '@/components/ui/modal';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useRewards } from '@/lib/hooks/useRewards';
+import { useAccount } from '@/lib/hooks/useAccount'; // Added
 import { RewardService } from "@/lib/firestore/rewards.service";
+import { Avatar } from '@/components/ui/Avatar'; // Added
 import { toast } from 'sonner';
 
 import { Suspense } from 'react';
@@ -21,6 +23,8 @@ function EditRewardContent() {
     const searchParams = useSearchParams();
     const id = searchParams.get('id');
     const { activeProfile } = useSessionStore();
+    const { account } = useAccount(); // Added
+    const isPremium = account?.licenseType === 'pro' || account?.licenseType === 'enterprise';
 
     const { profiles } = useProfiles();
     const { updateReward, deleteReward } = useRewards();
@@ -82,25 +86,7 @@ function EditRewardContent() {
         );
     };
 
-    const getAvatarEmoji = (avatarId?: string) => {
-        switch (avatarId) {
-            case 'boy': return '🧑‍🚀';
-            case 'girl': return '👩‍🚀';
-            case 'superhero': return '🦸';
-            case 'superhero_girl': return '🦸‍♀️';
-            case 'ninja': return '🥷';
-            case 'wizard': return '🧙';
-            case 'princess': return '👸';
-            case 'pirate': return '🏴‍☠️';
-            case 'alien': return '👽';
-            case 'robot': return '🤖';
-            case 'dinosaur': return '🦖';
-            case 'unicorn': return '🦄';
-            case 'dragon': return '🐉';
-            case 'rocket': return '🚀';
-            default: return '👶';
-        }
-    };
+    // Removed duplicated getAvatarEmoji
 
     const handleSave = async () => {
         if (!id) return;
@@ -180,17 +166,12 @@ function EditRewardContent() {
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tap to change icon</p>
 
                     {showEmojiPicker && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6" onClick={() => setShowEmojiPicker(false)}>
-                            <div className="bg-white rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-                                <EmojiPicker
-                                    theme={EmojiTheme.AUTO}
-                                    onEmojiClick={(e) => {
-                                        setIcon(e.emoji);
-                                        setShowEmojiPicker(false);
-                                    }}
-                                />
+                        <>
+                            <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setShowEmojiPicker(false)} />
+                            <div className="absolute top-28 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[340px] h-[300px] bg-white animate-in slide-in-from-top-2 fade-in-20">
+                                <IconSelector value={icon} onChange={setIcon} onClose={() => setShowEmojiPicker(false)} mode="reward" isPremium={isPremium} />
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
 
@@ -268,7 +249,7 @@ function EditRewardContent() {
                                             : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                                     )}
                                 >
-                                    <span className="text-lg leading-none">{getAvatarEmoji(child.avatarId)}</span> {child.name}
+                                    <Avatar avatarId={child.avatarId} size="sm" showBorder={false} /> <span className="pt-0.5">{child.name}</span>
                                     {assignedIds.includes(child.id) && <Check size={14} />}
                                 </button>
                             ))}

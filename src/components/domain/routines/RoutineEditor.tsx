@@ -13,7 +13,8 @@ import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
 import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { Modal } from '@/components/ui/modal';
 import * as Icons from 'lucide-react';
-import EmojiPicker from 'emoji-picker-react';
+
+
 import { toast } from 'sonner';
 import { ActivityService } from '@/lib/firestore/activities.service';
 import { GoalService } from '@/lib/firestore/goals.service';
@@ -22,7 +23,9 @@ import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useRoutines } from '@/lib/hooks/useRoutines'; // Added
 import { getLimits } from '@/config/tiers'; // Added
 import { db } from '@/lib/db'; // Added
+import { useAccount } from '@/lib/hooks/useAccount'; // Added useAccount
 import { QuickAddChildModal } from '@/components/domain/profiles/QuickAddChildModal';
+import { IconSelector } from '@/components/domain/routines/IconSelector';
 
 // ... (DAYS, TRACKING_TYPES constants)
 
@@ -66,6 +69,9 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [audioUrl, setAudioUrl] = useState('');
+    const { account } = useAccount(); // Added
+    const isPremium = account?.licenseType === 'pro' || account?.licenseType === 'enterprise';
+
     const [icon, setIcon] = useState('Sun');
     const [assignedChildIds, setAssignedChildIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(isEditMode);
@@ -366,12 +372,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         {showIconModal && (
                                             <>
                                                 <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setShowIconModal(false)} />
-                                                <div className="absolute top-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[300px] bg-white animate-in slide-in-from-top-2">
-                                                    <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-                                                        <h3 className="font-bold text-xs text-slate-600 uppercase">Choose Icon</h3>
-                                                        <button onClick={() => setShowIconModal(false)} className="p-1 bg-slate-100 rounded-full hover:bg-slate-200"><Icons.X className="w-3 h-3 text-slate-400" /></button>
-                                                    </div>
-                                                    <EmojiPicker onEmojiClick={(d) => { setIcon(d.emoji); setShowIconModal(false); }} width="100%" height={300} lazyLoadEmojis={true} skinTonesDisabled={true} previewConfig={{ showPreview: false }} />
+                                                <div className="absolute top-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[340px] h-[300px] bg-white animate-in slide-in-from-top-2 fade-in-20">
+                                                    <IconSelector value={icon} onChange={setIcon} onClose={() => setShowIconModal(false)} isPremium={isPremium} />
                                                 </div>
                                             </>
                                         )}
@@ -487,12 +489,8 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         {showIconModal && (
                                             <>
                                                 <div className="fixed inset-0 z-40 bg-black/5" onClick={() => setShowIconModal(false)} />
-                                                <div className="absolute top-14 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[300px] bg-white animate-in slide-in-from-top-2">
-                                                    <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-                                                        <h3 className="font-bold text-xs text-slate-600 uppercase">Choose Icon</h3>
-                                                        <button onClick={() => setShowIconModal(false)} className="p-1 bg-slate-100 rounded-full hover:bg-slate-200"><Icons.X className="w-3 h-3 text-slate-400" /></button>
-                                                    </div>
-                                                    <EmojiPicker onEmojiClick={(d) => { setIcon(d.emoji); setShowIconModal(false); }} width="100%" height={300} lazyLoadEmojis={true} skinTonesDisabled={true} previewConfig={{ showPreview: false }} />
+                                                <div className="absolute top-14 right-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[340px] h-[300px] bg-white animate-in slide-in-from-top-2 fade-in-20">
+                                                    <IconSelector value={icon} onChange={setIcon} onClose={() => setShowIconModal(false)} isPremium={isPremium} />
                                                 </div>
                                             </>
                                         )}
@@ -819,28 +817,12 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 </div>
             </div>
 
-            {/* ICON PICKER MODAL */}
+            {/* ICON PICKER MODAL - GLOBAL (Mobile Fallback) */}
             {
                 showIconModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in p-4">
-                        <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <h3 className="font-bold text-slate-800">Choose Icon</h3>
-                                <button onClick={() => setShowIconModal(false)} className="p-2 bg-slate-200 rounded-full hover:bg-slate-300 transition"><Icons.X className="w-4 h-4" /></button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-0">
-                                <EmojiPicker
-                                    onEmojiClick={(emojiData) => {
-                                        setIcon(emojiData.emoji);
-                                        setShowIconModal(false);
-                                    }}
-                                    width="100%"
-                                    height={400}
-                                    lazyLoadEmojis={true}
-                                    skinTonesDisabled={true}
-                                    previewConfig={{ showPreview: false }}
-                                />
-                            </div>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 p-4 animate-in fade-in" onClick={() => setShowIconModal(false)}>
+                        <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[60vh] border border-slate-200" onClick={e => e.stopPropagation()}>
+                            <IconSelector value={icon} onChange={setIcon} onClose={() => setShowIconModal(false)} isPremium={isPremium} />
                         </div>
                     </div>
                 )

@@ -7,6 +7,7 @@ import { Bell, Star, ChevronLeft } from 'lucide-react';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useInbox } from '@/lib/hooks/useInbox';
+import { Avatar } from '@/components/ui/Avatar'; // Added
 
 export default function ChildHeader({ showBack = false, title }: { showBack?: boolean; title?: string }) {
     const router = useRouter();
@@ -24,27 +25,7 @@ export default function ChildHeader({ showBack = false, title }: { showBack?: bo
 
     if (!activeProfile || !displayProfile) return null;
 
-    const getAvatarEmoji = (avatarId?: string) => {
-        switch (avatarId) {
-            case 'boy': return '🧑‍🚀';
-            case 'girl': return '👩‍🚀';
-            case 'superhero': return '🦸';
-            case 'superhero_girl': return '🦸‍♀️';
-            case 'ninja': return '🥷';
-            case 'wizard': return '🧙';
-            case 'princess': return '👸';
-            case 'pirate': return '🏴‍☠️';
-            case 'alien': return '👽';
-            case 'robot': return '🤖';
-            case 'dinosaur': return '🦖';
-            case 'unicorn': return '🦄';
-            case 'dragon': return '🐉';
-            case 'rocket': return '🚀';
-            default: return '👶';
-        }
-    };
-
-    const avatarEmoji = getAvatarEmoji(displayProfile.avatarId);
+    // Removed duplicated getAvatarEmoji
 
     return (
         <>
@@ -56,8 +37,8 @@ export default function ChildHeader({ showBack = false, title }: { showBack?: bo
                         onClick={() => setIsProfileSwitcherOpen(true)}
                         className="flex items-center gap-3 bg-white pl-1 pr-4 py-1 rounded-full shadow-sm active:scale-95 transition-transform"
                     >
-                        <div className="w-10 h-10 rounded-full bg-yellow-100 overflow-hidden border-2 border-white shadow-sm ring-1 ring-inset ring-black/5 flex items-center justify-center text-xl">
-                            {avatarEmoji}
+                        <div className="flex items-center justify-center">
+                            <Avatar avatarId={displayProfile.avatarId} size="md" />
                         </div>
                         <div>
                             <div className="text-sm font-bold text-gray-800 leading-none">{displayProfile.name}</div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Clock, Star, Trash2, Award, Check, HelpCircle } from 'lucide-react';
 import * as Icons from 'lucide-react';
-import EmojiPicker from 'emoji-picker-react';
+import { IconSelector } from '@/components/domain/routines/IconSelector'; // Added
 import { cn } from '@/lib/utils';
 import { Step } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -104,6 +104,11 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
         // @ts-ignore
         const LucideIcon = Icons[name as keyof typeof Icons] as any;
         if (LucideIcon) return <LucideIcon className={className} />;
+
+        // Fallback for Emojis
+        const isEmoji = !/^[A-Za-z0-9]+$/.test(name);
+        if (isEmoji) return <span className={cn(className?.includes('w-6') ? 'text-2xl' : 'text-3xl', "leading-none")}>{name}</span>;
+
         return <span className={cn(className?.includes('w-6') ? 'text-2xl' : 'text-xl', "leading-none")}>{name}</span>;
     };
 
@@ -193,20 +198,8 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                                 className="fixed inset-0 z-40 bg-black/5"
                                                 onClick={() => setShowPicker(false)}
                                             />
-                                            <div className="absolute top-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[300px] animate-in slide-in-from-top-2">
-                                                <div className="bg-white p-3 border-b border-slate-100 flex items-center justify-between">
-                                                    <h3 className="font-bold text-xs text-slate-600 uppercase">Choose Icon</h3>
-                                                    <button onClick={() => setShowPicker(false)} className="p-1 bg-slate-100 rounded-full hover:bg-slate-200"><Icons.X className="w-3 h-3 text-slate-400" /></button>
-                                                </div>
-                                                <EmojiPicker
-                                                    onEmojiClick={(d) => { setIcon(d.emoji); setShowPicker(false); }}
-                                                    width="100%"
-                                                    height={300}
-                                                    lazyLoadEmojis={true}
-                                                    searchDisabled={false}
-                                                    skinTonesDisabled={true}
-                                                    previewConfig={{ showPreview: false }}
-                                                />
+                                            <div className="absolute top-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 w-[340px] h-[300px] animate-in slide-in-from-top-2">
+                                                <IconSelector value={icon} onChange={setIcon} onClose={() => setShowPicker(false)} mode="routine" />
                                             </div>
                                         </>
                                     )}

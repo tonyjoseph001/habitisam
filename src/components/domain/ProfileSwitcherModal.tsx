@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useAccount } from '@/lib/hooks/useAccount';
+import { Avatar } from '@/components/ui/Avatar'; // Added
 
 interface ProfileSwitcherProps {
     isOpen: boolean;
@@ -91,27 +92,7 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
         setPin(prev => prev.slice(0, -1));
     };
 
-    const getAvatarEmoji = (profile: Profile) => {
-        if (profile.type === 'parent' && !profile.avatarId) return '👤';
-
-        switch (profile.avatarId) {
-            case 'boy': return '🧑‍🚀';
-            case 'girl': return '👩‍🚀';
-            case 'superhero': return '🦸';
-            case 'superhero_girl': return '🦸‍♀️';
-            case 'ninja': return '🥷';
-            case 'wizard': return '🧙';
-            case 'princess': return '👸';
-            case 'pirate': return '🏴‍☠️';
-            case 'alien': return '👽';
-            case 'robot': return '🤖';
-            case 'dinosaur': return '🦖';
-            case 'unicorn': return '🦄';
-            case 'dragon': return '🐉';
-            case 'rocket': return '🚀';
-            default: return profile.type === 'parent' ? '👤' : '🧒';
-        }
-    };
+    // Removed duplicated getAvatarEmoji
 
     // Filter profiles: Show all children, but only the current user's parent profile.
     // We hide other parents (e.g. spouse) as requested, to keep the view focused on the active user.
@@ -128,8 +109,8 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                 // PIN PAD VIEW
                 <div className="flex flex-col items-center justify-center p-6 space-y-6">
                     <div className="text-center">
-                        <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center text-4xl mb-3 mx-auto">
-                            {targetProfile ? getAvatarEmoji(targetProfile) : '👤'}
+                        <div className="flex justify-center mb-4">
+                            <Avatar avatarId={targetProfile?.avatarId} size="xl" />
                         </div>
                         <h3 className="text-xl font-bold text-slate-800">Enter PIN for {targetProfile?.name}</h3>
                         <div className="flex justify-center gap-2 mt-4">
@@ -203,8 +184,8 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                                 : 'border-slate-100 bg-white hover:border-violet-200 hover:shadow-sm'
                                 }`}
                         >
-                            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl shadow-inner">
-                                {getAvatarEmoji(profile)}
+                            <div className="mb-2">
+                                <Avatar avatarId={profile.avatarId} size="lg" showBorder={false} />
                             </div>
                             <div className="text-center">
                                 <h3 className="font-bold text-slate-900">{profile.name}</h3>
