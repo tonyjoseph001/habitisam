@@ -710,7 +710,7 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 </div>
             )}
 
-            <StepEditorModal isOpen={isStepModalOpen} initialData={editingStep} onClose={() => setIsStepModalOpen(false)} onSave={handleSaveStep} onDelete={editingStep ? () => handleDeleteStep(editingStep.id) : undefined} />
+            <StepEditorModal key={editingStep?.id || 'new'} isOpen={isStepModalOpen} initialData={editingStep} onClose={() => setIsStepModalOpen(false)} onSave={handleSaveStep} onDelete={editingStep ? () => handleDeleteStep(editingStep.id) : undefined} />
 
             <Modal isOpen={errorModalOpen} onClose={() => setErrorModalOpen(false)} title="Required" className="max-w-xs">
                 <div className="p-4 pt-0">

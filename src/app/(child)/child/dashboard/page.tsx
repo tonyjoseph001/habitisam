@@ -49,8 +49,14 @@ export default function MissionControlPage() {
     const [streakLogs, setStreakLogs] = useState<ActivityLog[]>([]);
 
     // Firestore Hooks
+    // Firestore Hooks
     const { routines: fetchedRoutines } = useRoutines();
-    const routines = fetchedRoutines || [];
+
+    // Fix: Filter routines to only show those assigned to the current child
+    const routines = useMemo(() => {
+        if (!fetchedRoutines || !activeProfile?.id) return [];
+        return fetchedRoutines.filter(r => r.profileIds?.includes(activeProfile.id));
+    }, [fetchedRoutines, activeProfile?.id]);
 
     // Fix: Pass string date YYYY-MM-DD (Local Time)
     const { logs } = useActivityLogs(activeProfile?.id, format(new Date(), 'yyyy-MM-dd'));

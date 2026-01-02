@@ -146,7 +146,10 @@ export default function PurchaseHistoryPage() {
                                                     {log.rewardSnapshot.cost} <Star className="w-4 h-4 fill-current" />
                                                 </div>
                                                 <span className="text-[10px] text-slate-400 font-medium">
-                                                    {formatDistanceToNow(log.purchasedAt, { addSuffix: true })}
+                                                    {(() => {
+                                                        const date = log.purchasedAt ? new Date(log.purchasedAt) : new Date();
+                                                        return formatDistanceToNow(isNaN(date.getTime()) ? new Date() : date, { addSuffix: true });
+                                                    })()}
                                                 </span>
                                             </div>
                                         </div>
@@ -214,7 +217,10 @@ export default function PurchaseHistoryPage() {
                                             <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium h-4">
                                                 <span>{log.profileName}</span>
                                                 <span>•</span>
-                                                <span>{formatDistanceToNow(log.purchasedAt, { addSuffix: true })}</span>
+                                                <span>{(() => {
+                                                    const date = log.purchasedAt ? new Date(log.purchasedAt) : new Date();
+                                                    return formatDistanceToNow(isNaN(date.getTime()) ? new Date() : date, { addSuffix: true });
+                                                })()}</span>
                                                 {isRejected && <span className="text-red-400 font-bold bg-red-50 px-1 rounded">Rejected</span>}
                                                 {log.status === 'approved' && <span className="text-green-600 font-bold bg-green-50 px-1 rounded">Approved</span>}
                                             </div>

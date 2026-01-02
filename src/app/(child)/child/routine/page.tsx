@@ -9,10 +9,11 @@ import { ActivityService } from '@/lib/firestore/activities.service';
 import { LogService } from '@/lib/firestore/logs.service';
 import { ProfileService } from '@/lib/firestore/profiles.service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, SkipBack, Volume2, ArrowLeft, Clock } from 'lucide-react';
+import { Check, Star, ChevronRight, Play, Pause, RefreshCw, SkipForward, SkipBack, Volume2, ArrowLeft, Clock, Info, RotateCcw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { format } from 'date-fns';
 import { playSound } from '@/lib/sound';
+import { cn } from '@/lib/utils';
 
 // Initialize directly if possible to avoid flash
 const useMediaQuery = (query: string) => {
@@ -65,6 +66,7 @@ function RoutinePlayerContent() {
 
     // UI State
     const [isSkipModalOpen, setIsSkipModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [activeStepRemainingStars, setActiveStepRemainingStars] = useState(0);
     const [isCompleting, setIsCompleting] = useState(false);
     const [isTitleExpanded, setIsTitleExpanded] = useState(false);
@@ -115,6 +117,7 @@ function RoutinePlayerContent() {
                 audioInstanceRef.current.pause();
                 audioInstanceRef.current = null;
             }
+            stopAlarm();
         };
     }, []);
 
@@ -147,6 +150,7 @@ function RoutinePlayerContent() {
                         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
                         setIsRunning(false);
                         playSound('complete'); // Optional tick or chime
+                        playFinishAlarm(); // Start 1-min alarm
                         return 0;
                     }
                     return prev - 1;
@@ -162,17 +166,19 @@ function RoutinePlayerContent() {
 
     // Sync Audio with Timer Logic
     useEffect(() => {
-        const step = routine?.steps[currentStepIndex];
-        if (step?.audioUrl && audioInstanceRef.current) {
-            if (isRunning && !isAudioPlaying) {
-                audioInstanceRef.current.play().catch(console.error);
-                setIsAudioPlaying(true);
-            } else if (!isRunning && isAudioPlaying) {
+        if (!routine) return;
+
+        // Only handle PAUSING via effect (e.g. if timer stops automatically)
+        if (!isRunning) {
+            if (audioInstanceRef.current) {
                 audioInstanceRef.current.pause();
-                setIsAudioPlaying(false);
             }
+            if (synthRef.current && synthRef.current.speaking) {
+                synthRef.current.pause();
+            }
+            setIsAudioPlaying(false);
         }
-    }, [isRunning, currentStepIndex, routine, isAudioPlaying]);
+    }, [isRunning]);
 
     // Audio Logic
     useEffect(() => {
@@ -180,6 +186,79 @@ function RoutinePlayerContent() {
             synthRef.current = window.speechSynthesis;
         }
     }, []);
+
+    // Alarm / Beep Logic
+    const alarmContextRef = useRef<AudioContext | null>(null);
+
+    const stopAlarm = () => {
+        if (alarmContextRef.current) {
+            alarmContextRef.current.close().catch(() => { });
+            alarmContextRef.current = null;
+        }
+    };
+
+    const playStartupBeep = () => {
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime); // High beep
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+    };
+
+    const playFinishAlarm = () => {
+        stopAlarm(); // Clear existing
+
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        alarmContextRef.current = ctx;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'square'; // Alarm style
+        osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+
+        // Schedule 60 seconds of beeps (1 per second)
+        const now = ctx.currentTime;
+        gain.gain.setValueAtTime(0, now);
+
+        for (let i = 0; i < 60; i++) {
+            const t = now + i;
+            // Beep ON
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.setValueAtTime(0.05, t + 0.5);
+            // Beep OFF
+            gain.gain.linearRampToValueAtTime(0, t + 0.55);
+        }
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(now + 61);
+
+        // Auto-stop context after 1 min
+        setTimeout(() => {
+            if (alarmContextRef.current === ctx) {
+                stopAlarm();
+            }
+        }, 61000);
+    };
 
     const playAudio = () => {
         if (!routine) return;
@@ -195,7 +274,8 @@ function RoutinePlayerContent() {
             synthRef.current.cancel();
         }
 
-        const audioUrl = step.audioUrl;
+        // Fallback: If step has no audio, but Routine has "Intro" audio, play that for the FIRST step only.
+        const audioUrl = step.audioUrl || (currentStepIndex === 0 ? routine.audioUrl : undefined);
 
         if (audioUrl) {
             // Priority 1: Play Recorded Audio
@@ -237,21 +317,31 @@ function RoutinePlayerContent() {
     };
 
     const toggleAudio = () => {
-        // Can toggle BOTH recorded audio AND TTS
         if (!routine) return;
 
         if (isAudioPlaying) {
-            // Stop everything
+            // PAUSE
             if (audioInstanceRef.current) {
                 audioInstanceRef.current.pause();
-                audioInstanceRef.current = null;
+                // Do NOT nullify, so we can resume
             }
-            if (synthRef.current) {
-                synthRef.current.cancel();
+            if (synthRef.current && synthRef.current.speaking) {
+                synthRef.current.pause();
             }
             setIsAudioPlaying(false);
         } else {
-            playAudio();
+            // RESUME or PLAY
+            if (audioInstanceRef.current && audioInstanceRef.current.paused) {
+                audioInstanceRef.current.play().catch(console.error);
+                setIsAudioPlaying(true);
+            } else if (synthRef.current && synthRef.current.paused && synthRef.current.speaking) {
+                synthRef.current.resume();
+                setIsAudioPlaying(true);
+            } else {
+                // Determine if we should restart or if it was finished.
+                // If refs are null, we start fresh.
+                playAudio();
+            }
         }
     };
 
@@ -268,8 +358,36 @@ function RoutinePlayerContent() {
 
 
     // Timer Controls
-    const toggleTimer = () => setIsRunning(!isRunning);
+    const toggleTimer = () => {
+        const nextState = !isRunning;
+        setIsRunning(nextState);
+
+        if (nextState) {
+            playStartupBeep(); // Beep on start
+            // STARTING: Explicitly trigger audio
+            if (audioInstanceRef.current) {
+                // Resume Recorded Audio
+                if (audioInstanceRef.current.paused) {
+                    audioInstanceRef.current.play().catch(console.error);
+                    setIsAudioPlaying(true);
+                }
+            } else if (synthRef.current && synthRef.current.paused && synthRef.current.speaking) {
+                // Resume TTS
+                synthRef.current.resume();
+                setIsAudioPlaying(true);
+            } else {
+                // Start New
+                playAudio();
+            }
+        } else {
+            // STOPPING: Handled by useEffect, but we can do it here for responsiveness
+            if (audioInstanceRef.current) audioInstanceRef.current.pause();
+            if (synthRef.current) synthRef.current.pause();
+            setIsAudioPlaying(false);
+        }
+    };
     const resetTimer = () => {
+        stopAlarm();
         setIsRunning(false);
         setTimeLeft(totalTime);
     };
@@ -432,6 +550,8 @@ function RoutinePlayerContent() {
 
     // ... (skip down to finishRoutine)
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const finishRoutine = async () => {
         if (!routine || !activeProfile) return;
 
@@ -450,37 +570,85 @@ function RoutinePlayerContent() {
             spread: 100,
             origin: { y: 0.6 }
         });
+    };
 
-        // 1. Log Completion
-        // Use full ISO string to match Dashboard filter logic and preserve local time intent
-        const dateStr = format(new Date(), 'yyyy-MM-dd');
-        await LogService.add({
-            id: `${routine.id}_${activeProfile.id}_${dateStr}`, // Deterministic ID to overwrite 'missed' status
-            accountId: routine.accountId,
-            profileId: activeProfile.id,
-            activityId: routine.id,
-            date: dateStr,
-            status: 'completed',
-            completedAt: new Date(),
-            starsEarned: routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0),
-            earnedXP: 50,
-            stepsCompleted: routine.steps.length
-        });
+    const handleCollectRewards = async () => {
+        if (!routine || !activeProfile || isSubmitting) return;
+        setIsSubmitting(true);
 
-        // 2. Award Stars/XP to Profile (Fetch fresh to avoid stale state)
-        const freshProfile = await ProfileService.get(activeProfile.id);
-        if (freshProfile) {
-            const totalStars = routine.steps.reduce((acc, step) => acc + (step.stars || 0), 0);
-            await ProfileService.update(activeProfile.id, {
-                stars: (freshProfile.stars || 0) + totalStars,
-                xp: (freshProfile.xp || 0) + 50
+        try {
+            // Calculate Stars based on COMPLETED steps (verified)
+            const calculatedStars = routine.steps.reduce((acc, step, index) => {
+                // If it's in the set OR if it's the last step we just finished (might not be in set yet if we transitioned fast? No, set happens before finishRoutine)
+                // Actually, handleStepComplete adds to set BEFORE calling finishRoutine.
+                // But let's be safe: if we are here, we consider it done.
+                if (completedStepIndices.has(index)) {
+                    return acc + (step.stars || 5);
+                }
+                return acc;
+            }, 0);
+
+            // Fallback: Use earnedStars state if logic matches, but calculated is safer for DB.
+            // But let's ensure we display the Calculated one or ensure they sync.
+
+            // 1. Log Completion
+            const dateStr = format(new Date(), 'yyyy-MM-dd');
+            await LogService.add({
+                id: `${routine.id}_${activeProfile.id}_${dateStr}`,
+                accountId: routine.accountId,
+                profileId: activeProfile.id,
+                activityId: routine.id,
+                date: dateStr,
+                status: 'completed',
+                completedAt: new Date(),
+                starsEarned: calculatedStars,
+                earnedXP: 50,
+                stepsCompleted: completedStepIndices.size
             });
+
+            // 2. Update Profile
+            const freshProfile = await ProfileService.get(activeProfile.id);
+            if (freshProfile) {
+                await ProfileService.update(activeProfile.id, {
+                    stars: (freshProfile.stars || 0) + calculatedStars,
+                    xp: (freshProfile.xp || 0) + 50
+                });
+            }
+
+            router.back();
+        } catch (e) {
+            console.error("Reward collection failed", e);
+            setIsSubmitting(false);
+        }
+    };
+
+    const restartFullRoutine = () => {
+        setIsComplete(false);
+        setIsCompleting(false);
+        setCompletedStepIndices(new Set());
+        setEarnedStars(0);
+        setIsRunning(false);
+        setIsSkipModalOpen(false);
+        setIsDetailsModalOpen(false);
+        stopAlarm();
+
+        // Check if we need to manually reset step 0 state (if index won't change)
+        if (currentStepIndex === 0 && routine && routine.steps.length > 0) {
+            const step = routine.steps[0];
+            const duration = (step.duration || 2) * 60;
+            setTotalTime(duration);
+            setTimeLeft(duration);
+            // Trigger audio manually since Effect won't fire for same index
+            setTimeout(() => playAudio(), 500);
         }
 
-        // Removed auto-redirect. User will click "Okay".
+        setCurrentStepIndex(0);
     };
 
     // --- RENDER ---
+
+    // Check if current step is already done
+    const isStepCompleted = completedStepIndices.has(currentStepIndex);
 
     if (!routine || !activeProfile) {
         return (
@@ -496,7 +664,10 @@ function RoutinePlayerContent() {
         const timeTakenMs = Date.now() - startTimeRef.current;
         const minutes = Math.floor(timeTakenMs / 60000);
         const seconds = Math.floor((timeTakenMs % 60000) / 1000);
-        const timeString = `${minutes}m ${seconds} s`;
+        const timeString = `${minutes}m ${seconds}s`;
+
+        // Correct Star Calc (Live verification from Completed Indices)
+        const finishStars = routine.steps.reduce((acc, step, i) => completedStepIndices.has(i) ? acc + (step.stars || 5) : acc, 0);
 
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 bg-[#EEF2FF] min-h-screen animate-in fade-in zoom-in duration-500">
@@ -518,7 +689,7 @@ function RoutinePlayerContent() {
                     {/* Stars */}
                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
                         <Star className="w-8 h-8 text-yellow-400 fill-yellow-400 mb-2" />
-                        <span className="text-2xl font-black text-gray-800">{earnedStars}</span>
+                        <span className="text-2xl font-black text-gray-800">{finishStars}</span>
                         <span className="text-xs font-bold text-gray-400 uppercase">Stars Earned</span>
                     </div>
                     {/* Steps */}
@@ -541,13 +712,31 @@ function RoutinePlayerContent() {
                     </div>
                 </div>
 
-                {/* Okay Button */}
-                <button
-                    onClick={() => router.push('/child/dashboard')}
-                    className="w-full max-w-xs py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-green-500/30 transform active:scale-95 transition-all mt-8"
-                >
-                    Okay! 👍
-                </button>
+                {/* Actions */}
+                <div className="w-full max-w-xs space-y-3 mt-8">
+                    <button
+                        onClick={handleCollectRewards}
+                        disabled={isSubmitting}
+                        className={`w-full py-4 text-white rounded-2xl font-black text-xl shadow-lg transform transition-all ${isSubmitting ? 'bg-green-600 opacity-80 scale-95 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 shadow-green-500/30 active:scale-95'}`}
+                    >
+                        {isSubmitting ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <span>Collecting...</span>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            </div>
+                        ) : (
+                            "Collect Reward! 🎁"
+                        )}
+                    </button>
+
+                    <button
+                        onClick={restartFullRoutine}
+                        disabled={isSubmitting}
+                        className="w-full py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-bold text-lg shadow-sm border border-slate-200 active:scale-95 transition-all"
+                    >
+                        Restart Task 🔄
+                    </button>
+                </div>
             </div>
         );
     }
@@ -560,20 +749,21 @@ function RoutinePlayerContent() {
     // Derived values for new layout
     const isActive = true; // Always active in single view
 
+
     return (
-        <main className="h-screen bg-gradient-to-b from-[#0B1120] via-[#111827] to-[#1E293B] flex flex-col font-sans overflow-hidden text-slate-100">
+        <main className="h-[100dvh] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1e3a8a] via-[#0f172a] to-[#020617] flex flex-col font-sans overflow-hidden text-slate-100">
 
             {/* Skip Confirmation Modal */}
             <AnimatePresence>
                 {isSkipModalOpen && (
                     <motion.div
+                        key="skip-modal"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4"
                         onClick={() => setIsSkipModalOpen(false)}
                     >
-                        {/* ... modal content ... */}
                         <div className="bg-[#1E293B] border border-slate-700 rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center" onClick={e => e.stopPropagation()}>
                             <h2 className="text-xl font-bold mb-4 text-white">Skip this step?</h2>
                             <p className="text-slate-400 mb-6 text-sm">You won't earn stars for this step.</p>
@@ -582,6 +772,87 @@ function RoutinePlayerContent() {
                                 <button onClick={confirmSkip} className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-bold transition-colors">Skip</button>
                             </div>
                         </div>
+                    </motion.div>
+                )}
+
+                {/* Details/Info Modal */}
+                {isDetailsModalOpen && (
+                    <motion.div
+                        key="details-modal"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4"
+                        onClick={() => setIsDetailsModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            className="bg-[#1E293B] border border-slate-700 rounded-3xl p-0 w-full max-w-sm shadow-2xl overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="bg-slate-800/50 p-4 border-b border-slate-700 flex items-center justify-between">
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Info className="w-5 h-5 text-indigo-400" />
+                                    Task Details
+                                </h2>
+                                <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 transition-colors">
+                                    <Check className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+                                {/* Routine Info */}
+                                <div className="bg-slate-800/30 p-4 rounded-xl border border-white/5 space-y-2">
+                                    <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Routine</h3>
+                                    <h4 className="text-white font-bold text-lg">{routine.title}</h4>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        {routine.description || "No description provided."}
+                                    </p>
+                                </div>
+
+                                {/* All Steps List */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider sticky top-0 bg-[#1E293B] py-2 z-10">Mission Steps</h3>
+                                    {routine.steps.map((step, index) => {
+                                        const isCurrent = index === currentStepIndex;
+                                        return (
+                                            <div key={step.id} className={`p-4 rounded-xl border transition-all ${isCurrent ? 'bg-indigo-500/10 border-indigo-500/50 shadow-sm ring-1 ring-indigo-500/20' : 'bg-slate-800/30 border-white/5 opacity-70'}`}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className={`font-bold text-base flex items-center gap-4 mb-1.5 ${isCurrent ? 'text-white' : 'text-slate-300'}`}>
+                                                            <span className="text-xl flex-shrink-0 leading-none">{step.icon}</span>
+                                                            <span className="truncate leading-tight pt-0.5">{step.title}</span>
+                                                        </h4>
+                                                        <p className="text-slate-400 text-sm leading-relaxed break-words">
+                                                            {step.description || "No details."}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Audio Icon */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (isCurrent) toggleAudio();
+                                                        }}
+                                                        className={`flex-shrink-0 p-2 rounded-lg transition-colors border ${isCurrent && isAudioPlaying
+                                                            ? 'bg-indigo-500 text-white border-indigo-400 animate-pulse shadow-lg shadow-indigo-500/40'
+                                                            : 'bg-white/5 text-slate-500 border-white/5 hover:text-indigo-300 hover:border-indigo-500/30'}`}
+                                                    >
+                                                        {isCurrent && isAudioPlaying ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="p-4 bg-slate-800/30 border-t border-slate-700">
+                                <button onClick={() => setIsDetailsModalOpen(false)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-indigo-500/20">
+                                    Got it!
+                                </button>
+                            </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -599,198 +870,225 @@ function RoutinePlayerContent() {
                             <ArrowLeft className="w-5 h-5" />
                         </button>
 
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-[2px] shadow-lg shadow-purple-500/20">
-                                <div className="w-full h-full bg-[#0B1120] rounded-full flex items-center justify-center text-lg">
-                                    {(() => {
-                                        const aid = activeProfile?.avatarId;
-                                        switch (aid) {
-                                            case 'boy': return '🧑‍🚀';
-                                            case 'girl': return '👩‍🚀';
-                                            case 'superhero': return '🦸';
-                                            case 'superhero_girl': return '🦸‍♀️';
-                                            case 'ninja': return '🥷';
-                                            case 'wizard': return '🧙';
-                                            case 'princess': return '👸';
-                                            case 'pirate': return '🏴‍☠️';
-                                            case 'alien': return '👽';
-                                            case 'robot': return '🤖';
-                                            case 'dinosaur': return '🦖';
-                                            case 'unicorn': return '🦄';
-                                            case 'dragon': return '🐉';
-                                            case 'rocket': return '🚀';
-                                            default: return '👶';
-                                        }
-                                    })()}
-                                </div>
-                            </div>
-                            <h1 className="font-bold text-white text-base tracking-wide truncate max-w-[150px] opacity-90">{routine.title}</h1>
-                        </div>
-
-                        <div className="bg-indigo-500/20 px-3 py-1.5 rounded-full border border-indigo-500/30">
-                            <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                                Task {currentStepIndex + 1}/{routine.steps.length}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center pb-32">
-
-                    {/* Top Section: Glowing Progress Dome */}
-                    <div className="w-full relative flex flex-col items-center pt-8 pb-4">
-                        {/* Background Glow */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-64 bg-indigo-600/20 blur-[80px] rounded-full pointer-events-none"></div>
-
-                        {/* Progress Dome (Half Circle) */}
-                        <div className="relative w-56 h-32 mt-4 z-10">
-                            <svg className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">
-                                <defs>
-                                    <linearGradient id="gradientMetrics" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stopColor="#818cf8" />
-                                        <stop offset="100%" stopColor="#c084fc" />
-                                    </linearGradient>
-                                </defs>
-                                {/* Track (Semi Circle) */}
-                                <path
-                                    d="M 12,110 A 100,100 0 0,1 212,110"
-                                    fill="none"
-                                    stroke="rgba(255,255,255,0.1)"
-                                    strokeWidth="16"
-                                    strokeLinecap="round"
-                                />
-                                {/* Progress (Semi Circle) */}
-                                {isActive && (
-                                    <path
-                                        d="M 12,110 A 100,100 0 0,1 212,110"
-                                        fill="none"
-                                        stroke="url(#gradientMetrics)"
-                                        strokeWidth="16"
-                                        strokeLinecap="round"
-                                        strokeDasharray={314} // Approx arc length for r=100 (PI * 100)
-                                        strokeDashoffset={314 - (progressFraction * 314)}
-                                        className="transition-all duration-1000 ease-out"
-                                        id="progress-arc"
-                                    />
-                                )}
-                            </svg>
-
-                            {/* Floating Star Badge on top of Arc */}
-                            <div className="absolute -top-5 right-1/2 translate-x-1/2 w-14 h-14 bg-[#1E293B] rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center border-2 border-[#334155] z-20">
-                                <Star className="w-6 h-6 fill-yellow-400 text-yellow-500 drop-shadow-sm" />
-                                <span className="text-[11px] font-black text-white leading-none mt-0.5">{accumulatedStars}</span>
-                            </div>
-
-                            {/* Time Display (Inside Dome) */}
-                            <div className="absolute top-10 left-0 right-0 text-center flex flex-col items-center">
-                                <span className={`text-5xl font-black tracking-tight drop-shadow-lg ${timeLeft <= 30 && isRunning ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-                                    {isActive ? formatTime(timeLeft) : `${currentStep.duration || 2}:00`}
-                                </span>
-                                <span className="text-sm font-bold text-indigo-400 uppercase tracking-widest mt-1 opacity-80">
-                                    {isRunning ? 'Remaining' : 'Time'}
+                        <div className="flex items-center">
+                            {/* Step Counter - Top Right */}
+                            <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 backdrop-blur-sm shadow-sm">
+                                <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">
+                                    Step {currentStepIndex + 1} / {routine.steps.length}
                                 </span>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* 3. Character & Content Card */}
-                    <div className="w-full max-w-sm px-6 flex flex-col items-center relative z-10">
+                {/* 2. Scrollable Content Area - Updated for Tablet */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col items-center pb-48 md:justify-center md:pb-0">
 
-                        {/* Title */}
-                        <div className="text-center mb-6 mt-2 animate-in slide-in-from-bottom-5 fade-in duration-500">
-                            <div className="text-5xl mb-3 filter drop-shadow-lg animate-bounce-slow inline-block">
-                                {currentStep.icon?.length < 3 ? currentStep.icon : (currentStep.icon === 'toothbrush' ? '🦷' : '✨')}
-                            </div>
-                            <h2 className="text-3xl font-black text-white leading-tight drop-shadow-md">
-                                {currentStep.title}
-                            </h2>
-                        </div>
+                    {/* MAX WIDTH WRAPPER FOR TABLET */}
+                    <div className="w-full max-w-5xl flex flex-col flex-grow md:flex-row md:gap-16 md:items-center md:px-8">
 
-                        {/* Instruction Card */}
-                        <div className="w-full bg-[#1E293B]/80 backdrop-blur-md rounded-[24px] p-6 shadow-xl border border-white/5 mb-6">
-                            <ul className="space-y-4 text-slate-200 font-medium text-[15px] text-left">
-                                {(currentStep.description || "Follow the steps carefully!").split('. ').map((sentence, i) => (
-                                    sentence.trim() && (
-                                        <li key={i} className="flex gap-3 items-start">
-                                            <div className="w-2 h-2 rounded-full bg-indigo-400 mt-2 flex-shrink-0 shadow-[0_0_8px_rgba(129,140,248,0.5)]"></div>
-                                            <span className="leading-relaxed opacity-90">{sentence.trim()}{sentence.trim().endsWith('.') ? '' : '.'}</span>
-                                        </li>
-                                    )
-                                ))}
-                            </ul>
-                        </div>
+                        {/* LEFT COLUMN (Visuals: Timer, Icon, Dome) */}
+                        <div className="w-full md:flex-1 flex flex-col items-center px-6 md:px-0">
 
-                        {/* Control Deck */}
-                        <div className="w-full bg-[#0F172A]/60 backdrop-blur-xl rounded-[2rem] p-5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/5 relative overflow-hidden group">
+                            {/* Top Section: Glowing Progress Dome */}
+                            <div className="w-full relative flex flex-col items-center pt-8 pb-4 md:pt-0">
+                                {/* Background Glow */}
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-64 bg-indigo-600/20 blur-[80px] rounded-full pointer-events-none"></div>
 
-                            {/* Controls Row */}
-                            <div className="flex items-center justify-between gap-4 px-2 mb-5 mt-1">
-                                <button
-                                    onClick={() => {
-                                        if (currentStepIndex > 0) {
-                                            setCurrentStepIndex(currentStepIndex - 1);
-                                            playSound('select');
-                                        }
-                                    }}
-                                    disabled={currentStepIndex === 0}
-                                    className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent transition-all"
-                                >
-                                    <SkipBack className="w-6 h-6 fill-current" />
-                                </button>
+                                {/* Progress Dome (Half Circle) */}
+                                <div className="relative w-56 h-32 mt-4 z-10 md:scale-125 md:mb-8 transition-transform">
+                                    {/* ... (SVG matches existing) ... */}
+                                    <svg viewBox="0 0 224 120" className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+                                        <defs>
+                                            <linearGradient id="gradientMetrics" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stopColor="#818cf8" />
+                                                <stop offset="100%" stopColor="#c084fc" />
+                                            </linearGradient>
+                                        </defs>
+                                        <path
+                                            d="M 12,110 A 100,100 0 0,1 212,110"
+                                            fill="none"
+                                            stroke="rgba(255,255,255,0.1)"
+                                            strokeWidth="16"
+                                            strokeLinecap="round"
+                                        />
+                                        {isActive && (
+                                            <path
+                                                d="M 12,110 A 100,100 0 0,1 212,110"
+                                                fill="none"
+                                                stroke="url(#gradientMetrics)"
+                                                strokeWidth="16"
+                                                strokeLinecap="round"
+                                                strokeDasharray={314}
+                                                strokeDashoffset={314 - (progressFraction * 314)}
+                                                className="transition-all duration-1000 ease-out"
+                                                id="progress-arc"
+                                            />
+                                        )}
+                                    </svg>
 
-                                <button
-                                    onClick={toggleTimer}
-                                    className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.3)] transition-all active:scale-95 group-hover:shadow-[0_0_40px_rgba(99,102,241,0.2)] border-4 ${isRunning
-                                        ? 'bg-gradient-to-br from-teal-500 to-emerald-600 border-[#0F172A] shadow-emerald-500/20'
-                                        : 'bg-gradient-to-br from-indigo-500 to-violet-600 border-[#0F172A] shadow-indigo-500/20'
-                                        }`}
-                                >
-                                    {isRunning ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />}
-                                </button>
+                                    {/* Floating Star Badge on top of Arc */}
+                                    <div className="absolute -top-5 right-1/2 translate-x-1/2 w-14 h-14 bg-[#1E293B] rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center border-2 border-[#334155] z-20">
+                                        <Star className="w-6 h-6 fill-yellow-400 text-yellow-500 drop-shadow-sm" />
+                                        <span className="text-[11px] font-black text-white leading-none mt-0.5">{accumulatedStars}</span>
+                                    </div>
 
-                                <button
-                                    onClick={() => setIsSkipModalOpen(true)}
-                                    className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-                                >
-                                    <SkipForward className="w-6 h-6 fill-current" />
-                                </button>
-                            </div>
-
-                            {/* Timeline */}
-                            <div className="relative px-2 pt-2">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-2 tracking-wider uppercase">
-                                    <span>Elapsed</span>
-                                    <span>Total</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden relative">
-                                    <motion.div
-                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"
-                                        animate={{ width: `${((totalTime - timeLeft) / totalTime) * 100}%` }}
-                                        transition={{ duration: 1, ease: 'linear' }}
-                                    />
+                                    {/* Time Display (Inside Dome) */}
+                                    <div className="absolute top-14 left-0 right-0 text-center flex flex-col items-center group">
+                                        <span className={`text-4xl font-medium tracking-tight drop-shadow-sm ${timeLeft <= 30 && isRunning ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                            {isActive ? formatTime(timeLeft) : `${currentStep.duration || 2}:00`}
+                                        </span>
+                                        <span className="text-sm font-bold text-indigo-400 uppercase tracking-widest opacity-80">
+                                            {isRunning ? 'Remaining' : 'Time'}
+                                        </span>
+                                    </div>
+                                    {/* Reset Button - Always visible */}
+                                    <div className="absolute top-28 left-0 right-0 flex justify-center z-30">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); resetTimer(); }}
+                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-indigo-300 text-[11px] font-bold uppercase tracking-wider transition-all border border-indigo-500/30 shadow-lg active:scale-95 ${timeLeft === totalTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            Reset
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* Title - Moved Here for Tablet Layout */}
+                            {/* Title - Aligned Horizontally */}
+                            <div className="flex items-center justify-center gap-6 mt-4 animate-in slide-in-from-bottom-5 fade-in duration-500 md:mt-8">
+                                <div className="text-4xl filter drop-shadow-md animate-bounce-slow md:text-5xl">
+                                    {currentStep.icon?.length < 3 ? currentStep.icon : (currentStep.icon === 'toothbrush' ? '🦷' : '✨')}
+                                </div>
+                                <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-sm md:text-3xl text-left">
+                                    {currentStep.title}
+                                </h2>
+                            </div>
                         </div>
 
+                        {/* RIGHT COLUMN (Controls: Instructions, Audio, Deck) */}
+                        <div className="w-full max-w-sm px-6 flex flex-col items-center relative z-10 gap-6 mt-auto md:mt-0 md:flex-1 md:max-w-md">
+
+                            {/* Unified Control Card */}
+                            <div className="w-full bg-[#0F172A]/60 backdrop-blur-xl rounded-[2rem] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/5 relative overflow-hidden group">
+
+
+
+                                {/* Timeline (Progress Bar) */}
+                                <div className="relative px-2 mb-6">
+                                    {/* Action Header: Details & Audio */}
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setIsDetailsModalOpen(true); }}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-white/10 transition-all active:scale-95 hover:text-white"
+                                            >
+                                                <Info className="w-3.5 h-3.5" />
+                                                Details
+                                            </button>
+
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 text-yellow-400 rounded-lg text-[11px] font-black border border-yellow-500/20 shadow-sm">
+                                                <Star className="w-3.5 h-3.5 fill-current" />
+                                                <span>+{currentStep.stars || 5}</span>
+                                            </div>
+                                        </div>
+
+
+
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); toggleAudio(); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 ${isAudioPlaying ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300' : 'bg-slate-800/50 border-white/10 text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+                                        >
+                                            {isAudioPlaying ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-2 tracking-wider uppercase">
+                                        <span>Elapsed</span>
+                                        <span>Total</span>
+                                    </div>
+                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden relative">
+                                        <motion.div
+                                            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                                            animate={{ width: `${((totalTime - timeLeft) / totalTime) * 100}%` }}
+                                            transition={{ duration: 1, ease: 'linear' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Controls Row (Just Payback) */}
+                                <div className="flex items-center justify-center gap-10 px-0 mt-2">
+                                    <button
+                                        onClick={() => {
+                                            if (currentStepIndex > 0) {
+                                                setCurrentStepIndex(currentStepIndex - 1);
+                                                playSound('select');
+                                            }
+                                        }}
+                                        disabled={currentStepIndex === 0}
+                                        className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent transition-all"
+                                    >
+                                        <SkipBack className="w-6 h-6 fill-current" />
+                                    </button>
+
+                                    <button
+                                        onClick={toggleTimer}
+                                        disabled={isStepCompleted}
+                                        className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all active:scale-95 border-2 ${isStepCompleted
+                                            ? 'bg-slate-800 border-slate-700 opacity-50 grayscale cursor-not-allowed'
+                                            : (isRunning
+                                                ? 'bg-gradient-to-br from-teal-500 to-emerald-600 border-[#0F172A] shadow-emerald-500/20 group-hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]'
+                                                : 'bg-gradient-to-br from-indigo-500 to-violet-600 border-[#0F172A] shadow-indigo-500/20 group-hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]')
+                                            }`}
+                                    >
+                                        {isStepCompleted ? <Check className="w-8 h-8 text-white/50" /> : (isRunning ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />)}
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            if (isStepCompleted) {
+                                                // If step is done, just navigate forward immediately
+                                                if (currentStepIndex < routine.steps.length - 1) {
+                                                    setCurrentStepIndex(currentStepIndex + 1);
+                                                    playSound('select');
+                                                } else {
+                                                    finishRoutine();
+                                                }
+                                            } else {
+                                                // If not done, show Skip confirmation
+                                                setIsSkipModalOpen(true);
+                                            }
+                                        }}
+                                        className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                                    >
+                                        <SkipForward className="w-6 h-6 fill-current" />
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
                 </div>
-
-                {/* Sticky Bottom Actions */}
-                <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0B1120] via-[#0B1120]/95 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
-                    <button
-                        onClick={handleStepComplete}
-                        disabled={isCompleting}
-                        className={`w-full max-w-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white text-xl font-black py-4 rounded-[2rem] transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.4)] border border-green-400/20 pointer-events-auto ${isCompleting ? 'opacity-80 scale-95' : 'active:scale-[0.98] hover:scale-[1.02]'}`}
-                    >
-                        <span>I Did It!</span>
-                        <div className="bg-white/20 p-1.5 rounded-full">
-                            <Check className="w-5 h-5 stroke-[3]" />
-                        </div>
-                    </button>
-                </div>
-
             </div>
+
+            {/* Sticky Bottom Actions */}
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0B1120] via-[#0B1120]/95 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
+                <button
+                    onClick={() => {
+                        stopAlarm();
+                        handleStepComplete();
+                    }}
+                    disabled={isCompleting || isStepCompleted}
+                    className={`w-full max-w-sm bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white text-xl font-black py-4 rounded-[2rem] transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.4)] border border-green-400/20 pointer-events-auto ${(isCompleting || isStepCompleted) ? 'opacity-50 grayscale scale-95 cursor-not-allowed' : 'active:scale-[0.98] hover:scale-[1.02]'}`}
+                >
+                    <span>Finish Step</span>
+                    <div className="bg-white/20 p-1.5 rounded-full">
+                        <Check className="w-5 h-5 stroke-[3]" />
+                    </div>
+                </button>
+            </div>
+
+
 
             {/* FLYING STAR ANIMATION LAYER */}
             <AnimatePresence>

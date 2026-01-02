@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Quicksand } from 'next/font/google';
 import { ChildNavBar } from '@/components/layout/ChildNavBar';
 import { NotificationScheduler } from '@/components/providers/NotificationScheduler';
+import { TaskNotificationListener } from '@/components/logic/TaskNotificationListener';
 
 // Font setup (if Next.js 13+ optimizations allow, otherwise fallback to sans)
 const quicksand = Quicksand({ subsets: ['latin'], weight: ['500', '600', '700'] });
@@ -84,6 +85,7 @@ export default function ChildLayout({
     return (
         <div className={cn(`h-screen overflow-hidden relative flex flex-col ${bgClass} text-[#2B2D42] transition-colors duration-500 selection:bg-orange-100 pb-[env(safe-area-inset-bottom)]`, quicksand.className)}>
             <NotificationScheduler />
+            <TaskNotificationListener />
 
             {/* Dynamic Content */}
             <div className={cn("relative z-10 flex-1 flex flex-col overflow-hidden", showNav && "")}>
