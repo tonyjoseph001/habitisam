@@ -21,7 +21,10 @@ export const SystemService = {
         try {
             // 1. Check Local Cache first (to save reads)
             const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) {
+            const isDev = process.env.NODE_ENV === 'development'; // Detect Development Mode
+
+            // Skip cache in dev to allow testing config changes
+            if (cached && !isDev) {
                 const { data, timestamp } = JSON.parse(cached);
                 if (Date.now() - timestamp < CACHE_DURATION) {
                     return data as RemoteSystemConfig;

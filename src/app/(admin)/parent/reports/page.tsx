@@ -10,8 +10,57 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useActivityLogs } from '@/lib/hooks/useActivityLogs';
 
+import { useRouter } from 'next/navigation'; // Added
+import { useAuth } from '@/lib/hooks/useAuth'; // Added
+import { getLimits } from '@/config/tiers'; // Added
+import { db } from '@/lib/db'; // Added
+import { APP_CONFIG } from '@/config/app';
+import { SystemService } from '@/lib/firestore/system.service'; // Added
+
+// ... imports
+
 export default function ReportsPage() {
+    const router = useRouter(); // Added router
+    const { user } = useAuth(); // Added user
     const { activeProfile } = useSessionStore();
+
+    // License Check
+    const [isLoadingLicense, setIsLoadingLicense] = useState(true);
+
+    React.useEffect(() => {
+        const checkAccess = async () => {
+            // 1. Fetch System Config (Remote or Cache)
+            const sysConfig = await SystemService.getConfig();
+            const enableProCheck = sysConfig?.featureFlags?.enableProExclusivity ?? APP_CONFIG.defaultFeatureFlags.enableProExclusivity;
+
+            // 2. Check Feature Flag
+            if (!enableProCheck) {
+                setIsLoadingLicense(false);
+                return;
+            }
+
+            if (!user) {
+                // User not loaded yet, keep loading
+                return;
+            }
+
+            // 3. Fetch Account License Status
+            const account = await db.accounts.get(user.uid);
+            // Default to 'free' if missing or not set
+            const license = account?.licenseType || 'free';
+
+            const limits = getLimits(license);
+
+            if (!limits.canAccessAnalytics) {
+                // Redirect to Subscription Page
+                router.replace('/parent/subscription');
+            } else {
+                setIsLoadingLicense(false);
+            }
+        };
+        checkAccess();
+    }, [user, router]); // Added deps
+
     const [timeRange, setTimeRange] = useState<'Week' | 'Month'>('Week');
     const [selectedChildId, setSelectedChildId] = useState<string>('all');
 
@@ -85,9 +134,6 @@ export default function ReportsPage() {
 
                 // Filter logs that match this specific month and year
                 const count = logs?.filter(l => {
-                    const logDate = new Date(l.date); // Assuming l.date is YYYY-MM-DD string
-                    // Note: Date parsing from YYYY-MM-DD acts as UTC usually, but for month matching, standard checks work 
-                    // provided we are consistent.
                     // Safer manual check:
                     const [lYear, lMonth] = l.date.split('-').map(Number);
                     return l.profileId === profile.id &&
@@ -129,6 +175,14 @@ export default function ReportsPage() {
 
     // --- Needs Attention ---
     const missedLogs = logs?.filter(l => l.status === 'missed').slice(0, 3) || [];
+
+    if (isLoadingLicense) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
