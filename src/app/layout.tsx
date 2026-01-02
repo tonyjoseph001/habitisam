@@ -38,6 +38,8 @@ import { StatusBarProvider } from '@/components/providers/StatusBarProvider';
 
 import { Toaster } from 'sonner';
 
+import VersionGuard from '@/components/system/VersionGuard';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -55,10 +57,12 @@ export default function RootLayout({
       <body className={`${inter.variable} ${fredoka.variable} font-sans`}>
         <AuthProvider>
           <ThemeProvider>
-            <StatusBarProvider />
-            <BackButtonHandler />
-            {children}
-            <Toaster position="top-center" richColors />
+            <VersionGuard>
+              <StatusBarProvider />
+              <BackButtonHandler />
+              {children}
+              <Toaster position="top-center" richColors />
+            </VersionGuard>
           </ThemeProvider>
         </AuthProvider>
       </body>

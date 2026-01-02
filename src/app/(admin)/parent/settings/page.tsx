@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from '@/components/providers/ThemeContext';
+import { APP_CONFIG } from '@/config/app';
 import { ThemeType } from '@/lib/db';
 import { ArrowLeft, Bell, ChevronDown, Palette, Key, Users, Copy } from 'lucide-react';
 import Link from 'next/link';
@@ -113,12 +114,10 @@ export default function SettingsPage() {
 
     // --- Join Household Logic ---
     const [joinCode, setJoinCode] = useState('');
-    const [joinPin, setJoinPin] = useState('');
     const [joinLoading, setJoinLoading] = useState(false);
 
     const handleJoinHousehold = async () => {
         if (!joinCode || !user) return;
-        // if (joinPin.length !== 4) return alert("PIN must be 4 digits."); // Removed pin check
 
         setJoinLoading(true);
         try {
@@ -443,8 +442,6 @@ export default function SettingsPage() {
                                             await AccountService.deleteFullAccount(user.uid);
 
                                             // Sign Out
-                                            // NOTE: We do NOT delete the Firebase Auth user. 
-                                            // This preserves the UID so the account can be Reactivated upon future login.
                                             await signOut();
                                             router.push('/login');
                                         } catch (e: any) {
@@ -460,6 +457,12 @@ export default function SettingsPage() {
                         </button>
                     </div>
                 </div>
+
+                {/* Version Footer */}
+                <p className="text-center text-[10px] text-slate-400 font-mono mt-8 mb-4 opacity-50">
+                    Version {APP_CONFIG.version} (Build {APP_CONFIG.buildNumber})
+                </p>
+
             </div>
 
             {/* PIN Reset Modal */}
@@ -542,6 +545,6 @@ export default function SettingsPage() {
                     </Button>
                 </div>
             </Modal>
-        </div >
+        </div>
     );
 }
