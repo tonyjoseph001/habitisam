@@ -6,8 +6,7 @@ import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ProfileSwitcherModal } from '@/components/domain/ProfileSwitcherModal';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { useParentNotifications } from '@/lib/hooks/useParentNotifications';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 interface ParentHeaderProps {
@@ -21,22 +20,8 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
     const { activeProfile } = useSessionStore();
     const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
 
-    const accountId = user?.uid || activeProfile?.accountId;
-
-    // Count pending notifications
-    const notificationCount = useLiveQuery(async () => {
-        if (!accountId) return 0;
-
-        const pendingGoals = await db.goals.where('status').equals('pending_approval').count();
-        const pendingPurchases = await db.purchaseLogs.where({ accountId, status: 'pending' }).count();
-        const unseenCompletions = await db.activityLogs
-            .where('accountId')
-            .equals(accountId)
-            .filter(log => log.status === 'completed' && !log.seenByParent)
-            .count();
-
-        return pendingGoals + pendingPurchases + unseenCompletions;
-    }, [accountId]);
+    // Use new Firestore Hook
+    const { count: notificationCount } = useParentNotifications();
 
     return (
         <>

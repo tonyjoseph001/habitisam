@@ -26,6 +26,28 @@ export const ActivityService = {
     add: async (activity: Activity) => {
         const ref = doc(db, COLLECTION_NAME, activity.id).withConverter(converter<Activity>());
         await setDoc(ref, activity);
+
+        // Create Inbox Notifications for assigned children
+        if (activity.profileIds && activity.profileIds.length > 0) {
+            const batch = (await import('firebase/firestore')).writeBatch(db);
+            const inboxCol = collection(db, 'inboxRewards');
+
+            activity.profileIds.forEach(pid => {
+                const newInboxRef = doc(inboxCol);
+                batch.set(newInboxRef, {
+                    id: newInboxRef.id,
+                    accountId: activity.accountId,
+                    profileId: pid,
+                    amount: 0,
+                    message: `New Mission: ${activity.title}`,
+                    senderName: 'Parent',
+                    status: 'pending',
+                    createdAt: new Date()
+                });
+            });
+
+            await batch.commit();
+        }
     },
 
     update: async (id: string, updates: Partial<Activity>) => {

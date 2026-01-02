@@ -41,20 +41,33 @@ export const GoalService = {
     approve: async (goal: Goal, starsEarned: number) => {
         await runTransaction(db, async (transaction) => {
             const goalRef = doc(db, COLLECTION_NAME, goal.id);
-            const profileRef = doc(db, 'profiles', goal.profileId);
+            // const profileRef = doc(db, 'profiles', goal.profileId); // Moved to Inbox Claim
             const logRef = doc(collection(db, 'activityLogs'));
+            const inboxRef = doc(collection(db, 'inboxRewards')); // New Notification
 
+            /* Direct update moved to Inbox Claim
             const profileSnap = await transaction.get(profileRef);
             if (!profileSnap.exists()) throw new Error("Profile not found");
-
             const currentStars = profileSnap.data().stars || 0;
             const newStars = currentStars + starsEarned;
-
             transaction.update(profileRef, { stars: newStars });
+            */
 
             transaction.update(goalRef, {
                 status: 'completed',
                 completedAt: new Date()
+            });
+
+            // Create Inbox Notification (Child claims stars here)
+            transaction.set(inboxRef, {
+                id: inboxRef.id,
+                accountId: goal.accountId,
+                profileId: goal.profileId,
+                amount: starsEarned,
+                message: `Goal Approved: ${goal.title}`,
+                senderName: 'Parent',
+                status: 'pending',
+                createdAt: new Date()
             });
 
             transaction.set(logRef, {
