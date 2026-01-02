@@ -86,7 +86,7 @@ export function RewardEditorModal({ isOpen, onClose, onSave, initialData }: Rewa
                     <Input
                         value={title}
                         onChange={e => setTitle(e.target.value)}
-                        placeholder="e.g. Ice Cream Trip"
+                        placeholder="Ice Cream Trip"
                         className="mt-1"
                     />
                 </div>

@@ -123,7 +123,7 @@ function EditProfileContent() {
                         <Input
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            placeholder="e.g. Ethan"
+                            placeholder="Ethan"
                             className="bg-white h-10 border-slate-200"
                         />
                     </div>

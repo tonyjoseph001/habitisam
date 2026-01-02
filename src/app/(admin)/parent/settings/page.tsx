@@ -3,7 +3,7 @@
 import { useTheme } from '@/components/providers/ThemeContext';
 import { APP_CONFIG } from '@/config/app';
 import { ThemeType } from '@/lib/db';
-import { ArrowLeft, Bell, ChevronDown, Palette, Key, Users, Copy } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronDown, Palette, Key, Users, Copy, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -13,6 +13,8 @@ import { InviteService } from '@/lib/firestore/invites.service';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AccountService } from '@/lib/firestore/accounts.service';
@@ -28,6 +30,24 @@ export default function SettingsPage() {
     const [newPin, setNewPin] = useState('');
 
     const parents = profiles.filter(p => p.type === 'parent');
+
+    // Help System
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [helpContent, setHelpContent] = useState({ title: '', text: '' });
+
+    const openHelp = (title: string, text: string) => {
+        setHelpContent({ title, text });
+        setHelpModalOpen(true);
+    };
+
+    const HelpButton = ({ title, text }: { title: string, text: string }) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); openHelp(title, text); }}
+            className="text-slate-400 hover:text-primary transition-colors ml-1.5 align-middle"
+        >
+            <HelpCircle className="w-5 h-5" />
+        </button>
+    );
 
     // Determine if current user is the "Owner" (Primary Parent) of the household
     // The Account ID is the UID of the creator.
@@ -87,7 +107,38 @@ export default function SettingsPage() {
         }
     };
 
-    // --- Invite Logic ---
+    // --- Notification Settings ---
+    const dailyRemindersEnabled = activeProfile?.settings?.dailyReminders ?? false;
+
+    const toggleDailyReminders = async () => {
+        if (!activeProfile) return;
+        const newState = !dailyRemindersEnabled;
+
+        // Optimistic Update (Store will catch up)
+        try {
+            // Trigger Permissions if turning ON
+            if (newState && Capacitor.isNativePlatform()) {
+                const perm = await LocalNotifications.requestPermissions();
+                if (perm.display !== 'granted') {
+                    alert("Notifications permission denied. Please enable in Device Settings.");
+                    return;
+                }
+            }
+
+            await ProfileService.update(activeProfile.id, {
+                settings: {
+                    ...activeProfile.settings, // Keep other settings if added later
+                    dailyReminders: newState
+                }
+            });
+            // Update local store immediately for responsiveness if needed, 
+            // but ProfileService update usually triggers listener if subscribed.
+            // For now, relies on Firestore real-time sync or reload.
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update settings.");
+        }
+    };
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [inviteCode, setInviteCode] = useState('');
     const [inviteLoading, setInviteLoading] = useState(false);
@@ -215,7 +266,10 @@ export default function SettingsPage() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3 mb-4 text-primary">
                         <Palette className="w-6 h-6" />
-                        <h2 className="text-lg font-bold text-slate-800">Appearance</h2>
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center">
+                            Appearance
+                            <HelpButton title="Appearance" text="Choose a theme that suits your style. This changes the color scheme across the entire app for your profile." />
+                        </h2>
                     </div>
 
                     <label className="block text-sm font-medium text-slate-500 mb-2">App Theme</label>
@@ -246,7 +300,10 @@ export default function SettingsPage() {
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex items-center gap-3 mb-4 text-amber-600">
                             <Key className="w-6 h-6" />
-                            <h2 className="text-lg font-bold text-slate-800">Security</h2>
+                            <h2 className="text-lg font-bold text-slate-800 flex items-center">
+                                Security
+                                <HelpButton title="Security" text="Your PIN protects the parent dashboard. Keep it secret so children cannot approve their own rewards!" />
+                            </h2>
                         </div>
                         <div className="space-y-3">
                             <div>
@@ -269,8 +326,9 @@ export default function SettingsPage() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3 mb-4 text-violet-600">
                         <Users className="w-6 h-6" />
-                        <h2 className="text-lg font-bold text-slate-800">
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center">
                             {isOwner ? "Join a Family" : "Family Membership"}
+                            <HelpButton title="Family Management" text="You can link multiple parents to the same household so everyone can manage the children's routines." />
                         </h2>
                     </div>
 
@@ -327,7 +385,10 @@ export default function SettingsPage() {
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex items-center gap-3 mb-4 text-emerald-600">
                             <Users className="w-6 h-6" />
-                            <h2 className="text-lg font-bold text-slate-800">Family Management</h2>
+                            <h2 className="text-lg font-bold text-slate-800 flex items-center">
+                                Family Management
+                                <HelpButton title="Managing Parents" text="As the owner, you can Invite other parents or remove them. Removed parents lose access to this household." />
+                            </h2>
                         </div>
 
                         {/* Parent List */}
@@ -395,13 +456,20 @@ export default function SettingsPage() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3 mb-4 text-slate-400">
                         <Bell className="w-6 h-6" />
-                        <h2 className="text-lg font-bold text-slate-800">Notifications</h2>
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center">
+                            Notifications
+                            <HelpButton title="Notifications" text="Get alerted when children complete tasks or request rewards." />
+                        </h2>
                     </div>
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-slate-600 font-medium">Daily Reminders</span>
-                        {/* Toggle Switch (Visual Only for now) */}
-                        <div className="w-12 h-6 bg-primary/20 rounded-full relative cursor-pointer">
-                            <div className="w-6 h-6 bg-primary rounded-full absolute right-0 shadow-sm border-2 border-white"></div>
+                        <div className="flex items-center justify-between py-2">
+                            <span className="text-slate-600 font-medium">Daily Reminders (8:00 PM)</span>
+                            <button
+                                onClick={toggleDailyReminders}
+                                className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${dailyRemindersEnabled ? 'bg-primary/20' : 'bg-slate-200'}`}
+                            >
+                                <div className={`w-6 h-6 rounded-full absolute top-0 shadow-sm border-2 border-white transition-all ${dailyRemindersEnabled ? 'bg-primary right-0' : 'bg-slate-400 left-0'}`}></div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -561,6 +629,19 @@ export default function SettingsPage() {
                     >
                         Done
                     </Button>
+                </div>
+            </Modal>
+
+            {/* Help Modal */}
+            <Modal
+                isOpen={helpModalOpen}
+                onClose={() => setHelpModalOpen(false)}
+                title={helpContent.title}
+                className="max-w-xs"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">{helpContent.text}</p>
+                    <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
                 </div>
             </Modal>
         </div>

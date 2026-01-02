@@ -60,6 +60,11 @@ export interface Profile {
     xp?: number;
     dob?: string; // Date of Birth (ISO string)
 
+    // Parent Settings
+    settings?: {
+        dailyReminders: boolean; // 8:00 PM recurring notification
+    };
+
     // Stamp System
     activeStamp?: string; // ID of currently displayed stamp
     unlockedStamps?: string[]; // IDs of owned stamps

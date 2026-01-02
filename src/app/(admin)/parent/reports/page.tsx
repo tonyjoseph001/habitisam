@@ -3,7 +3,9 @@
 import React, { useState, useMemo } from 'react';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { ParentHeader } from '@/components/layout/ParentHeader';
-import { TrendingUp, Star, AlertTriangle, Clock, Trophy, ChevronDown } from 'lucide-react';
+import { TrendingUp, Star, AlertTriangle, Clock, Trophy, ChevronDown, HelpCircle } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useSessionStore } from '@/lib/store/useSessionStore';
@@ -60,6 +62,24 @@ export default function ReportsPage() {
         };
         checkAccess();
     }, [user, router]); // Added deps
+
+    // Help System
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [helpContent, setHelpContent] = useState({ title: '', text: '' });
+
+    const openHelp = (title: string, text: string) => {
+        setHelpContent({ title, text });
+        setHelpModalOpen(true);
+    };
+
+    const HelpButton = ({ title, text }: { title: string, text: string }) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); openHelp(title, text); }}
+            className="text-slate-400 hover:text-primary transition-colors ml-1.5 align-middle"
+        >
+            <HelpCircle className="w-4 h-4" />
+        </button>
+    );
 
     const [timeRange, setTimeRange] = useState<'Week' | 'Month'>('Week');
     const [selectedChildId, setSelectedChildId] = useState<string>('all');
@@ -176,6 +196,49 @@ export default function ReportsPage() {
     // --- Needs Attention ---
     const missedLogs = logs?.filter(l => l.status === 'missed').slice(0, 3) || [];
 
+    // --- Highlights Logic ---
+    const highlightData = useMemo(() => {
+        if (!logs || logs.length === 0) return null;
+
+        // Group by child
+        const statsByChild: Record<string, { count: number, name: string, avatarId: string }> = {};
+
+        logs.filter(l => l.status === 'completed').forEach(log => {
+            if (!statsByChild[log.profileId]) {
+                const child = profiles.find(p => p.id === log.profileId);
+                if (child) {
+                    statsByChild[log.profileId] = {
+                        count: 0,
+                        name: child.name,
+                        avatarId: child.avatarId
+                    };
+                }
+            }
+            if (statsByChild[log.profileId]) {
+                statsByChild[log.profileId].count++;
+            }
+        });
+
+        // Find winner
+        const winnerId = Object.keys(statsByChild).reduce((a, b) => statsByChild[a].count > statsByChild[b].count ? a : b, '');
+        if (!winnerId) return null;
+
+        const winner = statsByChild[winnerId];
+        // Avatar Map (similar to RoutineEditor)
+        const AVATAR_MAP: Record<string, string> = {
+            boy: '🧑‍🚀', girl: '👩‍🚀', superhero: '🦸', superhero_girl: '🦸‍♀️',
+            ninja: '🥷', wizard: '🧙', princess: '👸', pirate: '🏴‍☠️',
+            alien: '👽', robot: '🤖', dinosaur: '🦖', unicorn: '🦄'
+        };
+
+        return {
+            name: winner.name,
+            icon: AVATAR_MAP[winner.avatarId] || '👶',
+            count: winner.count,
+            message: selectedChildId === 'all' ? "Most active child this period" : "Great job staying consistent!"
+        };
+    }, [logs, profiles, selectedChildId]);
+
     if (isLoadingLicense) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -211,7 +274,10 @@ export default function ReportsPage() {
                     <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-8 h-8 rounded-full bg-green-50 text-green-500 flex items-center justify-center"><TrendingUp className="w-5 h-5" /></div>
-                            <span className="text-xs font-bold text-slate-400 uppercase">Consistency</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase flex items-center">
+                                Consistency
+                                <HelpButton title="Consistency" text="This score shows how often tasks are completed vs. missed. 100% means they did everything assigned!" />
+                            </span>
                         </div>
                         <div className="text-3xl font-black text-slate-800">{consistency}%</div>
                         <div className="text-[10px] font-bold text-green-600 bg-green-50 inline-block px-1.5 py-0.5 rounded mt-1">Calculated from logs</div>
@@ -219,7 +285,10 @@ export default function ReportsPage() {
                     <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-8 h-8 rounded-full bg-yellow-50 text-yellow-500 flex items-center justify-center"><Star className="w-5 h-5 fill-current" /></div>
-                            <span className="text-xs font-bold text-slate-400 uppercase">Earned</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase flex items-center">
+                                Earned
+                                <HelpButton title="Earned Stars" text="Total stars earned in the selected period. This helps you track how much 'purchasing power' they are gaining." />
+                            </span>
                         </div>
                         <div className="text-3xl font-black text-slate-800">{totalStars}</div>
                         <div className="text-[10px] font-bold text-slate-400 mt-1">~ ${earnedValue.toFixed(2)} value</div>
@@ -228,7 +297,10 @@ export default function ReportsPage() {
 
                 <section className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Tasks Completed</h2>
+                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center">
+                            Tasks Completed
+                            <HelpButton title="Activity Chart" text="Visualizes when tasks are completed. Great for spotting patterns (e.g., 'They always skip tasks on Tuesdays')." />
+                        </h2>
                         {/* Legend for Multi-Child View */}
                         {datasets.length > 1 && (
                             <div className="flex gap-2">
@@ -319,7 +391,10 @@ export default function ReportsPage() {
                 </section>
 
                 <section>
-                    <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Needs Attention</h2>
+                    <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+                        Needs Attention
+                        <HelpButton title="Needs Attention" text="This list shows recently missed tasks. Use this to start a conversation about why these specific items were skipped." />
+                    </h2>
                     <div className="space-y-3">
                         {missedLogs.length === 0 ? (
                             <div className="text-center py-4 bg-white rounded-2xl border border-slate-100 text-sm text-slate-400 font-bold border-dashed">
@@ -349,29 +424,50 @@ export default function ReportsPage() {
                 <section>
                     <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Highlights</h2>
 
-                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
-                        <Trophy className="absolute -right-6 -bottom-6 w-32 h-32 text-white opacity-10 rotate-12" />
+                    {highlightData ? (
+                        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
+                            <Trophy className="absolute -right-6 -bottom-6 w-32 h-32 text-white opacity-10 rotate-12" />
 
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl border border-white/10">
-                                    🦁
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl border border-white/10">
+                                        {highlightData.icon}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-lg">{highlightData.name} is on Fire!</h3>
+                                        <p className="text-xs font-medium text-indigo-100">{highlightData.message}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-lg">Ethan's on Fire!</h3>
-                                    <p className="text-xs font-medium text-indigo-100">Most active child this week</p>
-                                </div>
-                            </div>
 
-                            <div className="h-1 w-full bg-black/20 rounded-full mb-1">
-                                <div className="h-full bg-white rounded-full w-3/4"></div>
+                                <div className="h-1 w-full bg-black/20 rounded-full mb-1">
+                                    <div className="h-full bg-white rounded-full" style={{ width: '100%' }}></div>
+                                </div>
+                                <p className="text-[10px] font-bold text-indigo-200 text-right">{highlightData.count} tasks completed</p>
                             </div>
-                            <p className="text-[10px] font-bold text-indigo-200 text-right">Keep it up!</p>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="bg-white rounded-[2rem] p-8 border border-slate-100 text-center shadow-sm">
+                            <Trophy className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                            <p className="text-slate-400 font-bold text-sm">No highlights yet</p>
+                            <p className="text-slate-300 text-xs mt-1">Complete tasks to see insights here!</p>
+                        </div>
+                    )}
                 </section>
 
             </main>
+
+            {/* Help Modal */}
+            <Modal
+                isOpen={helpModalOpen}
+                onClose={() => setHelpModalOpen(false)}
+                title={helpContent.title}
+                className="max-w-xs"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">{helpContent.text}</p>
+                    <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
+                </div>
+            </Modal>
 
             <ParentNavBar />
         </div>

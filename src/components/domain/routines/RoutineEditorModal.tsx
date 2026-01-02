@@ -97,7 +97,7 @@ export function RoutineEditorModal({ isOpen, onClose, onSave, initialData }: Rou
                         <Input
                             value={title}
                             onChange={e => setTitle(e.target.value)}
-                            placeholder="e.g. Morning Rush"
+                            placeholder="Morning Rush"
                             className="mt-1"
                         />
                     </div>
@@ -150,7 +150,7 @@ export function RoutineEditorModal({ isOpen, onClose, onSave, initialData }: Rou
                                     <Input
                                         value={step.title}
                                         onChange={e => updateStep(step.id, 'title', e.target.value)}
-                                        placeholder="Step task (e.g. Brush Teeth)"
+                                        placeholder="Step task (Brush Teeth)"
                                         className="h-10 text-sm"
                                     />
                                     <div className="flex gap-2">

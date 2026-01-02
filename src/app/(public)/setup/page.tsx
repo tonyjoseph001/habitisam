@@ -170,7 +170,7 @@ export default function SetupPage() {
                                 Admin Name
                             </label>
                             <Input
-                                placeholder="e.g., Mom"
+                                placeholder="Mom"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 className="bg-white/80 border-slate-200 h-12 text-lg focus:ring-violet-500 rounded-xl"

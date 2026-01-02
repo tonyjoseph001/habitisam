@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Activity, Step, Goal, GoalType, ActivityType } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2, Bell, XCircle, Star } from 'lucide-react';
+import { ChevronLeft, Save, Sparkles, Plus, Clock, Check, Trash2, GripVertical, Pencil, Award, Calendar as CalendarIcon, Hash, ListChecks, SlidersHorizontal, LayoutGrid, Calendar, CheckCircle2, Bell, XCircle, Star, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StepEditorModal } from '@/components/domain/routines/StepEditorModal';
 import { AudioRecorder } from '@/components/ui/AudioRecorder';
@@ -19,6 +19,10 @@ import { ActivityService } from '@/lib/firestore/activities.service';
 import { GoalService } from '@/lib/firestore/goals.service';
 import { LogService } from '@/lib/firestore/logs.service';
 import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useRoutines } from '@/lib/hooks/useRoutines'; // Added
+import { getLimits } from '@/config/tiers'; // Added
+import { db } from '@/lib/db'; // Added
+import { QuickAddChildModal } from '@/components/domain/profiles/QuickAddChildModal';
 
 // ... (DAYS, TRACKING_TYPES constants)
 
@@ -49,12 +53,14 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const isEditMode = !!initialRoutineId;
 
     const { profiles } = useProfiles();
+    const { routines } = useRoutines(); // Added to fetch all routines for counting
     const childProfiles = profiles ? profiles.filter(p => p.type === 'child') : [];
 
     // --- State ---
     // Top Toggle state: 'recurring' | 'one-time' | 'goal'
     const [editorType, setEditorType] = useState<ActivityType | 'goal'>('recurring');
     const [showIconModal, setShowIconModal] = useState(false);
+    const [showQuickAddProfile, setShowQuickAddProfile] = useState(false);
 
     // Shared
     const [title, setTitle] = useState('');
@@ -86,7 +92,26 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const [isStepModalOpen, setIsStepModalOpen] = useState(false);
     const [editingStep, setEditingStep] = useState<Step | undefined>(undefined);
     const [errorModalOpen, setErrorModalOpen] = useState(false);
+
     const [errorMessage, setErrorMessage] = useState('');
+
+    // Tutorial / Help Modal
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [helpContent, setHelpContent] = useState({ title: '', text: '' });
+
+    const openHelp = (title: string, text: string) => {
+        setHelpContent({ title, text });
+        setHelpModalOpen(true);
+    };
+
+    const HelpButton = ({ title, text }: { title: string, text: string }) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); openHelp(title, text); }}
+            className="text-slate-400 hover:text-primary transition-colors ml-1.5 align-middle"
+        >
+            <HelpCircle className="w-4 h-4" />
+        </button>
+    );
 
     useEffect(() => {
         if (initialRoutineId) {
@@ -163,6 +188,33 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
         if (!title.trim()) return showError("Please enter a title.");
         if (assignedChildIds.length === 0) return showError("Please assign to at least one child.");
 
+        // --- LIMIT CHECK ---
+        if (!isEditMode && editorType !== 'goal') {
+            try {
+                const account = await db.accounts.get(user.uid);
+                const license = account?.licenseType || 'free';
+                const limits = getLimits(license);
+
+                if (limits.maxRoutinesPerChild < 50) {
+                    for (const childId of assignedChildIds) {
+                        const existingCount = routines.filter(r =>
+                            r.profileIds?.includes(childId)
+                        ).length;
+
+                        if (existingCount >= limits.maxRoutinesPerChild) {
+                            const childName = profiles?.find(p => p.id === childId)?.name || 'Child';
+                            toast.error(`Limit reached for ${childName}. Free plan allows ${limits.maxRoutinesPerChild} routines.`);
+                            setTimeout(() => router.push('/parent/subscription'), 1500);
+                            return;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Limit check failed", err);
+            }
+        }
+        // -------------------
+
         try {
             if (editorType === 'goal') {
                 for (const pid of assignedChildIds) {
@@ -197,9 +249,6 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 toast.success(isEditMode ? "Goal updated!" : "Goal created!");
             } else {
                 if (steps.length === 0) return alert("Please add at least one step.");
-
-                // CLEANUP: Use Service if possible, otherwise skip complex logic for now
-                // TODO: Implement cleaner unassignment logic with Cloud Functions or backend
 
                 const activityData: Activity = {
                     id: initialRoutineId || uuidv4(),
@@ -265,6 +314,9 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 <h1 className="text-lg font-bold text-slate-900">
                     {isEditMode ? 'Edit ' : 'New '}
                     {editorType === 'goal' ? 'Goal' : (editorType === 'one-time' ? 'Task' : 'Routine')}
+                    <HelpButton title="How it Works" text="1. You create a Routine, Task, or Goal here. 
+2. It appears instantly on your child's dashboard. 
+3. They tap it to start, follow your steps/instructions, and earn stars when they finish!" />
                 </h1>
                 <div className="w-10"></div> {/* Spacer */}
             </header>
@@ -285,11 +337,14 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             {/* GOAL LAYOUT */}
                             {/* 1. Title (Full Width) */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Goal Title</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Goal Title
+                                    <HelpButton title="Goal Title" text="Give your goal a clear name like 'Read 5 Books' or 'Save $50'. Make it specific so your child knows exactly what to aim for!" />
+                                </label>
                                 <Input
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
-                                    placeholder="e.g. Read 5 Books"
+                                    placeholder="Read 5 Books"
                                     className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-base focus-visible:ring-violet-500"
                                 />
                             </div>
@@ -297,7 +352,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             {/* 2. Row: Icon | Due Date */}
                             <div className="grid grid-cols-[80px_1fr] gap-4">
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Icon
+                                        <HelpButton title="Choose an Icon" text="Pick a fun emoji that represents this goal. Visuals help children recognize their tasks quickly, even if they can't read well yet." />
+                                    </label>
                                     <div className="relative">
                                         <button
                                             onClick={() => setShowIconModal(!showIconModal)}
@@ -320,7 +378,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2 relative z-10">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Due Date</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Due Date
+                                        <HelpButton title="Due Date" text="Optional: Set a deadline for this goal. Great for long-term missions like 'Summer Reading List'. Leave blank for ongoing goals." />
+                                    </label>
                                     <div className="relative">
                                         <Input
                                             type="date"
@@ -336,7 +397,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                             {/* 3. Description */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Description (Optional)</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Description (Optional)
+                                    <HelpButton title="Description" text="Add extra details for yourself. For example, 'Pack the blue lunchbox' or 'Read Chapter 3 to 5'." />
+                                </label>
                                 <textarea
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
@@ -349,7 +413,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             <div className="flex flex-col gap-6">
                                 {/* Voice Note */}
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Note</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Voice Note
+                                        <HelpButton title="Voice Note" text="Record a voice message for your child! They can listen to your instructions instead of reading them. Great for younger kids." />
+                                    </label>
                                     <div className="flex items-center gap-2">
                                         <AudioRecorder
                                             initialAudio={audioUrl}
@@ -361,7 +428,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                                 {/* Reward */}
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Reward
+                                        <HelpButton title="Goal Reward" text="How many stars will they earn for completing this ENTIRE goal? Big achievements deserve big rewards! (e.g., 500 Stars)" />
+                                    </label>
                                     <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-3">
                                         <div className="flex items-center gap-2 flex-1">
                                             <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
@@ -391,16 +461,22 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                             {/* Title & Icon Row */}
                             <div className="flex gap-4">
                                 <div className="flex-1 flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Title</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Title
+                                        <HelpButton title="Routine Title" text="Give it a simple name like 'Morning Routine' or 'Bedtime'. This is what appears on the dashboard." />
+                                    </label>
                                     <Input
                                         value={title}
                                         onChange={e => setTitle(e.target.value)}
-                                        placeholder="e.g. Morning Routine"
+                                        placeholder="Morning Routine"
                                         className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-base focus-visible:ring-primary/50"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Icon
+                                        <HelpButton title="Icon" text="Choose a visual that makes this routine easy to recognize instantly." />
+                                    </label>
                                     <div className="relative">
                                         <button
                                             onClick={() => setShowIconModal(!showIconModal)}
@@ -426,7 +502,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                             {/* Description */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Description (Optional)</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Description (Optional)
+                                    <HelpButton title="Description" text="Add extra details for yourself. For example, 'Pack the blue lunchbox' or 'Read Chapter 3 to 5'." />
+                                </label>
                                 <textarea
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
@@ -437,7 +516,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                             {/* Voice Note (Full Width) */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Note</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Voice Note
+                                    <HelpButton title="Voice Note" text="Record a voice message for your child! They can listen to your instructions instead of reading them. Great for younger kids." />
+                                </label>
                                 <div className="flex items-center gap-3">
                                     <AudioRecorder
                                         initialAudio={audioUrl}
@@ -457,7 +539,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                         {/* Goal Type Selection */}
                         <div className="flex flex-col gap-3">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Progress Goal</label>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                Progress Goal
+                                <HelpButton title="Goal Type" text="Choose how to track progress: 'Counter' for amounts (books, laps), 'Checklist' for multi-step projects, or 'Done?' for simple yes/no completion." />
+                            </label>
                             <div className="grid grid-cols-2 gap-3">
                                 {TRACKING_TYPES.map(t => {
                                     const isSelected = goalType === t.id;
@@ -503,8 +588,11 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                     <Input type="number" value={target} onChange={e => setTarget(Number(e.target.value))} className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unit Label</label>
-                                    <Input value={unit} onChange={e => setUnit(e.target.value)} placeholder="e.g. Pages" className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Unit Label
+                                        <HelpButton title="Unit Label" text="What are we counting? e.g., 'Pages', 'Laps', 'Minutes'. This shows up next to the number." />
+                                    </label>
+                                    <Input value={unit} onChange={e => setUnit(e.target.value)} placeholder="Pages" className="h-10 text-sm font-bold border-slate-200 text-slate-900 bg-slate-50" />
                                 </div>
                             </div>
                         )}
@@ -513,7 +601,11 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 ) : (
                     // ROUTINE SCHEDULE
                     <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-6">
-                        <div className="flex items-center gap-2 mb-1"><Clock className="w-5 h-5 text-slate-900" /><h3 className="font-bold text-slate-900">Schedule</h3></div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Clock className="w-5 h-5 text-slate-900" />
+                            <h3 className="font-bold text-slate-900">Schedule</h3>
+                            <HelpButton title="Scheduling" text="Set when this routine should happen. 'Recurring' repeats on specific days (like school days). 'One-Time' is for a specific date." />
+                        </div>
 
                         {editorType === 'recurring' ? (
                             <div className="flex flex-col gap-4">
@@ -553,15 +645,16 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
 
                         {/* ADVANCED SCHEDULING FIELDS (Remind, Flex, Expire) */}
                         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
-
-                            {/* Remind Me */}
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm relative">
                                         <Bell className="w-5 h-5 fill-current" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-700">Remind Me</p>
+                                        <div className="flex items-center">
+                                            <p className="text-sm font-bold text-slate-700">Remind Me</p>
+                                            <HelpButton title="Reminders" text="We can send a push notification to your device (or the child's device) to remind you when this routine is starting." />
+                                        </div>
                                         <p className="text-[10px] font-bold text-slate-400">Push alert</p>
                                     </div>
                                 </div>
@@ -584,7 +677,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         <Clock className="w-5 h-5 fill-current" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-700">Flex Window</p>
+                                        <div className="flex items-center">
+                                            <p className="text-sm font-bold text-slate-700">Flex Window</p>
+                                            <HelpButton title="Flex Window" text="How early can this be started? '15 min before' means if it starts at 8:00 AM, they can see/start it at 7:45 AM." />
+                                        </div>
                                         <p className="text-[10px] font-bold text-slate-400">Time to start</p>
                                     </div>
                                 </div>
@@ -608,7 +704,10 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                                         <XCircle className="w-5 h-5 fill-current" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-700">Expires</p>
+                                        <div className="flex items-center">
+                                            <p className="text-sm font-bold text-slate-700">Expires</p>
+                                            <HelpButton title="Expires" text="When should this task disappear? 'End of Day' means it resets tomorrow. 'Never' keeps it there until done." />
+                                        </div>
                                         <p className="text-[10px] font-bold text-slate-400">Remove task</p>
                                     </div>
                                 </div>
@@ -628,51 +727,86 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     </div>
                 )}
 
+
                 {/* 4. ASSIGN TO */}
                 <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col gap-3">
-                    <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider text-slate-400">Assign To</h3>
-                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                        {childProfiles?.map(child => {
-                            const isSelected = assignedChildIds.includes(child.id!);
-                            let AvatarIcon = '👶';
-                            switch (child.avatarId) { case 'boy': AvatarIcon = '🧑‍🚀'; break; case 'girl': AvatarIcon = '👩‍🚀'; break; case 'alien': AvatarIcon = '👽'; break; case 'robot': AvatarIcon = '🤖'; break; }
-                            return (
-                                <button key={child.id} onClick={() => toggleChild(child.id!)} className="flex flex-col items-center gap-2 group min-w-[64px]">
-                                    <div className={cn("w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all border-2 shadow-sm relative", isSelected ? "border-primary bg-primary/5 scale-105" : "bg-slate-50 border-slate-100")}>
-                                        {AvatarIcon}
-                                        {isSelected && <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5 border-2 border-white"><Check className="w-3 h-3" /></div>}
-                                    </div>
-                                    <span className={cn("text-xs font-medium truncate w-full text-center", isSelected ? "text-primary font-bold" : "text-slate-500")}>{child.name}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider text-slate-400 flex items-center">
+                        Assign To
+                        <HelpButton title="Assign Child" text="Which child is this for? You can assign a routine to multiple children at once to save time!" />
+                    </h3>
+
+                    {childProfiles.length === 0 ? (
+                        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-6 flex flex-col items-center justify-center gap-2 text-center">
+                            <p className="text-sm text-slate-500 font-medium">No child profiles found.</p>
+                            <Button onClick={() => setShowQuickAddProfile(true)} variant="outline" className="border-primary text-primary hover:bg-primary/5">
+                                + Create Child Profile
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide items-center">
+                            {childProfiles?.map(child => {
+                                const isSelected = assignedChildIds.includes(child.id!);
+                                // Dynamic Avatar Lookup
+                                const AVATAR_MAP: Record<string, string> = {
+                                    boy: '🧑‍🚀', girl: '👩‍🚀', superhero: '🦸', superhero_girl: '🦸‍♀️',
+                                    ninja: '🥷', wizard: '🧙', princess: '👸', pirate: '🏴‍☠️',
+                                    alien: '👽', robot: '🤖', dinosaur: '🦖', unicorn: '🦄'
+                                };
+                                const AvatarIcon = AVATAR_MAP[child.avatarId] || '👶';
+                                return (
+                                    <button key={child.id} onClick={() => toggleChild(child.id!)} className="flex flex-col items-center gap-2 group min-w-[64px]">
+                                        <div className={cn("w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all border-2 shadow-sm relative", isSelected ? "border-primary bg-primary/5 scale-105" : "bg-slate-50 border-slate-100")}>
+                                            {AvatarIcon}
+                                            {isSelected && <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-0.5 border-2 border-white"><Check className="w-3 h-3" /></div>}
+                                        </div>
+                                        <span className={cn("text-xs font-medium truncate w-full text-center", isSelected ? "text-primary font-bold" : "text-slate-500")}>{child.name}</span>
+                                    </button>
+                                );
+                            })}
+
+                            {/* Quick Add Button at end of list */}
+                            <button
+                                onClick={() => setShowQuickAddProfile(true)}
+                                className="flex flex-col items-center gap-2 group min-w-[64px]"
+                            >
+                                <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all border-2 border-dashed border-slate-300 bg-slate-50 hover:border-primary/50 hover:bg-primary/5 text-slate-400 hover:text-primary">
+                                    <Plus className="w-6 h-6" />
+                                </div>
+                                <span className="text-xs font-medium text-slate-400">Add New</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* 5. STEPS (For Routine Only) */}
-                {!isGoal && (
-                    <div className="flex flex-col gap-2 mb-8">
-                        <div className="flex items-center justify-between px-1">
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Routine Steps</h3>
-                        </div>
-                        <div className="flex flex-col gap-3">
-                            {steps.map((step, idx) => (
-                                <div key={step.id} onClick={() => openEditStep(step)} className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform">
-                                    <div className="flex items-center gap-3">
-                                        <GripVertical className="w-4 h-4 text-slate-300" />
-                                        <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600"><RenderIcon name={step.icon} size="w-5 h-5" /></div>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-800 text-sm">{idx + 1}. {step.title}</span>
-                                            <span className="text-[10px] text-slate-500">{step.duration} min</span>
+                {
+                    !isGoal && (
+                        <div className="flex flex-col gap-2 mb-8">
+                            <div className="flex items-center justify-between px-1">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Routine Steps
+                                    <HelpButton title="Routine Steps" text="Break this routine into small, easy actions. For 'Bedtime', add steps like 'Brush Teeth', 'Pajamas', 'Read Book'." />
+                                </h3>
+                            </div>
+                            <div className="flex flex-col gap-3">
+                                {steps.map((step, idx) => (
+                                    <div key={step.id} onClick={() => openEditStep(step)} className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform">
+                                        <div className="flex items-center gap-3">
+                                            <GripVertical className="w-4 h-4 text-slate-300" />
+                                            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600"><RenderIcon name={step.icon} size="w-5 h-5" /></div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800 text-sm">{idx + 1}. {step.title}</span>
+                                                <span className="text-[10px] text-slate-500">{step.duration} min</span>
+                                            </div>
                                         </div>
+                                        <button onClick={e => { e.stopPropagation(); handleDeleteStep(step.id); }} className="p-2 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                                     </div>
-                                    <button onClick={e => { e.stopPropagation(); handleDeleteStep(step.id); }} className="p-2 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                                </div>
-                            ))}
-                            <Button variant="outline" onClick={openAddStep} className="h-12 border-dashed border-2 border-slate-200 text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 bg-slate-50">+ Add Step</Button>
+                                ))}
+                                <Button variant="outline" onClick={openAddStep} className="h-12 border-dashed border-2 border-slate-200 text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 bg-slate-50">+ Add Step</Button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
             </main>
 
             {/* FIXED BOTTOM SAVE BAR */}
@@ -686,31 +820,33 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
             </div>
 
             {/* ICON PICKER MODAL */}
-            {showIconModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in p-4">
-                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                            <h3 className="font-bold text-slate-800">Choose Icon</h3>
-                            <button onClick={() => setShowIconModal(false)} className="p-2 bg-slate-200 rounded-full hover:bg-slate-300 transition"><Icons.X className="w-4 h-4" /></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-0">
-                            <EmojiPicker
-                                onEmojiClick={(emojiData) => {
-                                    setIcon(emojiData.emoji);
-                                    setShowIconModal(false);
-                                }}
-                                width="100%"
-                                height={400}
-                                lazyLoadEmojis={true}
-                                skinTonesDisabled={true}
-                                previewConfig={{ showPreview: false }}
-                            />
+            {
+                showIconModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in p-4">
+                        <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <h3 className="font-bold text-slate-800">Choose Icon</h3>
+                                <button onClick={() => setShowIconModal(false)} className="p-2 bg-slate-200 rounded-full hover:bg-slate-300 transition"><Icons.X className="w-4 h-4" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-0">
+                                <EmojiPicker
+                                    onEmojiClick={(emojiData) => {
+                                        setIcon(emojiData.emoji);
+                                        setShowIconModal(false);
+                                    }}
+                                    width="100%"
+                                    height={400}
+                                    lazyLoadEmojis={true}
+                                    skinTonesDisabled={true}
+                                    previewConfig={{ showPreview: false }}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            <StepEditorModal key={editingStep?.id || 'new'} isOpen={isStepModalOpen} initialData={editingStep} onClose={() => setIsStepModalOpen(false)} onSave={handleSaveStep} onDelete={editingStep ? () => handleDeleteStep(editingStep.id) : undefined} />
+            <StepEditorModal key={editingStep?.id || 'new'} isOpen={isStepModalOpen} initialData={editingStep} onClose={() => setIsStepModalOpen(false)} onSave={handleSaveStep} onDelete={() => editingStep && handleDeleteStep(editingStep.id)} />
 
             <Modal isOpen={errorModalOpen} onClose={() => setErrorModalOpen(false)} title="Required" className="max-w-xs">
                 <div className="p-4 pt-0">
@@ -718,6 +854,21 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                     <Button onClick={() => setErrorModalOpen(false)} className="w-full bg-primary text-white">Okay</Button>
                 </div>
             </Modal>
+
+            <Modal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} title={helpContent.title} className="max-w-xs">
+                <div className="p-4 pt-0">
+                    <p className="text-slate-600 font-medium mb-6 leading-relaxed">{helpContent.text}</p>
+                    <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
+                </div>
+            </Modal>
+            <QuickAddChildModal
+                isOpen={showQuickAddProfile}
+                onClose={() => setShowQuickAddProfile(false)}
+                onProfileCreated={(newId) => {
+                    setAssignedChildIds(prev => [...prev, newId]);
+                    // Implicitly closes via onClose inside modal or we can double check logic
+                }}
+            />
         </div>
     );
 }

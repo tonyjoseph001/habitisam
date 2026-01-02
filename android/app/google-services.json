@@ -1,20 +1,20 @@
 {
     "project_info": {
-        "project_number": "728995184022",
-        "project_id": "habitisam",
-        "storage_bucket": "habitisam.firebasestorage.app"
+        "project_number": "857207349184",
+        "project_id": "habitisam-4020c",
+        "storage_bucket": "habitisam-4020c.firebasestorage.app"
     },
     "client": [
         {
             "client_info": {
-                "mobilesdk_app_id": "1:728995184022:android:7f5b67ad9631ea67b131b7",
+                "mobilesdk_app_id": "1:857207349184:android:3c7f639a6bd32ce76af225",
                 "android_client_info": {
                     "package_name": "com.bigdatabytes.habitisam"
                 }
             },
             "oauth_client": [
                 {
-                    "client_id": "728995184022-dsjb7qahf8b197m8fpja277c5k0qqpl4.apps.googleusercontent.com",
+                    "client_id": "857207349184-mb5nvtc9rc8aihgjmoautmv1o3hsv9am.apps.googleusercontent.com",
                     "client_type": 1,
                     "android_info": {
                         "package_name": "com.bigdatabytes.habitisam",
@@ -22,20 +22,20 @@
                     }
                 },
                 {
-                    "client_id": "728995184022-4d87e7vmapkdu62afe3qsuki2vknpujr.apps.googleusercontent.com",
+                    "client_id": "857207349184-f83bol5rgi0hb2g74rlbqhpud0f0rj13.apps.googleusercontent.com",
                     "client_type": 3
                 }
             ],
             "api_key": [
                 {
-                    "current_key": "AIzaSyAxd4SdawwVI-EdNyKF_4TDcSU5Qb0p0po"
+                    "current_key": "AIzaSyBEkdyiHPzU3cLbH-F3OzmQly34vIx6Umo"
                 }
             ],
             "services": {
                 "appinvite_service": {
                     "other_platform_oauth_client": [
                         {
-                            "client_id": "728995184022-4d87e7vmapkdu62afe3qsuki2vknpujr.apps.googleusercontent.com",
+                            "client_id": "857207349184-f83bol5rgi0hb2g74rlbqhpud0f0rj13.apps.googleusercontent.com",
                             "client_type": 3
                         }
                     ]

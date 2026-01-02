@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { ArrowLeft, Check, Star, Users } from 'lucide-react';
+import { ArrowLeft, Check, Star, Users, HelpCircle } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,24 @@ function AddRewardContent() {
             prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
         );
     };
+
+    // Help System
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [helpContent, setHelpContent] = useState({ title: '', text: '' });
+
+    const openHelp = (title: string, text: string) => {
+        setHelpContent({ title, text });
+        setHelpModalOpen(true);
+    };
+
+    const HelpButton = ({ title, text }: { title: string, text: string }) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); openHelp(title, text); }}
+            className="text-slate-400 hover:text-primary transition-colors ml-1.5 align-middle"
+        >
+            <HelpCircle className="w-4 h-4" />
+        </button>
+    );
 
     const getAvatarEmoji = (avatarId?: string) => {
         switch (avatarId) {
@@ -132,9 +151,12 @@ function AddRewardContent() {
                 {/* Form Fields */}
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-600">Reward Name</label>
+                        <label className="text-sm font-bold text-slate-600 flex items-center">
+                            Reward Name
+                            <HelpButton title="Reward Name" text="Give it a fun name! 'Ice Cream Trip' sounds better than just 'Ice Cream'." />
+                        </label>
                         <Input
-                            placeholder="e.g. 1 Hour Screen Time"
+                            placeholder="1 Hour Screen Time"
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                             className="h-12 bg-white border-slate-200 font-medium"
@@ -142,7 +164,10 @@ function AddRewardContent() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-600">Cost (Stars)</label>
+                        <label className="text-sm font-bold text-slate-600 flex items-center">
+                            Cost (Stars)
+                            <HelpButton title="Cost" text="How many stars does this cost? Tip: Make big rewards expensive so they take a few days to earn!" />
+                        </label>
                         <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-3">
                             <div className="flex items-center gap-2 flex-1">
                                 <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
@@ -167,8 +192,11 @@ function AddRewardContent() {
 
                     <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-600 flex items-center gap-2">
-                            <Users size={16} />
-                            Assign To
+                            <div className="flex items-center gap-2">
+                                <Users size={16} />
+                                Assign To
+                            </div>
+                            <HelpButton title="Assign To" text="Who can buy this? You can make rewards specific to one child or let everyone see them." />
                         </label>
                         <div className="flex gap-3 overflow-x-auto pb-2">
                             <button
@@ -211,6 +239,19 @@ function AddRewardContent() {
                 </Button>
 
             </main>
+
+            {/* Help Modal */}
+            <Modal
+                isOpen={helpModalOpen}
+                onClose={() => setHelpModalOpen(false)}
+                title={helpContent.title}
+                className="max-w-xs"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">{helpContent.text}</p>
+                    <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
+                </div>
+            </Modal>
         </div>
     );
 }

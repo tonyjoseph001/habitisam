@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
-import { Plus, History, Star, Gift, Trash, Edit, MoreVertical } from 'lucide-react';
+import { Plus, History, Star, Gift, Trash, Edit, MoreVertical, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
 import { Modal } from '@/components/ui/modal';
@@ -17,6 +17,24 @@ export default function ParentRewardsPage() {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [deleteRewardId, setDeleteRewardId] = useState<string | null>(null);
+
+    // Help System
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [helpContent, setHelpContent] = useState({ title: '', text: '' });
+
+    const openHelp = (title: string, text: string) => {
+        setHelpContent({ title, text });
+        setHelpModalOpen(true);
+    };
+
+    const HelpButton = ({ title, text }: { title: string, text: string }) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); openHelp(title, text); }}
+            className="text-slate-400 hover:text-primary transition-colors ml-1.5 align-middle"
+        >
+            <HelpCircle className="w-4 h-4" />
+        </button>
+    );
 
     const { profiles } = useProfiles();
     const { rewards, deleteReward } = useRewards();
@@ -85,7 +103,10 @@ export default function ParentRewardsPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Total Stars Available</p>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 flex items-center">
+                                Total Stars Available
+                                <HelpButton title="Total Stars" text="This shows the combined star balance of all your children. It's the total purchasing power of the household!" />
+                            </p>
                             <div className="flex items-baseline gap-2">
                                 <span className="text-3xl font-bold text-slate-900">{totalStars}</span>
                                 <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
@@ -139,7 +160,10 @@ export default function ParentRewardsPage() {
                 {/* Rewards Inventory */}
                 <section>
                     <div className="flex items-center justify-between mb-3 px-1">
-                        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Reward Catalog</h2>
+                        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center">
+                            Reward Catalog
+                            <HelpButton title="Reward Catalog" text="These are the items your children can 'buy' with their stars. When they redeem one, you'll get a notification to approve it." />
+                        </h2>
                         {rewards && rewards.length > 0 && (
                             <button
                                 onClick={() => router.push('/parent/rewards/add?returnUrl=/parent/rewards')}
@@ -253,6 +277,19 @@ export default function ParentRewardsPage() {
                             Delete Reward
                         </Button>
                     </div>
+                </div>
+            </Modal>
+
+            {/* Help Modal */}
+            <Modal
+                isOpen={helpModalOpen}
+                onClose={() => setHelpModalOpen(false)}
+                title={helpContent.title}
+                className="max-w-xs"
+            >
+                <div className="p-4 pt-0">
+                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">{helpContent.text}</p>
+                    <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
                 </div>
             </Modal>
         </div >

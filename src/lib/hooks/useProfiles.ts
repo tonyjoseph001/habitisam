@@ -31,7 +31,8 @@ export function useProfiles() {
         type: Profile['type'],
         avatarId: string,
         pin?: string,
-        theme: Profile['theme'] = 'default'
+        theme: Profile['theme'] = 'default',
+        dob?: string
     ) => {
         if (!user?.uid) throw new Error("No authenticated user");
         if (!accountId) throw new Error("No active account linked");
@@ -44,6 +45,7 @@ export function useProfiles() {
             avatarId,
             pin,
             theme,
+            dob,
             createdAt: new Date(),
         };
 

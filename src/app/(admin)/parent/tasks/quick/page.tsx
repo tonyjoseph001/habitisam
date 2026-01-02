@@ -187,7 +187,7 @@ export default function QuickTaskPage() {
                             type="text"
                             value={taskName}
                             onChange={(e) => setTaskName(e.target.value)}
-                            placeholder="e.g. Put away toys..."
+                            placeholder="Put away toys..."
                             className="w-full bg-white p-4 pr-12 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary font-bold text-lg text-slate-700 placeholder-slate-300 transition shadow-sm"
                         />
                         <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary">

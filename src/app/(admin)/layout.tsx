@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { ParentNavBar } from '@/components/layout/ParentNavBar';
+import { ParentNotificationListener } from '@/components/logic/ParentNotificationListener';
 
 export default function ParentLayout({
     children,
@@ -30,6 +31,7 @@ export default function ParentLayout({
 
     return (
         <div className="min-h-screen pb-28 relative">
+            <ParentNotificationListener />
             {children}
             {/* Persistent Navigation Bar */}
             {user && <ParentNavBar />}

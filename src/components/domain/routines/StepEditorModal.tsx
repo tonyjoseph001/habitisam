@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Clock, Star, Trash2, Award, Check } from 'lucide-react';
+import { ArrowLeft, Clock, Star, Trash2, Award, Check, HelpCircle } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { Textarea } from '@/components/ui/textarea';
+import { Modal } from '@/components/ui/modal';
 
 interface StepEditorModalProps {
     isOpen: boolean;
@@ -40,6 +41,24 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
     const [starReward, setStarReward] = useState<number | ''>(5);
     const [description, setDescription] = useState('');
     const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined);
+
+    // Tutorial / Help Modal
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [helpContent, setHelpContent] = useState({ title: '', text: '' });
+
+    const openHelp = (title: string, text: string) => {
+        setHelpContent({ title, text });
+        setHelpModalOpen(true);
+    };
+
+    const HelpButton = ({ title, text }: { title: string, text: string }) => (
+        <button
+            onClick={(e) => { e.stopPropagation(); openHelp(title, text); }}
+            className="text-slate-400 hover:text-primary transition-colors ml-1.5 align-middle"
+        >
+            <HelpCircle className="w-4 h-4" />
+        </button>
+    );
 
     // Initialize state
     useEffect(() => {
@@ -125,7 +144,7 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                             </div>
 
                             <div className="flex items-center gap-2">
-                                {onDelete && (
+                                {onDelete && initialData && (
                                     <button onClick={onDelete} className="text-red-500 p-2 hover:bg-red-50 rounded-full">
                                         <Trash2 className="w-5 h-5" />
                                     </button>
@@ -139,11 +158,14 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
 
                             {/* 1. Title */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Step Title</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Step Title
+                                    <HelpButton title="Step Title" text="Name this step clearly, like 'Put on Pajamas'. Short and sweet is best!" />
+                                </label>
                                 <Input
                                     value={title}
                                     onChange={e => setTitle(e.target.value)}
-                                    placeholder="e.g. Brush Teeth"
+                                    placeholder="Brush Teeth"
                                     className="h-12 bg-slate-50 border-slate-200 text-slate-900 font-bold text-sm focus-visible:ring-primary/50 placeholder:text-slate-300"
                                     autoFocus
                                 />
@@ -153,7 +175,10 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                             <div className="grid grid-cols-[80px_1fr] gap-4">
                                 {/* Icon */}
                                 <div className="flex flex-col gap-2 relative">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Icon</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Icon
+                                        <HelpButton title="Step Icon" text="Choose a picture that matches the action. Kids recognize the 'Toothbrush' icon faster than reading the words." />
+                                    </label>
                                     <button
                                         onClick={() => setShowPicker(!showPicker)}
                                         className="w-full h-12 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:scale-105 transition-transform"
@@ -189,7 +214,10 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
 
                                 {/* Reward */}
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reward</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                        Reward
+                                        <HelpButton title="Mini-Reward" text="Completing a step can give small rewards (like 5 stars). This keeps motivation high during a long routine!" />
+                                    </label>
                                     <div className="h-12 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-between px-3">
                                         <div className="flex items-center gap-2 flex-1">
                                             <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
@@ -218,7 +246,10 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-5 h-5 text-slate-500" />
-                                        <h3 className="font-bold text-slate-700 text-sm">Timer</h3>
+                                        <h3 className="font-bold text-slate-700 text-sm flex items-center">
+                                            Timer
+                                            <HelpButton title="Timer" text="Set a time limit for this step. It creates a fun challenge: 'Can you beat the clock?'" />
+                                        </h3>
                                     </div>
                                     <label className="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" className="sr-only peer" checked={isTimerEnabled} onChange={(e) => setIsTimerEnabled(e.target.checked)} />
@@ -258,7 +289,10 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
 
                             {/* 4. Description */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Instructions (Optional)</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Instructions (Optional)
+                                    <HelpButton title="Instructions" text="Extra details for you or an older child. e.g., 'The blue pajamas in the top drawer'." />
+                                </label>
                                 <Textarea
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
@@ -269,7 +303,10 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
 
                             {/* 5. Voice Note */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Instruction</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
+                                    Voice Instruction
+                                    <HelpButton title="Voice Instruction" text="Record yourself saying exactly what to do. 'Brush up and down and don't forget the back teeth!'" />
+                                </label>
                                 <AudioRecorder
                                     initialAudio={audioUrl}
                                     onRecordingComplete={(base64) => setAudioUrl(base64)}
@@ -289,6 +326,12 @@ export function StepEditorModal({ isOpen, initialData, onClose, onSave, onDelete
                             </Button>
                         </div>
 
+                        <Modal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} title={helpContent.title} className="max-w-xs">
+                            <div className="p-4 pt-0">
+                                <p className="text-sm text-slate-600 mb-6 leading-relaxed">{helpContent.text}</p>
+                                <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
+                            </div>
+                        </Modal>
                     </motion.div>
                 </div >
             )

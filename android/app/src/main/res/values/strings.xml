@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Habitisam</string>
     <string name="title_activity_main">Habitisam</string>
-    <string name="package_name">com.habitisam.app</string>
-    <string name="custom_url_scheme">com.habitisam.app</string>
+    <string name="package_name">com.bigdatabytes.habitisam</string>
+    <string name="custom_url_scheme">com.bigdatabytes.habitisam</string>
+    <string name="server_client_id">857207349184-f83bol5rgi0hb2g74rlbqhpud0f0rj13.apps.googleusercontent.com</string>
 </resources>
