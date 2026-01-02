@@ -751,7 +751,7 @@ function RoutinePlayerContent() {
 
 
     return (
-        <main className="h-[100dvh] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1e3a8a] via-[#0f172a] to-[#020617] flex flex-col font-sans overflow-hidden text-slate-100">
+        <main className="h-[100dvh] bg-[#F8FAFC] flex flex-col font-sans overflow-hidden text-slate-800">
 
             {/* Skip Confirmation Modal */}
             <AnimatePresence>
@@ -764,9 +764,9 @@ function RoutinePlayerContent() {
                         className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4"
                         onClick={() => setIsSkipModalOpen(false)}
                     >
-                        <div className="bg-[#1E293B] border border-slate-700 rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center" onClick={e => e.stopPropagation()}>
-                            <h2 className="text-xl font-bold mb-4 text-white">Skip this step?</h2>
-                            <p className="text-slate-400 mb-6 text-sm">You won't earn stars for this step.</p>
+                        <div className="bg-white border border-slate-200 rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+                            <h2 className="text-xl font-bold mb-4 text-slate-800">Skip this step?</h2>
+                            <p className="text-slate-500 mb-6 text-sm">You won't earn stars for this step.</p>
                             <div className="flex gap-4 justify-center">
                                 <button onClick={() => setIsSkipModalOpen(false)} className="px-6 py-3 bg-slate-700/50 hover:bg-slate-700 rounded-xl font-bold text-slate-300 transition-colors">Cancel</button>
                                 <button onClick={confirmSkip} className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-bold transition-colors">Skip</button>
@@ -789,12 +789,12 @@ function RoutinePlayerContent() {
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="bg-[#1E293B] border border-slate-700 rounded-3xl p-0 w-full max-w-sm shadow-2xl overflow-hidden"
+                            className="bg-white border border-slate-200 rounded-3xl p-0 w-full max-w-sm shadow-2xl overflow-hidden"
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className="bg-slate-800/50 p-4 border-b border-slate-700 flex items-center justify-between">
-                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Info className="w-5 h-5 text-indigo-400" />
+                            <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between">
+                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Info className="w-5 h-5 text-indigo-500" />
                                     Task Details
                                 </h2>
                                 <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 transition-colors">
@@ -803,28 +803,28 @@ function RoutinePlayerContent() {
                             </div>
                             <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
                                 {/* Routine Info */}
-                                <div className="bg-slate-800/30 p-4 rounded-xl border border-white/5 space-y-2">
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2">
                                     <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Routine</h3>
-                                    <h4 className="text-white font-bold text-lg">{routine.title}</h4>
-                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                    <h4 className="text-slate-800 font-bold text-lg">{routine.title}</h4>
+                                    <p className="text-slate-500 text-sm leading-relaxed">
                                         {routine.description || "No description provided."}
                                     </p>
                                 </div>
 
                                 {/* All Steps List */}
                                 <div className="space-y-3">
-                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider sticky top-0 bg-[#1E293B] py-2 z-10">Mission Steps</h3>
+                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider sticky top-0 bg-white py-2 z-10">Mission Steps</h3>
                                     {routine.steps.map((step, index) => {
                                         const isCurrent = index === currentStepIndex;
                                         return (
-                                            <div key={step.id} className={`p-4 rounded-xl border transition-all ${isCurrent ? 'bg-indigo-500/10 border-indigo-500/50 shadow-sm ring-1 ring-indigo-500/20' : 'bg-slate-800/30 border-white/5 opacity-70'}`}>
+                                            <div key={step.id} className={`p-4 rounded-xl border transition-all ${isCurrent ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-500/20' : 'bg-slate-50 border-slate-100 opacity-70'}`}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className={`font-bold text-base flex items-center gap-4 mb-1.5 ${isCurrent ? 'text-white' : 'text-slate-300'}`}>
+                                                        <h4 className={`font-bold text-base flex items-center gap-4 mb-1.5 ${isCurrent ? 'text-indigo-900' : 'text-slate-700'}`}>
                                                             <span className="text-xl flex-shrink-0 leading-none">{step.icon}</span>
                                                             <span className="truncate leading-tight pt-0.5">{step.title}</span>
                                                         </h4>
-                                                        <p className="text-slate-400 text-sm leading-relaxed break-words">
+                                                        <p className="text-slate-500 text-sm leading-relaxed break-words">
                                                             {step.description || "No details."}
                                                         </p>
                                                     </div>
@@ -847,7 +847,7 @@ function RoutinePlayerContent() {
                                     })}
                                 </div>
                             </div>
-                            <div className="p-4 bg-slate-800/30 border-t border-slate-700">
+                            <div className="p-4 bg-slate-50 border-t border-slate-200">
                                 <button onClick={() => setIsDetailsModalOpen(false)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-indigo-500/20">
                                     Got it!
                                 </button>
@@ -860,20 +860,20 @@ function RoutinePlayerContent() {
             {/* NEW LAYOUT: Header Bar + Scrollable Body */}
             <div className="flex flex-col h-full w-full relative z-10">
 
-                {/* 1. Cosmic Header Bar */}
-                <div className="bg-[#0B1120]/80 backdrop-blur-md sticky top-0 z-50 border-b border-white/5 flex-shrink-0 pt-[env(safe-area-inset-top)]">
+                {/* 1. Cosmic Header Bar (Light) */}
+                <div className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200 flex-shrink-0 pt-[env(safe-area-inset-top)]">
                     <div className="h-16 flex items-center justify-between px-4 w-full">
                         <button
                             onClick={() => router.back()}
-                            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white border border-white/10 shadow-sm active:scale-95 transition-all"
+                            className="w-10 h-10 bg-white hover:bg-slate-50 rounded-full flex items-center justify-center text-slate-600 border border-slate-200 shadow-sm active:scale-95 transition-all"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
 
                         <div className="flex items-center">
                             {/* Step Counter - Top Right */}
-                            <div className="bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 backdrop-blur-sm shadow-sm">
-                                <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">
+                            <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 backdrop-blur-sm shadow-sm">
+                                <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
                                     Step {currentStepIndex + 1} / {routine.steps.length}
                                 </span>
                             </div>
@@ -908,7 +908,7 @@ function RoutinePlayerContent() {
                                         <path
                                             d="M 12,110 A 100,100 0 0,1 212,110"
                                             fill="none"
-                                            stroke="rgba(255,255,255,0.1)"
+                                            stroke="rgba(0,0,0,0.05)"
                                             strokeWidth="16"
                                             strokeLinecap="round"
                                         />
@@ -935,7 +935,7 @@ function RoutinePlayerContent() {
 
                                     {/* Time Display (Inside Dome) */}
                                     <div className="absolute top-14 left-0 right-0 text-center flex flex-col items-center group">
-                                        <span className={`text-4xl font-medium tracking-tight drop-shadow-sm ${timeLeft <= 30 && isRunning ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                        <span className={`text-4xl font-medium tracking-tight drop-shadow-sm ${timeLeft <= 30 && isRunning ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
                                             {isActive ? formatTime(timeLeft) : `${currentStep.duration || 2}:00`}
                                         </span>
                                         <span className="text-sm font-bold text-indigo-400 uppercase tracking-widest opacity-80">
@@ -946,7 +946,7 @@ function RoutinePlayerContent() {
                                     <div className="absolute top-28 left-0 right-0 flex justify-center z-30">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); resetTimer(); }}
-                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-indigo-300 text-[11px] font-bold uppercase tracking-wider transition-all border border-indigo-500/30 shadow-lg active:scale-95 ${timeLeft === totalTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white hover:bg-slate-50 text-indigo-500 text-[11px] font-bold uppercase tracking-wider transition-all border border-slate-200 shadow-sm active:scale-95 ${timeLeft === totalTime ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                                         >
                                             <RotateCcw className="w-3.5 h-3.5" />
                                             Reset
@@ -961,7 +961,7 @@ function RoutinePlayerContent() {
                                 <div className="text-4xl filter drop-shadow-md animate-bounce-slow md:text-5xl">
                                     {currentStep.icon?.length < 3 ? currentStep.icon : (currentStep.icon === 'toothbrush' ? '🦷' : '✨')}
                                 </div>
-                                <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-sm md:text-3xl text-left">
+                                <h2 className="text-2xl font-bold text-slate-800 leading-tight drop-shadow-sm md:text-3xl text-left">
                                     {currentStep.title}
                                 </h2>
                             </div>
@@ -971,7 +971,7 @@ function RoutinePlayerContent() {
                         <div className="w-full max-w-sm px-6 flex flex-col items-center relative z-10 gap-6 mt-auto md:mt-0 md:flex-1 md:max-w-md">
 
                             {/* Unified Control Card */}
-                            <div className="w-full bg-[#0F172A]/60 backdrop-blur-xl rounded-[2rem] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/5 relative overflow-hidden group">
+                            <div className="w-full bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-[0_8px_32px_rgba(30,58,138,0.05)] border border-slate-200/60 relative overflow-hidden group">
 
 
 
@@ -982,7 +982,7 @@ function RoutinePlayerContent() {
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setIsDetailsModalOpen(true); }}
-                                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-white/10 transition-all active:scale-95 hover:text-white"
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[11px] font-bold uppercase tracking-wider border border-slate-200 transition-all active:scale-95 hover:text-indigo-600"
                                             >
                                                 <Info className="w-3.5 h-3.5" />
                                                 Details
@@ -998,7 +998,7 @@ function RoutinePlayerContent() {
 
                                         <button
                                             onClick={(e) => { e.stopPropagation(); toggleAudio(); }}
-                                            className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 ${isAudioPlaying ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300' : 'bg-slate-800/50 border-white/10 text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all active:scale-95 ${isAudioPlaying ? 'bg-indigo-50 border-indigo-200 text-indigo-500' : 'bg-slate-100 border-slate-200 text-slate-400 hover:text-indigo-600 hover:bg-slate-200'}`}
                                         >
                                             {isAudioPlaying ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                                         </button>
@@ -1007,7 +1007,7 @@ function RoutinePlayerContent() {
                                         <span>Elapsed</span>
                                         <span>Total</span>
                                     </div>
-                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden relative">
+                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
                                         <motion.div
                                             className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"
                                             animate={{ width: `${((totalTime - timeLeft) / totalTime) * 100}%` }}
@@ -1026,7 +1026,7 @@ function RoutinePlayerContent() {
                                             }
                                         }}
                                         disabled={currentStepIndex === 0}
-                                        className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent transition-all"
+                                        className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-indigo-600 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
                                     >
                                         <SkipBack className="w-6 h-6 fill-current" />
                                     </button>
@@ -1035,13 +1035,13 @@ function RoutinePlayerContent() {
                                         onClick={toggleTimer}
                                         disabled={isStepCompleted}
                                         className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all active:scale-95 border-2 ${isStepCompleted
-                                            ? 'bg-slate-800 border-slate-700 opacity-50 grayscale cursor-not-allowed'
+                                            ? 'bg-slate-100 border-slate-200 opacity-50 grayscale cursor-not-allowed'
                                             : (isRunning
                                                 ? 'bg-gradient-to-br from-teal-500 to-emerald-600 border-[#0F172A] shadow-emerald-500/20 group-hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]'
                                                 : 'bg-gradient-to-br from-indigo-500 to-violet-600 border-[#0F172A] shadow-indigo-500/20 group-hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]')
                                             }`}
                                     >
-                                        {isStepCompleted ? <Check className="w-8 h-8 text-white/50" /> : (isRunning ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />)}
+                                        {isStepCompleted ? <Check className="w-8 h-8 text-slate-400" /> : (isRunning ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />)}
                                     </button>
 
                                     <button
@@ -1059,7 +1059,7 @@ function RoutinePlayerContent() {
                                                 setIsSkipModalOpen(true);
                                             }
                                         }}
-                                        className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                                        className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-all"
                                     >
                                         <SkipForward className="w-6 h-6 fill-current" />
                                     </button>
@@ -1072,7 +1072,7 @@ function RoutinePlayerContent() {
             </div>
 
             {/* Sticky Bottom Actions */}
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0B1120] via-[#0B1120]/95 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/95 to-transparent z-40 flex justify-center pb-8 safe-area-bottom pointer-events-none">
                 <button
                     onClick={() => {
                         stopAlarm();

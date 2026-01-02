@@ -246,7 +246,10 @@ export default function ChildGoalsPage() {
                                 statusText = goal.dueDate; // e.g. "Weekly"
                                 statusColor = 'bg-emerald-500 border-emerald-400 text-white shadow-emerald-200';
                             }
-                        } else if (goal.status === 'completed' || goal.status === 'pending_approval') {
+                        } else if (goal.status === 'pending_approval') {
+                            statusText = 'Needs Approval';
+                            statusColor = 'bg-yellow-500 border-yellow-400 text-white shadow-yellow-200';
+                        } else if (goal.status === 'completed') {
                             statusText = 'Completed';
                             statusColor = 'bg-blue-500 border-blue-400 text-white shadow-blue-200';
                         } else if (goal.status === 'cancelled') {
@@ -277,25 +280,32 @@ export default function ChildGoalsPage() {
                         </div>
                     </div>
 
-                    {/* Completed/Cancelled Summary View */}
+                    {/* Completed/Cancelled/Pending Summary View */}
                     {(goal.status === 'completed' || goal.status === 'pending_approval' || goal.status === 'cancelled') ? (
                         <div className="bg-black/20 rounded-2xl p-4 border border-white/5 backdrop-blur-sm">
                             <div className="flex justify-between items-center mb-3 border-b border-white/10 pb-3">
                                 <span className="text-white/60 text-xs font-bold uppercase tracking-wider">
-                                    {goal.status === 'cancelled' ? 'Cancelled On' : 'Completed On'}
+                                    {goal.status === 'cancelled' ? 'Cancelled On' :
+                                        goal.status === 'pending_approval' ? 'Waiting Since' : 'Completed On'}
                                 </span>
                                 <span className="text-white font-bold text-sm">
-                                    {goal.completedAt ? new Date(goal.completedAt).toLocaleDateString() : 'Today'}
+                                    {(() => {
+                                        if (!goal.completedAt) return 'Today';
+                                        // Handle Firestore Timestamp or Date
+                                        const dateVal = (goal.completedAt as any).toDate ? (goal.completedAt as any).toDate() : new Date(goal.completedAt);
+                                        return dateVal.toLocaleDateString();
+                                    })()}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center mb-1">
                                 <span className="text-white/60 text-xs font-bold uppercase tracking-wider">Status</span>
                                 <span className="text-white font-black text-lg drop-shadow-sm">
                                     {goal.status === 'cancelled' ? 'Cancelled' :
-                                        goal.type === 'binary' ? 'Mission Complete' :
-                                            goal.type === 'savings' ? `$${goal.target}` :
-                                                goal.type === 'checklist' ? '100%' :
-                                                    `${goal.current} / ${goal.target} ${goal.unit || ''}`}
+                                        goal.status === 'pending_approval' ? 'Needs Approval' :
+                                            goal.type === 'binary' ? 'Mission Complete' :
+                                                goal.type === 'savings' ? `$${goal.target}` :
+                                                    goal.type === 'checklist' ? '100%' :
+                                                        `${goal.current} / ${goal.target} ${goal.unit || ''}`}
                                 </span>
                             </div>
                             {goal.status !== 'cancelled' && (
