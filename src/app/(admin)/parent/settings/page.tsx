@@ -458,6 +458,24 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
+                {/* About & Legal */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex items-center gap-3 mb-4 text-slate-400">
+                        <span className="text-xl">⚖️</span>
+                        <h2 className="text-lg font-bold text-slate-800">Legal</h2>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <Link href="/privacy" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                            <span className="text-sm font-bold text-slate-600">Privacy Policy</span>
+                            <ArrowLeft className="w-4 h-4 rotate-180 text-slate-400" />
+                        </Link>
+                        <Link href="/terms" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                            <span className="text-sm font-bold text-slate-600">Terms of Service</span>
+                            <ArrowLeft className="w-4 h-4 rotate-180 text-slate-400" />
+                        </Link>
+                    </div>
+                </div>
+
                 {/* Version Footer */}
                 <p className="text-center text-[10px] text-slate-400 font-mono mt-8 mb-4 opacity-50">
                     Habitisam v{APP_CONFIG.version} (Build {APP_CONFIG.buildNumber})

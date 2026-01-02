@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ProfileService } from "@/lib/firestore/profiles.service";
@@ -195,7 +196,7 @@ function LoginPageContent() {
                     <div className="w-full text-center pt-4">
                         <p className="text-[11px] text-slate-500 font-medium mix-blend-multiply">
                             By signing up, you agree to our<br />
-                            <a href="#" className="underline decoration-slate-400 hover:text-slate-800">Privacy Policy</a> &amp; <a href="#" className="underline decoration-slate-400 hover:text-slate-800">Terms of Service</a>
+                            <Link href="/privacy" className="underline decoration-slate-400 hover:text-slate-800">Privacy Policy</Link> &amp; <Link href="/terms" className="underline decoration-slate-400 hover:text-slate-800">Terms of Service</Link>
                         </p>
                     </div>
                 </div>
