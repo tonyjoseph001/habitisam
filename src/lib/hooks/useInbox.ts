@@ -2,20 +2,27 @@ import { useMemo } from 'react';
 import { InboxReward } from "@/lib/db";
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useSessionStore } from "@/lib/store/useSessionStore"; // Added import
 import { InboxService } from "@/lib/firestore/inbox.service";
 import { useFirestoreQuery } from "@/lib/firestore/hooks";
 import { query, where, orderBy } from 'firebase/firestore';
 
 export function useInbox(profileId?: string) {
     const { user } = useAuth();
+    const { activeProfile } = useSessionStore(); // Get active profile
+
+    // Resolve Correct Account ID (Household ID)
+    // For Secondary Parents (or Children of Secondary Parents), we MUST use the Profile's accountId.
+    // Falling back to user.uid only works for the Primary Owner.
+    const accountId = activeProfile?.accountId || user?.uid;
 
     // Create Firestore Query
     const inboxQuery = useMemo(() => {
-        if (!user?.uid) return null;
+        if (!accountId) return null;
 
         let q = query(
             InboxService.getCollection(),
-            where("accountId", "==", user.uid)
+            where("accountId", "==", accountId)
         );
 
         if (profileId) {
@@ -23,16 +30,16 @@ export function useInbox(profileId?: string) {
         }
 
         return q;
-    }, [user?.uid, profileId]);
+    }, [accountId, profileId]); // Dep changed to accountId
 
     const { data: inboxItems, loading, error } = useFirestoreQuery<InboxReward>(inboxQuery);
 
     const addInboxItem = async (item: Omit<InboxReward, 'id' | 'accountId' | 'createdAt'>) => {
-        if (!user?.uid) throw new Error("No authenticated user");
+        if (!accountId) throw new Error("No active account linked");
 
         const newItem: InboxReward = {
             id: uuidv4(),
-            accountId: user.uid,
+            accountId: accountId,
             ...item,
             createdAt: new Date(),
         };

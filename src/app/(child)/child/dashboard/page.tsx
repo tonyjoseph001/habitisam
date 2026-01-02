@@ -661,7 +661,9 @@ export default function MissionControlPage() {
 
                                                     {/* Text */}
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="font-bold text-lg leading-tight">Gift!</h3>
+                                                        <h3 className="font-bold text-lg leading-tight">
+                                                            {reward.senderName ? `Gift from ${reward.senderName}!` : "Gift!"}
+                                                        </h3>
                                                         <p className="text-pink-100 text-xs font-medium truncate">
                                                             {reward.message || "Good job!"}
                                                         </p>
