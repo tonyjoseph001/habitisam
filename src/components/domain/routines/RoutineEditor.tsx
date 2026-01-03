@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // Added useSearchParams
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -21,6 +21,7 @@ import { GoalService } from '@/lib/firestore/goals.service';
 import { LogService } from '@/lib/firestore/logs.service';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useRoutines } from '@/lib/hooks/useRoutines'; // Added
+import { useGoals } from '@/lib/hooks/useGoals'; // Added
 import { getLimits } from '@/config/tiers'; // Added
 import { db } from '@/lib/db'; // Added
 import { useAccount } from '@/lib/hooks/useAccount'; // Added useAccount
@@ -52,16 +53,24 @@ interface RoutineEditorProps {
 
 export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const initialTypeParam = searchParams.get('type');
+
     const { user } = useAuth();
     const isEditMode = !!initialRoutineId;
 
     const { profiles } = useProfiles();
     const { routines } = useRoutines(); // Added to fetch all routines for counting
+    const { goals } = useGoals(); // Added to fetch all goals for counting
     const childProfiles = profiles ? profiles.filter(p => p.type === 'child') : [];
 
     // --- State ---
     // Top Toggle state: 'recurring' | 'one-time' | 'goal'
-    const [editorType, setEditorType] = useState<ActivityType | 'goal'>('recurring');
+    const [editorType, setEditorType] = useState<ActivityType | 'goal'>(() => {
+        if (initialTypeParam === 'goal') return 'goal';
+        if (initialTypeParam === 'recurring' || initialTypeParam === 'one-time') return initialTypeParam;
+        return 'recurring';
+    });
     const [showIconModal, setShowIconModal] = useState(false);
     const [showQuickAddProfile, setShowQuickAddProfile] = useState(false);
 
@@ -201,22 +210,40 @@ export function RoutineEditor({ initialRoutineId }: RoutineEditorProps) {
                 const license = account?.licenseType || 'free';
                 const limits = getLimits(license);
 
-                if (limits.maxRoutinesPerChild < 50) {
-                    for (const childId of assignedChildIds) {
-                        const existingCount = routines.filter(r =>
-                            r.profileIds?.includes(childId)
-                        ).length;
+                if (limits.maxTotalRoutines < 100) { // If not unlimited
+                    // Check against Household Total
+                    const totalRoutines = routines.length; // useRoutines returns all for account
 
-                        if (existingCount >= limits.maxRoutinesPerChild) {
-                            const childName = profiles?.find(p => p.id === childId)?.name || 'Child';
-                            toast.error(`Limit reached for ${childName}. Free plan allows ${limits.maxRoutinesPerChild} routines.`);
-                            setTimeout(() => router.push('/parent/subscription'), 1500);
-                            return;
-                        }
+                    if (totalRoutines >= limits.maxTotalRoutines) {
+                        toast.error(`Free Plan Limit Reached! You have used ${totalRoutines}/${limits.maxTotalRoutines} available tasks.`);
+                        setTimeout(() => router.push('/parent/subscription'), 2000);
+                        return;
                     }
                 }
             } catch (err) {
                 console.error("Limit check failed", err);
+            }
+        }
+
+        // --- GOAL LIMIT CHECK ---
+        if (!isEditMode && editorType === 'goal') {
+            try {
+                const account = await db.accounts.get(user.uid);
+                const license = account?.licenseType || 'free';
+                const limits = getLimits(license);
+
+                if (limits.maxTotalGoals < 100) { // If not unlimited
+                    // Check against Household Total
+                    const totalActiveGoals = goals.filter(g => g.status === 'active').length;
+
+                    if (totalActiveGoals >= limits.maxTotalGoals) {
+                        toast.error(`Free Plan Limit Reached! You have used ${totalActiveGoals}/${limits.maxTotalGoals} active goals.`);
+                        setTimeout(() => router.push('/parent/subscription'), 2000);
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error("Goal Limit check failed", err);
             }
         }
         // -------------------

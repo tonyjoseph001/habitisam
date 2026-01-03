@@ -25,13 +25,13 @@ export default function SubscriptionPage() {
         },
         {
             label: "Daily Routines",
-            free: `${TIER_LIMITS.free.maxRoutinesPerChild} / Child`,
+            free: `${TIER_LIMITS.free.maxTotalRoutines} Total`,
             pro: "Unlimited*",
             icon: "📅"
         },
         {
             label: "Habits",
-            free: `${TIER_LIMITS.free.maxHabits} / Child`,
+            free: `${TIER_LIMITS.free.maxTotalGoals} Active Goals`,
             pro: "Unlimited*",
             icon: "✨"
         },

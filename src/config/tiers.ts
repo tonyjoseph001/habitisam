@@ -1,8 +1,8 @@
 export const TIER_LIMITS = {
     free: {
         maxChildren: 2,
-        maxRoutinesPerChild: 3,
-        maxHabits: 5,
+        maxTotalRoutines: 4, // Household Total
+        maxTotalGoals: 2, // Household Total Active
         canCustomizeRewards: false,
         canAccessAnalytics: false,
         allowedThemes: ['default'], // Light mode only
@@ -12,8 +12,8 @@ export const TIER_LIMITS = {
     },
     pro: {
         maxChildren: 5,
-        maxRoutinesPerChild: 50,
-        maxHabits: 50,
+        maxTotalRoutines: 100,
+        maxTotalGoals: 100,
         canCustomizeRewards: true,
         canAccessAnalytics: true,
         allowedThemes: ['default', 'ocean', 'sunset', 'forest', 'candy', 'midnight'], // All themes

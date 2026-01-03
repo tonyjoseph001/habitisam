@@ -288,7 +288,7 @@ export default function ParentDashboard() {
     // --- PIN LOCK OVERLAY ---
     if (isLocked && activeProfile?.type === 'parent') {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+            <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
                 <div className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl text-center animate-in zoom-in-95 duration-300">
                     <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-4xl mb-4 mx-auto shadow-inner">
                         👤

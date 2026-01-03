@@ -252,7 +252,7 @@ export default function RoutinesPage() {
             {/* Tabs */}
             <div className="px-4 mt-4">
                 <div className="bg-slate-200 p-1 rounded-lg flex">
-                    <button onClick={() => setActiveTab('routines')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'routines' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Routines</button>
+                    <button onClick={() => setActiveTab('routines')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'routines' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Tasks</button>
                     <button onClick={() => setActiveTab('goals')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'goals' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Goals</button>
                 </div>
             </div>
@@ -267,7 +267,7 @@ export default function RoutinesPage() {
                                 <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                                     <CalendarIcon className="w-10 h-10 text-slate-300" />
                                 </div>
-                                <h3 className="font-bold text-slate-700">No Routines Yet</h3>
+                                <h3 className="font-bold text-slate-700">No Tasks Yet</h3>
                                 <p className="text-sm text-slate-500 max-w-xs">Create routines like "Morning Rush" or "Bedtime".</p>
                             </div>
                         )}
@@ -275,7 +275,7 @@ export default function RoutinesPage() {
                         {routines && routines.length > 0 && (
                             <div className="mb-8">
                                 <h3 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center justify-between">
-                                    Active Routines
+                                    Active Tasks
                                     <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">{routines.length}</span>
                                 </h3>
                                 <div className="space-y-3">
@@ -408,11 +408,17 @@ export default function RoutinesPage() {
             {/* Floating "Add Routine" Button */}
             <div className="fixed bottom-24 left-0 w-full px-6 flex justify-center z-40 pointer-events-none">
                 <button
-                    onClick={handleOpenNew}
+                    onClick={() => {
+                        if (activeTab === 'goals') {
+                            router.push('/parent/routines/new?type=goal');
+                        } else {
+                            router.push('/parent/routines/new?type=recurring');
+                        }
+                    }}
                     className="pointer-events-auto bg-primary text-white pl-5 pr-6 py-4 rounded-full font-bold text-sm shadow-xl shadow-slate-300 flex items-center gap-2 hover:scale-105 active:scale-95 transition"
                 >
                     <Plus className="w-5 h-5" />
-                    Add Routine
+                    {activeTab === 'goals' ? 'Add Goal' : 'Add Task'}
                 </button>
             </div>
 
