@@ -3,10 +3,10 @@
 import { useTheme } from '@/components/providers/ThemeContext';
 import { APP_CONFIG } from '@/config/app';
 import { ThemeType } from '@/lib/db';
-import { ArrowLeft, Bell, ChevronDown, Palette, Key, Users, Copy, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronDown, Palette, Key, Users, Copy, HelpCircle, Crown } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSessionStore } from '@/lib/store/useSessionStore';
 import { ProfileService } from '@/lib/firestore/profiles.service';
 import { InviteService } from '@/lib/firestore/invites.service';
@@ -19,6 +19,7 @@ import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { AccountService } from '@/lib/firestore/accounts.service';
 import { useProfiles } from '@/lib/hooks/useProfiles';
+import { useAccount } from '@/lib/hooks/useAccount';
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
@@ -26,8 +27,10 @@ export default function SettingsPage() {
     const { user, signOut } = useAuth();
     const { activeProfile, setActiveProfile } = useSessionStore();
     const { profiles } = useProfiles(); // Fetch all profiles
+    const { isPro } = useAccount();
     const [showPinModal, setShowPinModal] = useState(false);
-    const [newPin, setNewPin] = useState('');
+    const [pinDigits, setPinDigits] = useState(['', '', '', '']);
+    const pinRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
     const parents = profiles.filter(p => p.type === 'parent');
 
@@ -91,16 +94,36 @@ export default function SettingsPage() {
         { value: 'midnight', label: 'Midnight Dark' },
     ];
 
+    const handlePinChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value)) return; // Numbers only
+
+        const newDigits = [...pinDigits];
+        newDigits[index] = value.slice(-1); // Take last char if multiple pasted
+        setPinDigits(newDigits);
+
+        // Auto-advance
+        if (value && index < 3) {
+            pinRefs[index + 1].current?.focus();
+        }
+    };
+
+    const handlePinKeyDown = (index: number, e: React.KeyboardEvent) => {
+        if (e.key === 'Backspace' && !pinDigits[index] && index > 0) {
+            pinRefs[index - 1].current?.focus();
+        }
+    };
+
     const handleResetPin = async () => {
         if (!activeProfile?.id) return;
-        if (!newPin.trim()) return alert('Please enter a new PIN');
-        if (newPin.length < 4) return alert('PIN must be at least 4 digits');
+        const finalPin = pinDigits.join('');
+
+        if (finalPin.length !== 4) return alert('PIN must be exactly 4 digits');
 
         try {
-            await ProfileService.update(activeProfile.id, { pin: newPin });
+            await ProfileService.update(activeProfile.id, { pin: finalPin });
             setShowPinModal(false);
-            setNewPin('');
-            alert('PIN updated successfully!');
+            setPinDigits(['', '', '', '']);
+            // alert('PIN updated successfully!'); // Removed as per user request
         } catch (error) {
             console.error(error);
             alert('Failed to update PIN');
@@ -421,15 +444,39 @@ export default function SettingsPage() {
 
                         <div>
                             <p className="text-sm font-medium text-slate-700 mb-1">Link Another Parent</p>
-                            <p className="text-xs text-slate-500 mb-3">
-                                Generate a code to let another parent join this household.
-                            </p>
-                            <button
-                                onClick={handleGenerateInvite}
-                                className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-                            >
-                                <span className="text-lg">🔗</span> Generate Invite Code
-                            </button>
+
+                            {!isPro ? (
+                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-2">
+                                    <div className="flex items-start gap-3">
+                                        <div className="bg-amber-100 p-2 rounded-lg text-amber-600">
+                                            <Crown className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 mb-1">Premium Feature</p>
+                                            <p className="text-xs text-slate-600 mb-3">
+                                                Adding more parents to your household requires a Pro subscription.
+                                            </p>
+                                            <Link href="/parent/subscription">
+                                                <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 border-none shadow-sm">
+                                                    Upgrade to Add Parents
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-xs text-slate-500 mb-3">
+                                        Generate a code to let another parent join this household.
+                                    </p>
+                                    <button
+                                        onClick={handleGenerateInvite}
+                                        className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <span className="text-lg">🔗</span> Generate Invite Code
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}
@@ -556,7 +603,7 @@ export default function SettingsPage() {
                 isOpen={showPinModal}
                 onClose={() => {
                     setShowPinModal(false);
-                    setNewPin('');
+                    setPinDigits(['', '', '', '']);
                 }}
                 title="Reset PIN"
                 className="max-w-sm"
@@ -567,22 +614,30 @@ export default function SettingsPage() {
                     </p>
                     <div className="mb-6">
                         <label className="block text-sm font-bold text-slate-600 mb-2">New PIN</label>
-                        <Input
-                            type="password"
-                            value={newPin}
-                            onChange={e => setNewPin(e.target.value)}
-                            placeholder="Enter 4-digit PIN"
-                            maxLength={6}
-                            className="h-12 bg-white border-slate-200"
-                        />
-                        <p className="text-xs text-slate-500 mt-2">Minimum 4 digits</p>
+                        <div className="flex gap-3 justify-center">
+                            {pinDigits.map((digit, i) => (
+                                <input
+                                    key={i}
+                                    ref={pinRefs[i]}
+                                    type="text" // 'tel' ensures numeric keyboard on mobile but allows text manipulation easier
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={1}
+                                    value={digit}
+                                    onChange={(e) => handlePinChange(i, e.target.value)}
+                                    onKeyDown={(e) => handlePinKeyDown(i, e)}
+                                    className="w-14 h-14 text-center text-2xl font-bold bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-violet-500 focus:ring-4 focus:ring-violet-500/20 outline-none transition-all"
+                                />
+                            ))}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-4 text-center">4-digit code</p>
                     </div>
                     <div className="flex gap-3">
                         <Button
                             className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                             onClick={() => {
                                 setShowPinModal(false);
-                                setNewPin('');
+                                setPinDigits(['', '', '', '']);
                             }}
                         >
                             Cancel

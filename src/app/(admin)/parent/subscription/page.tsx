@@ -58,6 +58,12 @@ export default function SubscriptionPage() {
             free: false,
             pro: true,
             icon: "🚫"
+        },
+        {
+            label: "Multi-Parent Management",
+            free: false,
+            pro: true,
+            icon: "👥"
         }
     ];
 
