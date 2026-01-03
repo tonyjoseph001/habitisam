@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useParentNotifications } from '@/lib/hooks/useParentNotifications';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface ParentHeaderProps {
     title: string | React.ReactNode;
@@ -31,13 +32,14 @@ export function ParentHeader({ title, rightAction }: ParentHeaderProps) {
                     onClick={() => setIsSwitcherOpen(true)}
                     className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-50 transition-colors"
                 >
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                        {activeProfile?.avatarId ? (
-                            <span className="text-sm font-bold">{activeProfile.name[0]}</span>
-                        ) : (
-                            <UserIcon className="w-4 h-4" />
-                        )}
-                    </div>
+                    <Avatar
+                        avatarId={activeProfile?.avatarId}
+                        name={activeProfile?.name}
+                        type={activeProfile?.type}
+                        size="sm"
+                        showBorder={false}
+                        className="bg-primary/10 border border-primary/20 text-primary"
+                    />
                     <ChevronDown className="w-4 h-4 text-slate-500" />
                 </button>
 

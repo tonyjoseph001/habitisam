@@ -185,7 +185,13 @@ export function ProfileSwitcherModal({ isOpen, onClose }: ProfileSwitcherProps) 
                                 }`}
                         >
                             <div className="mb-2">
-                                <Avatar avatarId={profile.avatarId} size="lg" showBorder={false} />
+                                <Avatar
+                                    avatarId={profile.avatarId}
+                                    name={profile.name}
+                                    type={profile.type}
+                                    size="lg"
+                                    showBorder={false}
+                                />
                             </div>
                             <div className="text-center">
                                 <h3 className="font-bold text-slate-900">{profile.name}</h3>

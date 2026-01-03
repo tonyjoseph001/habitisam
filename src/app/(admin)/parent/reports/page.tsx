@@ -220,7 +220,13 @@ export default function ReportsPage() {
         });
 
         // Find winner
-        const winnerId = Object.keys(statsByChild).reduce((a, b) => statsByChild[a].count > statsByChild[b].count ? a : b, '');
+        const childIds = Object.keys(statsByChild);
+        if (childIds.length === 0) return null;
+
+        const winnerId = childIds.reduce((a, b) =>
+            statsByChild[a].count > statsByChild[b].count ? a : b
+        );
+
         if (!winnerId) return null;
 
         const winner = statsByChild[winnerId];

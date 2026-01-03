@@ -4,6 +4,8 @@ import { User } from 'lucide-react';
 
 interface AvatarProps {
     avatarId?: string; // e.g. 'boy', 'robot', 'princess'
+    name?: string;     // For initials fallback
+    type?: 'parent' | 'child'; // To determine fallback style
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     className?: string;
     showBorder?: boolean;
@@ -24,7 +26,7 @@ const AVATAR_MAP: Record<string, string> = {
     'unicorn': '🦄',
     'dragon': '🐉',
     'rocket': '🚀',
-    'parent': '👤' // Fallback for parent type
+    // Removed parent fallbacks to use Icon/Initials instead
 };
 
 // Deterministic gradients for specific avatars
@@ -53,12 +55,37 @@ const SIZE_CLASSES = {
     '2xl': 'w-24 h-24 text-6xl',
 };
 
-export function Avatar({ avatarId, size = 'md', className, showBorder = true }: AvatarProps) {
-    const emoji = AVATAR_MAP[avatarId || ''] || (avatarId === 'child' ? '🧒' : '👤');
+const ICON_SIZES = {
+    'sm': 'w-4 h-4',
+    'md': 'w-5 h-5',
+    'lg': 'w-7 h-7',
+    'xl': 'w-10 h-10',
+    '2xl': 'w-12 h-12',
+};
 
-    // Default gradient if no match (e.g. parent or new avatar)
-    const gradient = GRADIENT_MAP[avatarId || ''] || 'from-slate-100 to-slate-200';
-    const isParentOrPlain = !GRADIENT_MAP[avatarId || ''];
+export function Avatar({ avatarId, name, type, size = 'md', className, showBorder = true }: AvatarProps) {
+    const mapEntry = AVATAR_MAP[avatarId || ''];
+    let content: React.ReactNode = mapEntry;
+
+    // Gradient logic
+    const gradient = GRADIENT_MAP[avatarId || ''];
+    const isCustomAvatar = !!gradient;
+
+    // Fallback Logic
+    if (!content) {
+        if (type === 'parent' || avatarId?.startsWith('parent')) {
+            if (name) {
+                // Show Initials for Parent if name exists
+                content = <span className="font-bold">{name[0].toUpperCase()}</span>;
+            } else {
+                // Show User Icon
+                content = <User className={cn(ICON_SIZES[size], "text-violet-600")} />;
+            }
+        } else {
+            // Child Default
+            content = '🧒';
+        }
+    }
 
     return (
         <div
@@ -67,14 +94,14 @@ export function Avatar({ avatarId, size = 'md', className, showBorder = true }: 
                 // Base styles
                 SIZE_CLASSES[size],
                 // Gradient or plain bg
-                isParentOrPlain ? "bg-slate-100 border border-slate-200" : `bg-gradient-to-br ${gradient} text-white shadow-lg shadow-black/10`,
+                isCustomAvatar ? `bg-gradient-to-br ${gradient} text-white shadow-lg shadow-black/10` : "bg-violet-50 border border-violet-100 text-violet-700",
                 // Border ring
-                showBorder && !isParentOrPlain && "ring-4 ring-white",
+                showBorder && isCustomAvatar && "ring-4 ring-white",
                 className
             )}
         >
-            <span className="leading-none select-none filter drop-shadow-sm transform hover:scale-110 transition-transform duration-200">
-                {emoji}
+            <span className="leading-none select-none filter drop-shadow-sm transform hover:scale-110 transition-transform duration-200 flex items-center justify-center">
+                {content}
             </span>
         </div>
     );
