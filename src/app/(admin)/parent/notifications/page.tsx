@@ -230,7 +230,7 @@ export default function ParentNotificationsPage() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            {completion.starsEarned && completion.starsEarned > 0 && (
+                                            {Number(completion.starsEarned) > 0 && (
                                                 <div className="flex items-center gap-1 text-blue-600 font-black text-lg">
                                                     +{completion.starsEarned} ⭐
                                                 </div>
@@ -265,9 +265,11 @@ export default function ParentNotificationsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="flex items-center justify-end gap-1 text-green-600 font-black text-lg">
-                                                        +{goal.stars} ⭐
-                                                    </div>
+                                                    {goal.stars > 0 && (
+                                                        <div className="flex items-center justify-end gap-1 text-green-600 font-black text-lg">
+                                                            +{goal.stars} ⭐
+                                                        </div>
+                                                    )}
                                                     <span className="text-[10px] text-slate-400 font-medium">
                                                         {goal.completedAt && formatDistanceToNow(safeDate(goal.completedAt), { addSuffix: true })}
                                                     </span>

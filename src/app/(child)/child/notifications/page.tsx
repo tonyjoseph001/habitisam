@@ -124,7 +124,7 @@ export default function NotificationsPage() {
                                         </div>
                                         <div className="grid gap-3">
                                             {pending.map(item => {
-                                                const isMessage = item.amount === 0;
+                                                const isMessage = Number(item.amount || 0) <= 0;
                                                 return (
                                                     <motion.div
                                                         key={item.id}
@@ -191,7 +191,9 @@ export default function NotificationsPage() {
                                                     </p>
                                                 </div>
                                                 <div className="flex flex-col items-end self-center pl-2">
-                                                    <span className="font-black text-lg text-yellow-500">+{reward.starsEarned}</span>
+                                                    {Number(reward.starsEarned) > 0 && (
+                                                        <span className="font-black text-lg text-yellow-500">+{reward.starsEarned}</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

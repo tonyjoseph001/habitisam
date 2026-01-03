@@ -350,11 +350,18 @@ export default function MissionControlPage() {
             });
 
             // 3. Animation/Toast
-            toast.success("Reward Claimed!", {
-                description: `You got ${reward.amount} Stars!`,
-                icon: '🎁',
-                duration: 4000
-            });
+            if (reward.amount > 0) {
+                toast.success("Reward Claimed!", {
+                    description: `You got ${reward.amount} Stars!`,
+                    icon: '🎁',
+                    duration: 4000
+                });
+            } else {
+                toast.success("Message Dismissed", {
+                    icon: '👍',
+                    duration: 2000
+                });
+            }
             // Don't remove from processing immediately, let it disappear from the list naturally via filter
         } catch (e) {
             console.error("Claim error", e);
@@ -640,6 +647,8 @@ export default function MissionControlPage() {
                                             // Show max 3 cards visually
                                             if (index > 2) return null;
 
+                                            const isMessage = reward.amount <= 0;
+
                                             return (
                                                 <motion.div
                                                     key={reward.id}
@@ -651,20 +660,28 @@ export default function MissionControlPage() {
                                                         opacity: 1
                                                     }}
                                                     exit={{ scale: 1.1, opacity: 0, x: 100 }}
-                                                    className="absolute inset-x-0 bg-gradient-to-r from-pink-500 to-rose-400 rounded-2xl p-4 shadow-lg shadow-pink-200 text-white flex items-center gap-4 border border-white/20"
+                                                    className={cn(
+                                                        "absolute inset-x-0 rounded-2xl p-4 shadow-lg text-white flex items-center gap-4 border border-white/20",
+                                                        isMessage
+                                                            ? "bg-gradient-to-r from-slate-700 to-slate-600 shadow-slate-200"
+                                                            : "bg-gradient-to-r from-pink-500 to-rose-400 shadow-pink-200"
+                                                    )}
                                                     style={{ top: 0 }}
                                                 >
                                                     {/* Icon */}
                                                     <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm border border-white/10 shrink-0">
-                                                        <Gift className="w-6 h-6 text-white" />
+                                                        {isMessage ? <Bell className="w-6 h-6 text-white" /> : <Gift className="w-6 h-6 text-white" />}
                                                     </div>
 
                                                     {/* Text */}
                                                     <div className="flex-1 min-w-0">
                                                         <h3 className="font-bold text-lg leading-tight">
-                                                            {reward.senderName ? `Gift from ${reward.senderName}!` : "Gift!"}
+                                                            {isMessage
+                                                                ? (reward.senderName ? `Message from ${reward.senderName}` : "New Message")
+                                                                : (reward.senderName ? `Gift from ${reward.senderName}!` : "Gift!")
+                                                            }
                                                         </h3>
-                                                        <p className="text-pink-100 text-xs font-medium truncate">
+                                                        <p className={cn("text-xs font-medium truncate", isMessage ? "text-slate-200" : "text-pink-100")}>
                                                             {reward.message || "Good job!"}
                                                         </p>
                                                     </div>
@@ -673,7 +690,11 @@ export default function MissionControlPage() {
                                                     <button
                                                         onClick={() => handleClaimReward(reward)}
                                                         disabled={processingRewards.has(reward.id)}
-                                                        className={`bg-white text-pink-600 font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-pink-50 active:scale-95 transition-all text-sm shrink-0 flex items-center gap-1 ${processingRewards.has(reward.id) ? 'opacity-50 cursor-wait' : ''}`}
+                                                        className={cn(
+                                                            "bg-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-opacity-90 active:scale-95 transition-all text-sm shrink-0 flex items-center gap-1",
+                                                            isMessage ? "text-slate-700" : "text-pink-600",
+                                                            processingRewards.has(reward.id) ? 'opacity-50 cursor-wait' : ''
+                                                        )}
                                                     >
                                                         {processingRewards.has(reward.id) ? (
                                                             <Icons.Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -682,12 +703,15 @@ export default function MissionControlPage() {
                                                         ) : (
                                                             <Icons.Check className="w-3.5 h-3.5" />
                                                         ))}
-                                                        <span>{processingRewards.has(reward.id) ? 'Claiming...' : (reward.amount > 0 ? `Claim ${reward.amount}` : "Got it!")}</span>
+                                                        <span>{processingRewards.has(reward.id) ? 'Processing...' : (reward.amount > 0 ? `Claim ${reward.amount}` : "Got it!")}</span>
                                                     </button>
 
                                                     {/* Stack Indicator */}
                                                     {inboxRewards.length > 1 && index === 0 && (
-                                                        <div className="absolute -top-2 -right-2 bg-rose-600 text-white border-2 border-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm z-10">
+                                                        <div className={cn(
+                                                            "absolute -top-2 -right-2 text-white border-2 border-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm z-10",
+                                                            isMessage ? "bg-slate-600" : "bg-rose-600"
+                                                        )}>
                                                             +{inboxRewards.length - 1}
                                                         </div>
                                                     )}
