@@ -9,10 +9,14 @@ import { cn } from '@/lib/utils';
 import { ParentHeader } from '@/components/layout/ParentHeader';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { ProfileService } from '@/lib/firestore/profiles.service';
+import { AdMobBanner } from '@/components/ads/AdMobBanner';
+import { BannerAdPosition, BannerAdSize } from '@capacitor-community/admob';
+import { X } from 'lucide-react';
 
 export default function ProfilesPage() {
     const router = useRouter();
     const { profiles: fetchedProfiles, loading } = useProfiles();
+    const [showAd, setShowAd] = React.useState(true);
     // Only show child profiles here. Parents are managed in Settings.
     const profiles = (fetchedProfiles || []).filter(p => p.type !== 'parent');
 
@@ -134,6 +138,25 @@ export default function ProfilesPage() {
                     Add Profile
                 </button>
             </div>
+
+            {/* AdMob Banner - Center MREC */}
+            {showAd && (
+                <>
+                    <AdMobBanner
+                        position={BannerAdPosition.CENTER}
+                        size={BannerAdSize.MEDIUM_RECTANGLE}
+                        margin={0}
+                    />
+                    {/* Floating Close Button - Center Ad - Red Pill Style */}
+                    <button
+                        onClick={() => setShowAd(false)}
+                        className="fixed top-[calc(50%-200px)] right-[50%] translate-x-[120px] z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
+                    >
+                        <X className="w-4 h-4" />
+                        CLOSE AD
+                    </button>
+                </>
+            )}
 
             <ParentNavBar />
         </div>

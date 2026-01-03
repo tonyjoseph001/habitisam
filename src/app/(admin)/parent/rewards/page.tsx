@@ -12,11 +12,15 @@ import { ParentHeader } from '@/components/layout/ParentHeader';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useRewards } from '@/lib/hooks/useRewards';
 import { toast } from 'sonner';
+import { AdMobBanner } from '@/components/ads/AdMobBanner';
+import { BannerAdPosition, BannerAdSize } from '@capacitor-community/admob';
+import { X } from 'lucide-react';
 
 export default function ParentRewardsPage() {
     const router = useRouter();
     const { activeProfile } = useSessionStore();
     const [deleteRewardId, setDeleteRewardId] = useState<string | null>(null);
+    const [showAd, setShowAd] = useState(true);
 
     // Help System
     const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -292,6 +296,27 @@ export default function ParentRewardsPage() {
                     <Button onClick={() => setHelpModalOpen(false)} className="w-full bg-primary text-white">Got it</Button>
                 </div>
             </Modal>
+
+            {/* AdMob Banner - Center MREC */}
+            {showAd && (
+                <>
+                    <AdMobBanner
+                        position={BannerAdPosition.CENTER}
+                        size={BannerAdSize.MEDIUM_RECTANGLE}
+                        margin={0}
+                    />
+                    {/* Floating Close Button - Center Ad - Red Pill Style */}
+                    {/* Centered vertically relative to ad top edge. Ad is ~250px tall. Top is ~50%-125px. 
+                        We place button at 50%-200px gives ~75px clearance above Ad. */}
+                    <button
+                        onClick={() => setShowAd(false)}
+                        className="fixed top-[calc(50%-200px)] right-[50%] translate-x-[120px] z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
+                    >
+                        <X className="w-4 h-4" />
+                        CLOSE AD
+                    </button>
+                </>
+            )}
         </div >
     );
 }

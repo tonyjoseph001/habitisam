@@ -9,11 +9,13 @@ import { useProfiles } from '@/lib/hooks/useProfiles';
 import { ProfileService } from '@/lib/firestore/profiles.service';
 import { LogService } from '@/lib/firestore/logs.service';
 import { ParentHeader } from '@/components/layout/ParentHeader';
-import { Plus, Edit2, Trash2, ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronLeft, Calendar as CalendarIcon, Clock, CheckCircle, X } from 'lucide-react';
 import * as Icons from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
+import { AdMobBanner } from '@/components/ads/AdMobBanner';
+import { BannerAdPosition, BannerAdSize } from '@capacitor-community/admob';
 
 export default function RoutinesPage() {
     const router = useRouter();
@@ -29,6 +31,7 @@ export default function RoutinesPage() {
     const [approvingGoal, setApprovingGoal] = React.useState<any | null>(null);
     const [rejectingGoal, setRejectingGoal] = React.useState<any | null>(null);
     const [awardStars, setAwardStars] = React.useState<number>(0);
+    const [showAd, setShowAd] = React.useState(true);
 
     const handleOpenNew = () => {
         router.push('/parent/routines/new');
@@ -240,8 +243,9 @@ export default function RoutinesPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-24">
+        <div className="min-h-screen bg-[#F8FAFC] pb-[140px]">
             {/* Header */}
+            {/* Header with Add Button */}
             <ParentHeader title="Tasks" />
 
             {/* Tabs */}
@@ -373,9 +377,26 @@ export default function RoutinesPage() {
                     </>
                 )}
 
-
             </main>
-
+            {/* AdMob Banner - Conditional */}
+            {/* AdMob Banner - Conditional */}
+            {showAd && (
+                <>
+                    <AdMobBanner
+                        position={BannerAdPosition.TOP_CENTER}
+                        size={BannerAdSize.ADAPTIVE_BANNER}
+                        margin={0}
+                    />
+                    {/* Floating Close Button - Positioned SAFELY BELOW the Top Ad (Debug Position) */}
+                    <button
+                        onClick={() => setShowAd(false)}
+                        className="fixed top-[130px] right-4 z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
+                    >
+                        <X className="w-4 h-4" />
+                        CLOSE AD
+                    </button>
+                </>
+            )}
             {/* Floating "Add Routine" Button */}
             <div className="fixed bottom-24 left-0 w-full px-6 flex justify-center z-40 pointer-events-none">
                 <button
@@ -386,6 +407,7 @@ export default function RoutinesPage() {
                     Add Routine
                 </button>
             </div>
+
 
             <ParentNavBar />
 

@@ -13,6 +13,8 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { AdMobBanner } from '@/components/ads/AdMobBanner';
+import { BannerAdPosition, BannerAdSize } from '@capacitor-community/admob';
 
 import { ParentHeader } from '@/components/layout/ParentHeader';
 import { useProfiles } from '@/lib/hooks/useProfiles';
@@ -526,10 +528,16 @@ export default function ParentDashboard() {
 
                             <div className="flex flex-col gap-2 px-4">
                                 {filteredRoutines?.length === 0 && (
-                                    <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-slate-100 shadow-sm border-dashed">
-                                        No routines for selected children.
+                                    <div className="flex flex-col gap-4">
+                                        <div className="text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-slate-100 shadow-sm border-dashed">
+                                            No routines for selected children.
+                                        </div>
+                                        {/* MREC Ad for Empty State - Centered */}
+
                                     </div>
                                 )}
+
+
 
                                 {filteredRoutines?.map(routine => {
                                     return (

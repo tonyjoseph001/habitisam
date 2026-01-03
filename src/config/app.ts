@@ -9,8 +9,14 @@ export const APP_CONFIG = {
 
     // Feature Flags (Default Local Fallbacks)
     defaultFeatureFlags: {
-        enableAds: false,
+        enableAds: true,
         enableProExclusivity: false, // If false, everyone gets Pro features (Launch Phase)
         maintenanceMode: false
+    },
+
+    // AdMob Configuration (Using Google Test IDs)
+    adMob: {
+        androidBannerId: 'ca-app-pub-3940256099942544/6300978111',
+        iosBannerId: 'ca-app-pub-3940256099942544/2934735716'
     }
 };
