@@ -32,6 +32,7 @@ export default function RoutinesPage() {
     const [rejectingGoal, setRejectingGoal] = React.useState<any | null>(null);
     const [awardStars, setAwardStars] = React.useState<number>(0);
     const [showAd, setShowAd] = React.useState(true);
+    const [adIsVisible, setAdIsVisible] = React.useState(false); // Only show button when ad confirms load
 
     const handleOpenNew = () => {
         router.push('/parent/routines/new');
@@ -386,15 +387,22 @@ export default function RoutinesPage() {
                         position={BannerAdPosition.TOP_CENTER}
                         size={BannerAdSize.ADAPTIVE_BANNER}
                         margin={0}
+                        onAdLoaded={() => {
+                            console.log("✅ AdMob Reported Success - Showing Close Button");
+                            setAdIsVisible(true);
+                        }}
+                        onAdFailedToLoad={() => setAdIsVisible(false)}
                     />
-                    {/* Floating Close Button - Positioned SAFELY BELOW the Top Ad (Debug Position) */}
-                    <button
-                        onClick={() => setShowAd(false)}
-                        className="fixed top-[130px] right-4 z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
-                    >
-                        <X className="w-4 h-4" />
-                        CLOSE AD
-                    </button>
+                    {/* Floating Close Button - Only show if Ad actually loaded */}
+                    {adIsVisible && (
+                        <button
+                            onClick={() => setShowAd(false)}
+                            className="fixed top-[130px] right-4 z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
+                        >
+                            <X className="w-4 h-4" />
+                            CLOSE AD
+                        </button>
+                    )}
                 </>
             )}
             {/* Floating "Add Routine" Button */}

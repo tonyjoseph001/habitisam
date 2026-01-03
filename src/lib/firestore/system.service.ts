@@ -11,27 +11,36 @@ export interface RemoteSystemConfig {
         enableProExclusivity: boolean;
         [key: string]: boolean;
     };
+    adMob?: {
+        androidBannerId?: string;
+        iosBannerId?: string;
+    };
 }
 
 const CACHE_KEY = 'system_config_cache';
-const CACHE_DURATION = 1000 * 60 * 60; // 1 Hour
+const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 Hours
 
 export const SystemService = {
     getConfig: async (): Promise<RemoteSystemConfig | null> => {
-        try {
-            // 1. Check Local Cache first (to save reads)
-            const cached = localStorage.getItem(CACHE_KEY);
-            const isDev = process.env.NODE_ENV === 'development'; // Detect Development Mode
-
-            // Skip cache in dev to allow testing config changes
-            if (cached && !isDev) {
-                const { data, timestamp } = JSON.parse(cached);
-                if (Date.now() - timestamp < CACHE_DURATION) {
-                    return data as RemoteSystemConfig;
+        // Helper to get cache
+        const getLocalCache = (): RemoteSystemConfig | null => {
+            try {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    const { data, timestamp } = JSON.parse(cached);
+                    if (Date.now() - timestamp < CACHE_DURATION) {
+                        return data as RemoteSystemConfig;
+                    }
                 }
+            } catch (e) {
+                console.error("Cache parse error", e);
             }
+            return null;
+        };
 
-            // 2. Fetch from Firestore (Collection: 'system', Doc: 'config')
+        try {
+            // 1. Network First (Force Sync)
+            // We always try to fetch fresh config to ensure Ads/Features are up to date.
             const ref = doc(db, 'system', 'config');
             const snap = await getDoc(ref);
 
@@ -45,12 +54,17 @@ export const SystemService = {
                 }));
 
                 return data;
+            } else {
+                // If doc doesn't exist, try falling back to cache? 
+                // Usually if DB is reachable but doc missing, we should probably return null or defaults.
+                // But let's check cache just in case of weird permissions.
+                return getLocalCache();
             }
 
-            return null;
         } catch (error) {
-            console.error("Failed to fetch system config:", error);
-            return null; // Fail gracefully (app uses defaults)
+            console.warn("Failed to fetch remote config (Network/Offline). Falling back to cache.", error);
+            // 2. Offline Fallback
+            return getLocalCache();
         }
     }
 };

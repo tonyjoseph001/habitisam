@@ -17,6 +17,7 @@ export default function ProfilesPage() {
     const router = useRouter();
     const { profiles: fetchedProfiles, loading } = useProfiles();
     const [showAd, setShowAd] = React.useState(true);
+    const [adIsVisible, setAdIsVisible] = React.useState(false);
     // Only show child profiles here. Parents are managed in Settings.
     const profiles = (fetchedProfiles || []).filter(p => p.type !== 'parent');
 
@@ -146,15 +147,19 @@ export default function ProfilesPage() {
                         position={BannerAdPosition.CENTER}
                         size={BannerAdSize.MEDIUM_RECTANGLE}
                         margin={0}
+                        onAdLoaded={() => setAdIsVisible(true)}
+                        onAdFailedToLoad={() => setAdIsVisible(false)}
                     />
                     {/* Floating Close Button - Center Ad - Red Pill Style */}
-                    <button
-                        onClick={() => setShowAd(false)}
-                        className="fixed top-[calc(50%-200px)] right-[50%] translate-x-[120px] z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
-                    >
-                        <X className="w-4 h-4" />
-                        CLOSE AD
-                    </button>
+                    {adIsVisible && (
+                        <button
+                            onClick={() => setShowAd(false)}
+                            className="fixed top-[calc(50%-200px)] right-[50%] translate-x-[120px] z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
+                        >
+                            <X className="w-4 h-4" />
+                            CLOSE AD
+                        </button>
+                    )}
                 </>
             )}
 

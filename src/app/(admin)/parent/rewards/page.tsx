@@ -21,6 +21,7 @@ export default function ParentRewardsPage() {
     const { activeProfile } = useSessionStore();
     const [deleteRewardId, setDeleteRewardId] = useState<string | null>(null);
     const [showAd, setShowAd] = useState(true);
+    const [adIsVisible, setAdIsVisible] = useState(false);
 
     // Help System
     const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -304,17 +305,19 @@ export default function ParentRewardsPage() {
                         position={BannerAdPosition.CENTER}
                         size={BannerAdSize.MEDIUM_RECTANGLE}
                         margin={0}
+                        onAdLoaded={() => setAdIsVisible(true)}
+                        onAdFailedToLoad={() => setAdIsVisible(false)}
                     />
                     {/* Floating Close Button - Center Ad - Red Pill Style */}
-                    {/* Centered vertically relative to ad top edge. Ad is ~250px tall. Top is ~50%-125px. 
-                        We place button at 50%-200px gives ~75px clearance above Ad. */}
-                    <button
-                        onClick={() => setShowAd(false)}
-                        className="fixed top-[calc(50%-200px)] right-[50%] translate-x-[120px] z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
-                    >
-                        <X className="w-4 h-4" />
-                        CLOSE AD
-                    </button>
+                    {adIsVisible && (
+                        <button
+                            onClick={() => setShowAd(false)}
+                            className="fixed top-[calc(50%-200px)] right-[50%] translate-x-[120px] z-[100] bg-red-600 text-white px-3 py-1.5 rounded-full shadow-xl shadow-black/20 flex items-center gap-2 font-bold text-xs"
+                        >
+                            <X className="w-4 h-4" />
+                            CLOSE AD
+                        </button>
+                    )}
                 </>
             )}
         </div >
